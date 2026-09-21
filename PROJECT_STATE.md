@@ -15,14 +15,14 @@ This file is the canonical source of truth for current project status, accepted 
 | Accepted baseline branch | `main` |
 | Accepted baseline commit | `84c3320` — `FND-01 — Laravel application foundation` |
 | Current working branch | `sync-spike-01` |
-| Current branch head | `a532d87` — `SYNC-SPIKE-01 experimental offline autosave and conflict handling` |
+| Sync implementation commit | `a532d87` — `SYNC-SPIKE-01 experimental offline autosave and conflict handling` |
 | Last completed and accepted gate | Build Gate 1 — Foundation |
 | Active gate | Build Gate 2 — Early sync spike |
 | Current milestone | `SYNC-SPIKE-01` |
 | Milestone status | Implemented and verified; awaiting review, acceptance, and merge |
 | Exact next milestone | Accept and merge `SYNC-SPIKE-01`, then start the minimum academic/rotation administration slice needed by the walking skeleton |
 
-The current branch head is a review candidate, not yet the accepted baseline. Until the sync spike is accepted, agents must branch from or compare against `84c3320` as directed by the task owner and must not describe `a532d87` as merged.
+The sync implementation commit is a review candidate, not yet the accepted baseline. Later documentation-only commits may exist on the branch. Until the sync spike is accepted, agents must branch from or compare against `84c3320` as directed by the task owner and must not describe `a532d87` as merged.
 
 ## 2. Completed and accepted work
 
