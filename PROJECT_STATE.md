@@ -13,7 +13,7 @@ This file is the canonical source of truth for current project status, accepted 
 | -------------------------------- | ----------------------------------------------------------------------- |
 | Repository                       | `Joseph5157/Pharmalab`                                                  |
 | Accepted baseline branch         | `main`                                                                  |
-| Accepted baseline commit         | `ceacdf7` — accepted ADM-FOUNDATION-01 and academic admin scope        |
+| Accepted baseline commit         | `315705a` — accepted ADM-FOUNDATION-01, activated walking skeleton     |
 | Current working branch           | `main`                                                                  |
 | Last completed and accepted gate | Build Gate 3 — Academic and rotation administration                    |
 | Active gate                      | Walking skeleton                                                        |
@@ -57,7 +57,7 @@ This file is the canonical source of truth for current project status, accepted 
 
 - **Status:** Accepted and closed
 - **Implementation commit:** `3991f2c`
-- **Accepted merge commit:** `ceacdf7`
+- **Accepted merge commit:** `315705a`
 - **Pull request:** GitHub PR #2
 - **Objective:** Provide only the academic structure and assignments required to support the next walking-skeleton gate.
 - **In scope:** Programmes and cohorts; clinical sites, departments and wards; student and faculty accounts; rotation creation; student/preceptor assignment; assignment authorization; audit events.
