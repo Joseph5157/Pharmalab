@@ -30,6 +30,7 @@ Statuses:
 | DEC-013 | Use a faculty-approved local intervention taxonomy initially. | Full PCNE classification reuse requires licensing/permission review for commercial use. |
 | DEC-014 | AI-generated clinical recommendations are deferred. | Normal Phase 1 workflow and governed data must be established first. |
 | DEC-015 | Comprehensive drug monographs and DDI checking are deferred. | Content sourcing, licensing, clinical governance and update processes need separate work. |
+| DEC-016 | Academic, site, rotation and assignment records carry explicit institution ownership and use restrictive foreign keys. Referenced records are deactivated rather than deleted. | Keeps tenant boundaries queryable and preserves the academic context needed by later case records and audit history. |
 
 ## 3. Provisional decisions requiring validation
 
@@ -44,6 +45,7 @@ Statuses:
 | DEC-107 | Admin may see case content only through an explicit academic permission. | Confirm institutional administrative oversight policy. |
 | DEC-108 | Rotations retain the template/rubric versions selected at activation. | Confirm how mid-rotation curriculum changes should apply. |
 | DEC-109 | Section-level revision comparison is sufficient for Phase 1. | Test with faculty on medication/lab repeatable records. |
+| DEC-110 | One rotation assignment links one student to one primary preceptor for the walking skeleton, unique per student and rotation. | Confirm whether later gates require co-preceptors, second reviewers or separate faculty-assignment records before expanding this model. |
 
 ## 4. Open institutional decisions
 
@@ -77,7 +79,18 @@ These should be answered during the Phase 0 workshop.
 | DEF-004 | Public API / native applications | A second client or external institution has a confirmed need. |
 | DEF-005 | Multi-tenant SaaS subscriptions and super-admin | Pilot proves institutional value and commercial model is approved. |
 
-## 6. Decision-change template
+## 6. Scope reconciliation records
+
+### ADM-FOUNDATION-01 — 2026-09-21
+
+- `PROJECT_STATE.md` narrows this gate relative to the broader implementation backlog.
+- Included now: programmes, cohorts, clinical sites, departments, wards, student/faculty account creation and status administration, rotations, one student/primary-preceptor assignment, tenant authorization, and audit events.
+- Deferred from the broader Epic 2 backlog: CSV roster import (`ADM-04`) and assignment notifications (`ADM-07`).
+- Deferred from the schema/workflow direction: case-template and rubric references, requirements JSON, overlap scheduling rules, and activation prerequisites that depend on later institutional decisions.
+- Explicitly excluded: template/rubric builders (`ADM-09`/`ADM-10`), reports, clinical schema, and case/review workflow.
+- Reason: the authoritative milestone is limited to the minimum configuration an administrator needs to support the next walking-skeleton gate.
+
+## 7. Decision-change template
 
 ```text
 ID: DEC-XXX

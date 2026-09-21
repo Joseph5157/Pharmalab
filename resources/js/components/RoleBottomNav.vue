@@ -37,8 +37,8 @@ const items = computed(() => {
 
     return [
         { label: 'Home', href: '/admin', icon: Home },
-        { label: 'People', href: '#', icon: Users },
-        { label: 'Rotations', href: '#', icon: ClipboardList },
+        { label: 'People', href: '/admin/people', icon: Users },
+        { label: 'Rotations', href: '/admin/rotations', icon: ClipboardList },
         { label: 'Profile', href: '/settings/profile', icon: Settings },
     ];
 });
