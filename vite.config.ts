@@ -7,30 +7,37 @@ import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
-    plugins: lazyPlugins(() => [
-        laravel({
-            input: ['resources/css/app.css', 'resources/js/app.ts'],
-            refresh: true,
-            fonts: [
-                bunny('Public Sans', {
-                    weights: [400, 500, 600],
-                }),
-            ],
-        }),
-        inertia(),
-        tailwindcss(),
-        vue({
-            template: {
-                transformAssetUrls: {
-                    base: null,
-                    includeAbsolute: false,
+    plugins: lazyPlugins(() => {
+        const plugins = [
+            laravel({
+                input: ['resources/css/app.css', 'resources/js/app.ts'],
+                refresh: true,
+                fonts: [
+                    bunny('Public Sans', {
+                        weights: [400, 500, 600],
+                    }),
+                ],
+            }),
+            inertia(),
+            tailwindcss(),
+            vue({
+                template: {
+                    transformAssetUrls: {
+                        base: null,
+                        includeAbsolute: false,
+                    },
                 },
-            },
-        }),
-        wayfinder({
-            formVariants: process.env.DOCKER_BUILD !== 'true',
-        }),
-    ]),
+            }),
+        ];
+
+        if (process.env.DOCKER_BUILD !== 'true') {
+            plugins.push(wayfinder({
+                formVariants: true,
+            }));
+        }
+
+        return plugins;
+    }),
     server: {
         watch: {
             ignored: [
