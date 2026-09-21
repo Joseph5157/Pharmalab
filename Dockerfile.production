@@ -49,7 +49,7 @@ RUN composer dump-autoload --optimize --no-dev \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
-    && php artisan events:cache \
+    && php artisan event:cache \
     && php artisan storage:link
 
 RUN chmod -R 775 storage bootstrap/cache \
