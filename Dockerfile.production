@@ -45,8 +45,10 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY . .
 
+# config:cache is intentionally NOT run here: it would bake build-time env
+# (no APP_KEY, default DB host) into the image and ignore Railway variables.
+# It runs at container start instead (see CMD).
 RUN composer dump-autoload --optimize --no-dev \
-    && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
     && php artisan event:cache \
@@ -64,4 +66,4 @@ COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "php artisan config:cache && php artisan migrate --force && php-fpm -D && nginx -g 'daemon off;'"]
