@@ -11,13 +11,16 @@ import UserInfo from '@/components/UserInfo.vue';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
+import { clearCaseDraftStorage } from '@/lib/caseDraftStore';
 
 type Props = {
     user: User;
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
+    await clearCaseDraftStorage();
     router.flushAll();
+    router.post(logout.url());
 };
 
 defineProps<Props>();
@@ -40,15 +43,14 @@ defineProps<Props>();
     </DropdownMenuGroup>
     <DropdownMenuSeparator />
     <DropdownMenuItem :as-child="true">
-        <Link
+        <button
             class="block w-full cursor-pointer"
-            :href="logout()"
             @click="handleLogout"
-            as="button"
+            type="button"
             data-test="logout-button"
         >
             <LogOut class="mr-2 h-4 w-4" />
             Log out
-        </Link>
+        </button>
     </DropdownMenuItem>
 </template>
