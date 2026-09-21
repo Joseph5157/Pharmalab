@@ -28,7 +28,7 @@ export default defineConfig({
             },
         }),
         wayfinder({
-            formVariants: !process.env.DOCKER_BUILD,
+            formVariants: process.env.DOCKER_BUILD !== 'true',
         }),
     ]),
     server: {
