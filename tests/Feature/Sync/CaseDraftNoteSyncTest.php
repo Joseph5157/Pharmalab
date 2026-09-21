@@ -159,7 +159,7 @@ class CaseDraftNoteSyncTest extends TestCase
     }
 
     /** @param array<string, mixed> $noteAttributes
-     *  @return array{User, CaseDraftNote}
+     * @return array{User, CaseDraftNote}
      */
     private function studentAndNote(array $noteAttributes = []): array
     {
