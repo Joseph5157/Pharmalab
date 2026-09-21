@@ -7,6 +7,11 @@ use App\Http\Controllers\Admin\PeopleController;
 use App\Http\Controllers\Admin\RotationController;
 use App\Http\Controllers\CaseDraftNoteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Faculty\ReviewController;
+use App\Http\Controllers\Student\CaseController;
+use App\Http\Controllers\Student\PortfolioController;
+use App\Http\Controllers\Student\SoapController;
+use App\Http\Controllers\Student\SubmissionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -19,10 +24,22 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('student/sync-spike', [CaseDraftNoteController::class, 'index'])->name('student.sync-spike');
         Route::get('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'show'])->name('student.sync-spike.show');
         Route::put('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'sync'])->name('student.sync-spike.sync');
+
+        Route::get('student/cases', [CaseController::class, 'index'])->name('student.cases.index');
+        Route::post('student/cases', [CaseController::class, 'store'])->name('student.cases.store');
+        Route::get('student/cases/{case}', [CaseController::class, 'show'])->name('student.cases.show');
+        Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap');
+        Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update');
+        Route::post('student/cases/{case}/submit', [SubmissionController::class, 'store'])->name('student.cases.submit');
+        Route::get('student/portfolio', [PortfolioController::class, 'index'])->name('student.portfolio');
     });
 
     Route::middleware('role:'.UserRole::Faculty->value)->group(function (): void {
         Route::get('faculty', [DashboardController::class, 'faculty'])->name('faculty.dashboard');
+        Route::get('faculty/reviews', [ReviewController::class, 'index'])->name('faculty.reviews.index');
+        Route::get('faculty/reviews/{case}', [ReviewController::class, 'show'])->name('faculty.reviews.show');
+        Route::post('faculty/reviews/{case}/approve', [ReviewController::class, 'approve'])->name('faculty.reviews.approve');
+        Route::post('faculty/reviews/{case}/return', [ReviewController::class, 'returnCase'])->name('faculty.reviews.return');
     });
 
     Route::prefix('admin')->middleware('role:'.UserRole::Administrator->value)->group(function (): void {
