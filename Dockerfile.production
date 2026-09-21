@@ -1,0 +1,66 @@
+FROM php:8.4-fpm-bookworm AS base
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        $PHPIZE_DEPS \
+        git \
+        libicu-dev \
+        libonig-dev \
+        libpq-dev \
+        libzip-dev \
+        unzip \
+        curl \
+        nginx \
+    && docker-php-ext-install bcmath intl mbstring pdo_pgsql zip opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+# --- Build stage for frontend ---
+FROM node:20-bookworm AS frontend-build
+
+WORKDIR /var/www/html
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY vite.config.ts tsconfig.json tsconfig.node.json ./
+COPY resources/ resources/
+COPY public/ public/
+
+RUN npm run build
+
+# --- Production stage ---
+FROM base AS production
+
+COPY --from=frontend-build /var/www/html/public/build /var/www/html/public/build
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+COPY . .
+
+RUN composer dump-autoload --optimize --no-dev \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan events:cache \
+    && php artisan storage:link
+
+RUN chmod -R 775 storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+# Nginx configuration
+RUN rm /etc/nginx/sites-enabled/default
+COPY docker/nginx.conf /etc/nginx/conf.d/app.conf
+
+# PHP-FPM pool configuration
+COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
+
+EXPOSE 80
+
+CMD ["sh", "-c", "php-fpm -D && nginx -g 'daemon off;'"]
