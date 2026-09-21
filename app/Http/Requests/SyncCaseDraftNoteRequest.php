@@ -12,6 +12,7 @@ class SyncCaseDraftNoteRequest extends FormRequest
         return $this->user()?->can('update', $this->route('caseDraftNote')) ?? false;
     }
 
+    /** @return array<string, mixed> */
     public function rules(): array
     {
         return [
