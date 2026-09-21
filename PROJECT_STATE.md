@@ -9,20 +9,18 @@ This file is the canonical source of truth for current project status, accepted 
 
 ## 1. Current position
 
-| Item                             | Current value                                                                                                                  |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Repository                       | `Joseph5157/Pharmalab`                                                                                                         |
-| Accepted baseline branch         | `main`                                                                                                                         |
-| Accepted baseline commit         | `84c3320` — `FND-01 — Laravel application foundation`                                                                          |
-| Current working branch           | `sync-spike-01`                                                                                                                |
-| Sync implementation commit       | `a532d87` — `SYNC-SPIKE-01 experimental offline autosave and conflict handling`                                                |
-| Last completed and accepted gate | Build Gate 1 — Foundation                                                                                                      |
-| Active gate                      | Build Gate 2 — Early sync spike                                                                                                |
-| Current milestone                | `SYNC-SPIKE-01`                                                                                                                |
-| Milestone status                 | Implemented and verified; awaiting review, acceptance, and merge                                                               |
-| Exact next milestone             | Accept and merge `SYNC-SPIKE-01`, then start the minimum academic/rotation administration slice needed by the walking skeleton |
-
-The sync implementation commit is a review candidate, not yet the accepted baseline. Later documentation-only commits may exist on the branch. Until the sync spike is accepted, agents must branch from or compare against `84c3320` as directed by the task owner and must not describe `a532d87` as merged.
+| Item                             | Current value                                                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Repository                       | `Joseph5157/Pharmalab`                                                                                    |
+| Accepted baseline branch         | `main`                                                                                                    |
+| Accepted baseline commit         | `4306c88` — merge of PR #1, `SYNC-SPIKE-01 experimental offline autosave and conflict handling`           |
+| Current working branch           | `main`                                                                                                    |
+| Last completed and accepted gate | Build Gate 2 — Early sync spike                                                                           |
+| Active gate                      | Academic and rotation administration                                                                      |
+| Current milestone                | `ADM-FOUNDATION-01` — Minimal academic and rotation administration                                        |
+| Milestone status                 | Active; implementation not started                                                                        |
+| Exact next action                | Create `adm-foundation-01` from the accepted baseline and implement only the bounded administration scope |
+| Next gate after this milestone   | Walking skeleton                                                                                          |
 
 ## 2. Completed and accepted work
 
@@ -34,46 +32,54 @@ The sync implementation commit is a review candidate, not yet the accepted basel
 - **Verification:** Clean-install workflow, authentication, role-route isolation, institution isolation, responsive/mobile navigation, automated application tests, frontend checks, static analysis, formatting and production build were verified before acceptance.
 - **Important limitation:** This baseline does not contain the academic administration workflow, clinical case workflow, review workflow, or production offline support.
 
-## 3. Active work
+### Build Gate 2 — `SYNC-SPIKE-01`
 
-### `SYNC-SPIKE-01` — Experimental offline autosave and conflict handling
-
-- **Status:** Implemented and verified on `sync-spike-01`; awaiting acceptance and merge
-- **Candidate commit:** `a532d87`
+- **Status:** Accepted and closed
+- **Implementation commit:** `a532d87`
+- **Accepted merge commit:** `4306c88`
+- **Pull request:** GitHub PR #1
 - **Objective:** Prove that a student can edit one de-identified case-note section during unreliable connectivity without silently losing or overwriting data.
 - **Scope:** One experimental `Case Draft Note`; this is not the complete case module or clinical schema.
 - **Implemented:** IndexedDB draft/outbox, stable `client_operation_id`, idempotent synchronization, server `lock_version`, optimistic concurrency checks, manual retry, foreground reconnect handling, persistent save states, mobile section-level conflict resolution, audit events, logout draft clearing, and owner/institution authorization.
-- **Automated verification:** 54 application tests run, 52 passed, 2 skipped, with 205 assertions. The focused sync suite passed 7 tests with 29 assertions. PHPStan, Pint, frontend checks, TypeScript checks, production build, and `git diff --check` passed.
-- **Browser verification:** Headless Chromium at 390 × 844 verified online autosave, network failure, IndexedDB persistence, offline refresh recovery after reconnect, foreground synchronization, stale-version conflict handling, mobile conflict choices, and logout clearing.
+- **PR verification:** GitHub CI passed after aligning the declared/runtime PHP version with the PHP 8.4-compatible lockfile and correcting formatter/static-analysis findings.
+- **Merged-main verification:** 54 application tests run, 52 passed, 2 skipped, with 205 assertions. PHPStan, Pint, Composer validation, frontend checks, TypeScript checks, production build, and `git diff --check` passed.
+- **Browser verification:** Headless Chromium at 390 × 844 passed online autosave, network failure, IndexedDB persistence, offline refresh recovery after reconnect, foreground synchronization, stale-version conflict handling, mobile conflict choices, and logout clearing.
 - **Findings:** See [`docs/SYNC_SPIKE_01_FINDINGS.md`](docs/SYNC_SPIKE_01_FINDINGS.md).
 
-#### Known spike boundaries
+#### Accepted limitations
 
 - A cold load or refresh while fully offline shows the browser network error because clinical-page service-worker caching is deferred. The IndexedDB draft survives and is recovered after reconnection and reopening.
 - Browser storage may be evicted; permanent offline storage is not guaranteed.
 - Background Sync, automatic field-level merging, faculty review, submission, and full clinical forms are not included.
 - Archived device copies are proven technically, but a complete draft-management screen and the final retention policy remain open.
-- The repository's existing `composer test` script invokes bare `pint` and fails on Windows path resolution. Its underlying checks pass when the vendor binaries are invoked directly.
 
-#### Acceptance action
+## 3. Active work
 
-Review the spike findings and implementation. If accepted, merge `sync-spike-01`, record the merge commit as the new accepted baseline in this file, close Build Gate 2, and activate the academic/rotation administration milestone.
+### `ADM-FOUNDATION-01` — Minimal academic and rotation administration
+
+- **Status:** Active; implementation not started
+- **Objective:** Provide only the academic structure and assignments required to support the next walking-skeleton gate.
+- **In scope:** Programmes and cohorts; clinical sites, departments and wards; student and faculty accounts; rotation creation; student/preceptor assignment; assignment authorization; audit events.
+- **Required quality:** Institution-scoped queries and policies, server-side validation, negative authorization tests, responsive administration flows, and auditable configuration changes.
+- **Explicitly excluded:** Full template builder, advanced reports, final clinical schema, clinical forms, faculty case review, submission workflow, and later PWA features.
+- **Exit condition:** An institution administrator can configure the minimum academic/site hierarchy, create or manage student and faculty accounts, create a rotation, assign its student and preceptor, and the authorization/audit test suite passes.
+- **Next gate:** Walking skeleton.
 
 ## 4. Accepted decisions and reasons
 
-| Decision                                               | Status                 | Reason                                                                                                                                                                           |
-| ------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Laravel + Inertia.js + Vue 3 + TypeScript + PostgreSQL | Accepted               | Provides a modern interface with cohesive server-side authorization and a relational domain model.                                                                               |
-| Modular monolith                                       | Accepted               | Phase 1 does not need external API or microservice complexity.                                                                                                                   |
-| Server-side policies and institution-scoped queries    | Accepted               | Client capability flags are presentation helpers, not security controls.                                                                                                         |
-| De-identification by design                            | Accepted               | The educational record must not collect direct patient identifiers in standard forms.                                                                                            |
-| Immutable submitted and approved versions              | Accepted               | Faculty decisions must remain tied to the exact work reviewed.                                                                                                                   |
-| Early sync spike before clinical forms                 | Accepted               | Autosave, retry, idempotency and concurrency affect every later case section.                                                                                                    |
-| Offline support limited to de-identified drafts        | Accepted               | The server remains authoritative; submission, return and approval require a current online state.                                                                                |
-| Foreground reconnect and manual retry are required     | Accepted               | Browser Background Sync is not reliable enough to be the only recovery mechanism.                                                                                                |
-| Section-level conflict handling                        | Accepted for the spike | It prevents silent overwrite without introducing automatic field/text merge complexity. Reuse in clinical forms remains subject to spike acceptance and device-retention policy. |
-| AI-generated clinical recommendations                  | Deferred               | Complete the governed normal workflow and collect suitable data before evaluating AI.                                                                                            |
-| Comprehensive drug monographs and DDI checking         | Deferred               | Licensing, content governance and update processes require separate work.                                                                                                        |
+| Decision                                               | Status   | Reason                                                                                                                                                                            |
+| ------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Laravel + Inertia.js + Vue 3 + TypeScript + PostgreSQL | Accepted | Provides a modern interface with cohesive server-side authorization and a relational domain model.                                                                                |
+| Modular monolith                                       | Accepted | Phase 1 does not need external API or microservice complexity.                                                                                                                    |
+| Server-side policies and institution-scoped queries    | Accepted | Client capability flags are presentation helpers, not security controls.                                                                                                          |
+| De-identification by design                            | Accepted | The educational record must not collect direct patient identifiers in standard forms.                                                                                             |
+| Immutable submitted and approved versions              | Accepted | Faculty decisions must remain tied to the exact work reviewed.                                                                                                                    |
+| Early sync spike before clinical forms                 | Accepted | Autosave, retry, idempotency and concurrency affect every later case section.                                                                                                     |
+| Offline support limited to de-identified drafts        | Accepted | The server remains authoritative; submission, return and approval require a current online state.                                                                                 |
+| Foreground reconnect and manual retry are required     | Accepted | Browser Background Sync is not reliable enough to be the only recovery mechanism.                                                                                                 |
+| Section-level conflict handling                        | Accepted | The spike proved it prevents silent overwrite without automatic field/text merging. Reuse the protocol through a shared sync service; final device-retention policy remains open. |
+| AI-generated clinical recommendations                  | Deferred | Complete the governed normal workflow and collect suitable data before evaluating AI.                                                                                             |
+| Comprehensive drug monographs and DDI checking         | Deferred | Licensing, content governance and update processes require separate work.                                                                                                         |
 
 The full durable decision register is maintained in [`docs/DECISIONS.md`](docs/DECISIONS.md). If this summary and that file disagree, stop and reconcile the inconsistency before implementation.
 
@@ -114,16 +120,15 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 
 ## 7. Remaining gates
 
-| Order | Gate                             | Status                                        | Exit condition                                                                                                                                                  |
-| ----: | -------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|     1 | Sync spike                       | Active — implemented and awaiting acceptance  | Findings and approach are reviewed, the branch is merged, and the accepted baseline is updated.                                                                 |
-|     2 | Academic/rotation administration | Not started                                   | Admin can create the minimum programme, hospital, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
-|     3 | Walking skeleton                 | Not started                                   | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                 |
-|     4 | Clinical documentation           | Blocked by institutional forms                | Faculty-approved sections support structured entry, validation and the accepted sync approach.                                                                  |
-|     5 | Complete review workflow         | Blocked by review-policy and rubric decisions | Comment, correction, resubmission, comparison, rubric, approval and exceptional reopen paths pass.                                                              |
-|     6 | Portfolio/reporting              | Not started                                   | Required authorized progress views and approved exports pass privacy review.                                                                                    |
-|     7 | PWA resilience                   | Not started; spike informs it                 | Supported-device tests prove controlled caching, recovery and no silent data loss or overwrite.                                                                 |
-|     8 | Pilot hardening                  | Not started                                   | Accessibility, security, performance, backup/restore and usability release gates pass.                                                                          |
+| Order | Gate                             | Status                                        | Exit condition                                                                                                                                                                  |
+| ----: | -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|     1 | Academic/rotation administration | Active — `ADM-FOUNDATION-01`                  | Admin can create the minimum programme, cohort, site, department, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
+|     2 | Walking skeleton                 | Not started                                   | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                                 |
+|     3 | Clinical documentation           | Blocked by institutional forms                | Faculty-approved sections support structured entry, validation and the accepted sync approach.                                                                                  |
+|     4 | Complete review workflow         | Blocked by review-policy and rubric decisions | Comment, correction, resubmission, comparison, rubric, approval and exceptional reopen paths pass.                                                                              |
+|     5 | Portfolio/reporting              | Not started                                   | Required authorized progress views and approved exports pass privacy review.                                                                                                    |
+|     6 | PWA resilience                   | Not started; sync spike informs it            | Supported-device tests prove controlled caching, recovery and no silent data loss or overwrite.                                                                                 |
+|     7 | Pilot hardening                  | Not started                                   | Accessibility, security, performance, backup/restore and usability release gates pass.                                                                                          |
 
 Institutional validation runs in parallel and must be completed before finalizing clinical forms, review rules, reports, and production device-retention behavior.
 
