@@ -12,8 +12,6 @@
 /storage/adm-*.png
 /tests/**/__pycache__/
 /resources/js/actions
-/resources/js/routes
-/resources/js/wayfinder
 /vendor
 .DS_Store
 .env
