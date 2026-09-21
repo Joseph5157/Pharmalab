@@ -2,6 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\RotationStatus;
+use App\Enums\UserRole;
+use App\Models\ClinicalSite;
+use App\Models\Programme;
+use App\Models\Rotation;
+use App\Models\RotationAssignment;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -38,11 +45,21 @@ class DashboardController extends Controller
 
     public function administrator(): Response
     {
+        $readyParts = [
+            Programme::query()->exists(),
+            ClinicalSite::query()->exists(),
+            User::query()->where('role', UserRole::Student)->exists(),
+            User::query()->where('role', UserRole::Faculty)->exists(),
+            Rotation::query()->exists(),
+            RotationAssignment::query()->exists(),
+        ];
+        $readiness = (int) round((count(array_filter($readyParts)) / count($readyParts)) * 100);
+
         return Inertia::render('admin/Dashboard', [
             'metrics' => [
-                ['label' => 'Active rotations', 'value' => '1', 'detail' => 'Pilot foundation rotation'],
-                ['label' => 'People', 'value' => '3', 'detail' => '1 student · 1 faculty · 1 admin'],
-                ['label' => 'Setup readiness', 'value' => '60%', 'detail' => 'Clinical forms await validation'],
+                ['label' => 'Active rotations', 'value' => (string) Rotation::query()->where('status', RotationStatus::Active)->count(), 'detail' => 'Currently open placements'],
+                ['label' => 'Students & faculty', 'value' => (string) User::query()->whereIn('role', [UserRole::Student, UserRole::Faculty])->count(), 'detail' => 'Institution accounts'],
+                ['label' => 'Setup readiness', 'value' => $readiness.'%', 'detail' => 'Six essentials for the walking skeleton'],
             ],
         ]);
     }

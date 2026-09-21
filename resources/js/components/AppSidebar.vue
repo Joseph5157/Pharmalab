@@ -59,9 +59,18 @@ const mainNavItems = computed<NavItem[]>(() => {
 
     return [
         dashboard,
-        { title: 'People', href: '#', icon: Users },
-        { title: 'Academic setup', href: '#', icon: GraduationCap },
-        { title: 'Clinical sites', href: '#', icon: MapPinned },
+        { title: 'People', href: '/admin/people', icon: Users },
+        {
+            title: 'Academic setup',
+            href: '/admin/academic',
+            icon: GraduationCap,
+        },
+        {
+            title: 'Clinical sites',
+            href: '/admin/clinical-sites',
+            icon: MapPinned,
+        },
+        { title: 'Rotations', href: '/admin/rotations', icon: ClipboardCheck },
     ];
 });
 

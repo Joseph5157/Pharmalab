@@ -9,18 +9,18 @@ This file is the canonical source of truth for current project status, accepted 
 
 ## 1. Current position
 
-| Item                             | Current value                                                                                             |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Repository                       | `Joseph5157/Pharmalab`                                                                                    |
-| Accepted baseline branch         | `main`                                                                                                    |
-| Accepted baseline commit         | `4306c88` — merge of PR #1, `SYNC-SPIKE-01 experimental offline autosave and conflict handling`           |
-| Current working branch           | `main`                                                                                                    |
-| Last completed and accepted gate | Build Gate 2 — Early sync spike                                                                           |
-| Active gate                      | Academic and rotation administration                                                                      |
-| Current milestone                | `ADM-FOUNDATION-01` — Minimal academic and rotation administration                                        |
-| Milestone status                 | Active; implementation not started                                                                        |
-| Exact next action                | Create `adm-foundation-01` from the accepted baseline and implement only the bounded administration scope |
-| Next gate after this milestone   | Walking skeleton                                                                                          |
+| Item                             | Current value                                                           |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| Repository                       | `Joseph5157/Pharmalab`                                                  |
+| Accepted baseline branch         | `main`                                                                  |
+| Accepted baseline commit         | `d1ce10c` — accepted sync baseline and canonical state activation       |
+| Current working branch           | `adm-foundation-01`                                                     |
+| Last completed and accepted gate | Build Gate 2 — Early sync spike                                         |
+| Active gate                      | Academic and rotation administration                                    |
+| Current milestone                | `ADM-FOUNDATION-01` — Minimal academic and rotation administration      |
+| Milestone status                 | Implemented and verified; awaiting PR review                            |
+| Exact next action                | Review the `ADM-FOUNDATION-01` pull request; do not merge automatically |
+| Next gate after this milestone   | Walking skeleton                                                        |
 
 ## 2. Completed and accepted work
 
@@ -57,13 +57,18 @@ This file is the canonical source of truth for current project status, accepted 
 
 ### `ADM-FOUNDATION-01` — Minimal academic and rotation administration
 
-- **Status:** Active; implementation not started
+- **Status:** Implemented and verified on `adm-foundation-01`; awaiting PR review and acceptance
 - **Objective:** Provide only the academic structure and assignments required to support the next walking-skeleton gate.
 - **In scope:** Programmes and cohorts; clinical sites, departments and wards; student and faculty accounts; rotation creation; student/preceptor assignment; assignment authorization; audit events.
 - **Required quality:** Institution-scoped queries and policies, server-side validation, negative authorization tests, responsive administration flows, and auditable configuration changes.
 - **Explicitly excluded:** Full template builder, advanced reports, final clinical schema, clinical forms, faculty case review, submission workflow, and later PWA features.
 - **Exit condition:** An institution administrator can configure the minimum academic/site hierarchy, create or manage student and faculty accounts, create a rotation, assign its student and preceptor, and the authorization/audit test suite passes.
 - **Next gate:** Walking skeleton.
+- **Delivered:** Normalized programme/cohort, clinical-site/department/ward, rotation and rotation-assignment records; student/faculty account creation and activation controls; four responsive administrator workspaces; role and institution policies; hierarchy/role/status validation; transactional audit events; real dashboard metrics and navigation.
+- **Automated verification:** 63 application tests run, 61 passed, 2 skipped, with 297 assertions. PHPStan, Pint, Composer validation, frontend formatting/lint, Vue TypeScript checks, production build and `git diff --check` passed.
+- **Browser verification:** A clean seeded PostgreSQL migration and headless Chromium runs at 390 × 844 and 1280 × 900 proved that an administrator can create the full academic/site structure, create student and faculty accounts, create a rotation and assign the student/preceptor without database commands or seed files. No browser console errors were reported.
+- **Implementation record:** See [`docs/ADM_FOUNDATION_01_IMPLEMENTATION.md`](docs/ADM_FOUNDATION_01_IMPLEMENTATION.md).
+- **Scope reconciliation:** `docs/DECISIONS.md` records that CSV import, assignment notifications, overlap scheduling, template/rubric references, reports and clinical workflow remain deferred from this bounded gate.
 
 ## 4. Accepted decisions and reasons
 
@@ -122,7 +127,7 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 
 | Order | Gate                             | Status                                        | Exit condition                                                                                                                                                                  |
 | ----: | -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|     1 | Academic/rotation administration | Active — `ADM-FOUNDATION-01`                  | Admin can create the minimum programme, cohort, site, department, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
+|     1 | Academic/rotation administration | Awaiting PR review — `ADM-FOUNDATION-01`      | Admin can create the minimum programme, cohort, site, department, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
 |     2 | Walking skeleton                 | Not started                                   | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                                 |
 |     3 | Clinical documentation           | Blocked by institutional forms                | Faculty-approved sections support structured entry, validation and the accepted sync approach.                                                                                  |
 |     4 | Complete review workflow         | Blocked by review-policy and rubric decisions | Comment, correction, resubmission, comparison, rubric, approval and exceptional reopen paths pass.                                                                              |
