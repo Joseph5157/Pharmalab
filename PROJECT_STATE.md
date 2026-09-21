@@ -13,14 +13,14 @@ This file is the canonical source of truth for current project status, accepted 
 | -------------------------------- | ----------------------------------------------------------------------- |
 | Repository                       | `Joseph5157/Pharmalab`                                                  |
 | Accepted baseline branch         | `main`                                                                  |
-| Accepted baseline commit         | `ceacdf7` — accepted ADM-FOUNDATION-01 and academic admin scope        |
+| Accepted baseline commit         | `c167e9e` — accepted WALKING-SKELETON-01                               |
 | Current working branch           | `main`                                                                  |
-| Last completed and accepted gate | Build Gate 3 — Academic and rotation administration                    |
-| Active gate                      | Walking skeleton                                                        |
-| Current milestone                | `WALKING-SKELETON-01` — End-to-end case submission loop                |
-| Milestone status                 | Not started                                                             |
-| Exact next action                | Create `walking-skeleton-01` branch and implement the case submission→faculty approval→portfolio loop |
-| Next gate after this milestone   | Clinical documentation                                                  |
+| Last completed and accepted gate | Walking skeleton — `WALKING-SKELETON-01`                               |
+| Active gate                      | Clinical documentation                                                  |
+| Current milestone                | Clinical documentation — institutional form definition                 |
+| Milestone status                 | Blocked by institutional forms                                          |
+| Exact next action                | Obtain faculty-approved clinical forms, required fields and validation rules |
+| Next gate after this milestone   | Complete review workflow                                                |
 
 ## 2. Completed and accepted work
 
@@ -75,17 +75,32 @@ This file is the canonical source of truth for current project status, accepted 
 - Walking skeleton uses only a basic review summary/attestation and approval decision (no multi-reviewer approval).
 - Programme-specific case quotas are not enforced; case status is shown without quota calculations.
 
+### Build Gate 4 — `WALKING-SKELETON-01`
+
+- **Status:** Accepted and closed
+- **Implementation commit:** `7422388`
+- **Accepted merge commit:** `c167e9e`
+- **Pull request:** GitHub PR #3
+- **Objective:** Deliver the admin → student case/SOAP submission → faculty approval → portfolio loop end-to-end.
+- **Delivered:** Minimal de-identified clinical cases and SOAP notes; draft, submitted, under-review, returned and approved statuses; immutable case versions and status transitions; student submission and portfolio flows; faculty review, return and approval flows; institution-scoped policies and controllers; and responsive Vue pages.
+- **Verification:** 73 tests run: 71 passed, 2 skipped, 322 assertions. PHPStan, Pint and Vue TypeScript checks were clean; production build succeeded. Authorization coverage includes role isolation, cross-institution access and ownership; workflow coverage includes create → SOAP → submit → approve and return → resubmit.
+- **Exit condition:** Satisfied: a student can create a case, fill a SOAP note, submit it; an assigned faculty member can review and approve it; and the approved case appears in the student's portfolio.
+
+#### Accepted limitations
+
+- This remains a minimal clinical record, not the faculty-approved complete clinical documentation schema.
+- Review has no rubric, comments/corrections UI, multi-reviewer approval, exceptional reopen path or reports.
+- A minimal return/resubmission path was included and tested; its full policy (including flagged-section editing) remains deferred to the complete review workflow.
+
 ## 3. Active work
 
-### `WALKING-SKELETON-01` — End-to-end case submission loop
+### Clinical documentation — institutional form definition
 
-- **Status:** Not started
-- **Objective:** The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.
-- **Depends on:** `ADM-FOUNDATION-01` (accepted), `SYNC-SPIKE-01` (accepted)
-- **In scope:** Minimal de-identified case details, SOAP note sections, student submission, faculty review/approval, basic portfolio view.
-- **Explicitly excluded:** Full clinical forms, advanced review workflow, rubrics, comments, corrections, resubmission, reports, and PWA resilience features.
-- **Exit condition:** A student can create a case, fill a minimal SOAP note, submit it; a faculty member can review and approve it; the student can see the approved case in their portfolio.
-- **Next gate:** Clinical documentation.
+- **Status:** Blocked by institutional forms
+- **Objective:** Define the faculty-approved sections, structured fields, validation and sync requirements for clinical documentation.
+- **Depends on:** `WALKING-SKELETON-01` (accepted), institutional faculty/curriculum and privacy decisions.
+- **Exact next action:** Obtain the approved institutional forms and field requirements before designing or migrating the complete clinical schema.
+- **Scope boundary:** Do not begin implementation until the institutional forms are approved; preserve the walking-skeleton record as the minimal temporary workflow.
 
 ## 4. Accepted decisions and reasons
 
@@ -140,12 +155,19 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 - **Reason:** Each architectural risk should be proven and accepted before expanding the domain workflow.
 - **Status:** Previous combined sequencing superseded.
 
+### Walking skeleton accepted
+
+- **Previous:** `WALKING-SKELETON-01` was recorded as not started from the `ceacdf7` academic-administration baseline.
+- **New:** It was implemented on `walking-skeleton-01`, verified, merged through GitHub PR #3, and accepted at `c167e9e`.
+- **Reason:** The end-to-end minimal case submission, faculty approval and portfolio exit condition is now evidenced.
+- **Status:** The accepted baseline is `c167e9e`; clinical documentation is the active, currently blocked gate.
+
 ## 7. Remaining gates
 
 | Order | Gate                             | Status                                        | Exit condition                                                                                                                                                                  |
 | ----: | -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 |     1 | Academic/rotation administration | Accepted — `ADM-FOUNDATION-01`                | Admin can create the minimum programme, cohort, site, department, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
-|     2 | Walking skeleton                 | Active — `WALKING-SKELETON-01`                | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                                 |
+|     2 | Walking skeleton                 | Accepted — `WALKING-SKELETON-01`              | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                                 |
 |     3 | Clinical documentation           | Blocked by institutional forms                | Faculty-approved sections support structured entry, validation and the accepted sync approach.                                                                                  |
 |     4 | Complete review workflow         | Blocked by review-policy and rubric decisions | Comment, correction, resubmission, comparison, rubric, approval and exceptional reopen paths pass.                                                                              |
 |     5 | Portfolio/reporting              | Not started                                   | Required authorized progress views and approved exports pass privacy review.                                                                                                    |
