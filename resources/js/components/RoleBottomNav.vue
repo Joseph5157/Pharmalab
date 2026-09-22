@@ -54,6 +54,7 @@ const items = computed(() => {
                 v-for="item in items"
                 :key="item.label"
                 :href="item.href"
+                :prefetch="item.href !== '#'"
                 :aria-disabled="item.href === '#'"
                 class="flex min-h-12 min-w-12 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[0.65rem] font-semibold text-slate-500 transition-colors hover:text-[#0b2942] dark:text-slate-400 dark:hover:text-white"
                 :class="
