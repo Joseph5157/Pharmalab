@@ -70,68 +70,103 @@ const save = () =>
             @submit.prevent="save"
         >
             <div>
-                <label for="soap-subjective" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                <label
+                    for="soap-subjective"
+                    class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                >
                     Subjective
                 </label>
-                <p class="text-xs text-slate-500">Patient-reported symptoms, history, and concerns.</p>
+                <p class="text-xs text-slate-500">
+                    Patient-reported symptoms, history, and concerns.
+                </p>
                 <textarea
                     id="soap-subjective"
                     v-model="form.subjective"
                     class="border-input bg-background mt-2 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
-                    :disabled="clinicalCase.status === 'submitted' || clinicalCase.status === 'approved'"
+                    :disabled="
+                        clinicalCase.status === 'submitted' ||
+                        clinicalCase.status === 'approved'
+                    "
                 />
                 <InputError :message="form.errors.subjective" />
             </div>
 
             <div>
-                <label for="soap-objective" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                <label
+                    for="soap-objective"
+                    class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                >
                     Objective
                 </label>
-                <p class="text-xs text-slate-500">Vital signs, examination findings, lab results.</p>
+                <p class="text-xs text-slate-500">
+                    Vital signs, examination findings, lab results.
+                </p>
                 <textarea
                     id="soap-objective"
                     v-model="form.objective"
                     class="border-input bg-background mt-2 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
-                    :disabled="clinicalCase.status === 'submitted' || clinicalCase.status === 'approved'"
+                    :disabled="
+                        clinicalCase.status === 'submitted' ||
+                        clinicalCase.status === 'approved'
+                    "
                 />
                 <InputError :message="form.errors.objective" />
             </div>
 
             <div>
-                <label for="soap-assessment" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                <label
+                    for="soap-assessment"
+                    class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                >
                     Assessment
                 </label>
-                <p class="text-xs text-slate-500">Clinical impression, diagnosis, or problem list.</p>
+                <p class="text-xs text-slate-500">
+                    Clinical impression, diagnosis, or problem list.
+                </p>
                 <textarea
                     id="soap-assessment"
                     v-model="form.assessment"
                     class="border-input bg-background mt-2 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
-                    :disabled="clinicalCase.status === 'submitted' || clinicalCase.status === 'approved'"
+                    :disabled="
+                        clinicalCase.status === 'submitted' ||
+                        clinicalCase.status === 'approved'
+                    "
                 />
                 <InputError :message="form.errors.assessment" />
             </div>
 
             <div>
-                <label for="soap-plan" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                <label
+                    for="soap-plan"
+                    class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                >
                     Plan
                 </label>
-                <p class="text-xs text-slate-500">Treatment plan, follow-up, and counselling.</p>
+                <p class="text-xs text-slate-500">
+                    Treatment plan, follow-up, and counselling.
+                </p>
                 <textarea
                     id="soap-plan"
                     v-model="form.plan"
                     class="border-input bg-background mt-2 min-h-[120px] w-full rounded-md border px-3 py-2 text-sm"
-                    :disabled="clinicalCase.status === 'submitted' || clinicalCase.status === 'approved'"
+                    :disabled="
+                        clinicalCase.status === 'submitted' ||
+                        clinicalCase.status === 'approved'
+                    "
                 />
                 <InputError :message="form.errors.plan" />
             </div>
 
             <Button
-                v-if="clinicalCase.status === 'draft' || clinicalCase.status === 'returned'"
+                v-if="
+                    clinicalCase.status === 'draft' ||
+                    clinicalCase.status === 'returned'
+                "
                 type="submit"
                 class="w-full bg-[#0b2942] text-white sm:w-auto"
                 :disabled="form.processing"
             >
-                <Save class="size-4 mr-1" /> Save
+                <Save class="mr-1 size-4" /> Save
             </Button>
         </form>
     </main>

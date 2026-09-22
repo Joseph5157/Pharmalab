@@ -9,18 +9,18 @@ This file is the canonical source of truth for current project status, accepted 
 
 ## 1. Current position
 
-| Item                             | Current value                                                           |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| Repository                       | `Joseph5157/Pharmalab`                                                  |
-| Accepted baseline branch         | `main`                                                                  |
-| Accepted baseline commit         | `c167e9e` — accepted WALKING-SKELETON-01                               |
-| Current working branch           | `main`                                                                  |
-| Last completed and accepted gate | Walking skeleton — `WALKING-SKELETON-01`                               |
-| Active gate                      | Clinical documentation                                                  |
-| Current milestone                | Clinical documentation — institutional form definition                 |
-| Milestone status                 | Blocked by institutional forms                                          |
+| Item                             | Current value                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| Repository                       | `Joseph5157/Pharmalab`                                                       |
+| Accepted baseline branch         | `main`                                                                       |
+| Accepted baseline commit         | `c167e9e` — accepted WALKING-SKELETON-01                                     |
+| Current working branch           | `main`                                                                       |
+| Last completed and accepted gate | Walking skeleton — `WALKING-SKELETON-01`                                     |
+| Active gate                      | Clinical documentation                                                       |
+| Current milestone                | Clinical documentation — institutional form definition                       |
+| Milestone status                 | Blocked by institutional forms                                               |
 | Exact next action                | Obtain faculty-approved clinical forms, required fields and validation rules |
-| Next gate after this milestone   | Complete review workflow                                                |
+| Next gate after this milestone   | Complete review workflow                                                     |
 
 ## 2. Completed and accepted work
 

@@ -1,198 +1,294 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
+import {
+    queryParams,
+    type RouteQueryOptions,
+    type RouteDefinition,
+    type RouteFormDefinition,
+    applyUrlDefaults,
+} from './../../../wayfinder';
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
  * @see app/Http/Controllers/CaseDraftNoteController.php:35
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-export const show = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const show = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-})
+});
 
 show.definition = {
-    methods: ["get","head"],
+    methods: ['get', 'head'],
     url: '/student/sync-spike/{caseDraftNote}',
-} satisfies RouteDefinition<["get","head"]>
+} satisfies RouteDefinition<['get', 'head']>;
 
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
  * @see app/Http/Controllers/CaseDraftNoteController.php:35
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-show.url = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+show.url = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { caseDraftNote: args }
+        args = { caseDraftNote: args };
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { caseDraftNote: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { caseDraftNote: args.id };
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    caseDraftNote: args[0],
-                }
+            caseDraftNote: args[0],
+        };
     }
 
-    args = applyUrlDefaults(args)
+    args = applyUrlDefaults(args);
 
     const parsedArgs = {
-                        caseDraftNote: typeof args.caseDraftNote === 'object'
+        caseDraftNote:
+            typeof args.caseDraftNote === 'object'
                 ? args.caseDraftNote.id
                 : args.caseDraftNote,
-                }
+    };
 
-    return show.definition.url
+    return (
+        show.definition.url
             .replace('{caseDraftNote}', parsedArgs.caseDraftNote.toString())
             .replace(/\/+$/, '') + queryParams(options)
-}
+    );
+};
 
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
  * @see app/Http/Controllers/CaseDraftNoteController.php:35
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-show.get = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+show.get = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-})
+});
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
  * @see app/Http/Controllers/CaseDraftNoteController.php:35
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-show.head = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+show.head = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
- * @see app/Http/Controllers/CaseDraftNoteController.php:35
- * @route '/student/sync-spike/{caseDraftNote}'
- */
-    const showForm = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
- * @see app/Http/Controllers/CaseDraftNoteController.php:35
- * @route '/student/sync-spike/{caseDraftNote}'
- */
-        showForm.get = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\CaseDraftNoteController::show
- * @see app/Http/Controllers/CaseDraftNoteController.php:35
- * @route '/student/sync-spike/{caseDraftNote}'
- */
-        showForm.head = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::sync
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see app/Http/Controllers/CaseDraftNoteController.php:35
+ * @route '/student/sync-spike/{caseDraftNote}'
+ */
+const showForm = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+});
+
+/**
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see app/Http/Controllers/CaseDraftNoteController.php:35
+ * @route '/student/sync-spike/{caseDraftNote}'
+ */
+showForm.get = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+});
+/**
+ * @see \App\Http\Controllers\CaseDraftNoteController::show
+ * @see app/Http/Controllers/CaseDraftNoteController.php:35
+ * @route '/student/sync-spike/{caseDraftNote}'
+ */
+showForm.head = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        },
+    }),
+    method: 'get',
+});
+
+show.form = showForm;
+/**
+ * @see \App\Http\Controllers\CaseDraftNoteController::sync
  * @see app/Http/Controllers/CaseDraftNoteController.php:44
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-export const sync = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+export const sync = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'put'> => ({
     url: sync.url(args, options),
     method: 'put',
-})
+});
 
 sync.definition = {
-    methods: ["put"],
+    methods: ['put'],
     url: '/student/sync-spike/{caseDraftNote}',
-} satisfies RouteDefinition<["put"]>
+} satisfies RouteDefinition<['put']>;
 
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::sync
+ * @see \App\Http\Controllers\CaseDraftNoteController::sync
  * @see app/Http/Controllers/CaseDraftNoteController.php:44
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-sync.url = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+sync.url = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { caseDraftNote: args }
+        args = { caseDraftNote: args };
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { caseDraftNote: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { caseDraftNote: args.id };
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    caseDraftNote: args[0],
-                }
+            caseDraftNote: args[0],
+        };
     }
 
-    args = applyUrlDefaults(args)
+    args = applyUrlDefaults(args);
 
     const parsedArgs = {
-                        caseDraftNote: typeof args.caseDraftNote === 'object'
+        caseDraftNote:
+            typeof args.caseDraftNote === 'object'
                 ? args.caseDraftNote.id
                 : args.caseDraftNote,
-                }
+    };
 
-    return sync.definition.url
+    return (
+        sync.definition.url
             .replace('{caseDraftNote}', parsedArgs.caseDraftNote.toString())
             .replace(/\/+$/, '') + queryParams(options)
-}
+    );
+};
 
 /**
-* @see \App\Http\Controllers\CaseDraftNoteController::sync
+ * @see \App\Http\Controllers\CaseDraftNoteController::sync
  * @see app/Http/Controllers/CaseDraftNoteController.php:44
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-sync.put = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+sync.put = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'put'> => ({
     url: sync.url(args, options),
     method: 'put',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\CaseDraftNoteController::sync
+/**
+ * @see \App\Http\Controllers\CaseDraftNoteController::sync
  * @see app/Http/Controllers/CaseDraftNoteController.php:44
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-    const syncForm = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: sync.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PUT',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+const syncForm = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: sync.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PUT',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        },
+    }),
+    method: 'post',
+});
 
-            /**
-* @see \App\Http\Controllers\CaseDraftNoteController::sync
+/**
+ * @see \App\Http\Controllers\CaseDraftNoteController::sync
  * @see app/Http/Controllers/CaseDraftNoteController.php:44
  * @route '/student/sync-spike/{caseDraftNote}'
  */
-        syncForm.put = (args: { caseDraftNote: string | { id: string } } | [caseDraftNote: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: sync.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PUT',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
-    
-    sync.form = syncForm
+syncForm.put = (
+    args:
+        | { caseDraftNote: string | { id: string } }
+        | [caseDraftNote: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: sync.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PUT',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        },
+    }),
+    method: 'post',
+});
+
+sync.form = syncForm;
 const syncSpike = {
     show: Object.assign(show, show),
-sync: Object.assign(sync, sync),
-}
+    sync: Object.assign(sync, sync),
+};
 
-export default syncSpike
+export default syncSpike;

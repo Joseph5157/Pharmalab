@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ClipboardCheck, Clock, CheckCircle, RotateCcw, Eye } from '@lucide/vue';
+import {
+    ClipboardCheck,
+    Clock,
+    CheckCircle,
+    RotateCcw,
+    Eye,
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 type Student = {
@@ -95,7 +101,8 @@ const formatDate = (value: string) =>
                 Review queue
             </h1>
             <p class="mt-1 text-sm text-slate-500">
-                {{ cases.length }} case{{ cases.length !== 1 ? 's' : '' }} awaiting action
+                {{ cases.length }} case{{ cases.length !== 1 ? 's' : '' }}
+                awaiting action
             </p>
         </div>
 
@@ -107,7 +114,9 @@ const formatDate = (value: string) =>
             >
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm font-bold text-[#0b2942] dark:text-white">
+                        <span
+                            class="text-sm font-bold text-[#0b2942] dark:text-white"
+                        >
                             #{{ caseItem.case_number }}
                         </span>
                         <span

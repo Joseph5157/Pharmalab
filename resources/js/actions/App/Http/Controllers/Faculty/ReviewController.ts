@@ -1,342 +1,469 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import {
+    queryParams,
+    type RouteQueryOptions,
+    type RouteDefinition,
+    type RouteFormDefinition,
+    applyUrlDefaults,
+} from './../../../../../wayfinder';
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
  * @see app/Http/Controllers/Faculty/ReviewController.php:19
  * @route '/faculty/reviews'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-})
+});
 
 index.definition = {
-    methods: ["get","head"],
+    methods: ['get', 'head'],
     url: '/faculty/reviews',
-} satisfies RouteDefinition<["get","head"]>
+} satisfies RouteDefinition<['get', 'head']>;
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
  * @see app/Http/Controllers/Faculty/ReviewController.php:19
  * @route '/faculty/reviews'
  */
 index.url = (options?: RouteQueryOptions) => {
-    return index.definition.url + queryParams(options)
-}
+    return index.definition.url + queryParams(options);
+};
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
  * @see app/Http/Controllers/Faculty/ReviewController.php:19
  * @route '/faculty/reviews'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-})
+});
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
  * @see app/Http/Controllers/Faculty/ReviewController.php:19
  * @route '/faculty/reviews'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
- * @route '/faculty/reviews'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
- * @route '/faculty/reviews'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
- * @route '/faculty/reviews'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @route '/faculty/reviews'
+ */
+const indexForm = (
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+});
+
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @route '/faculty/reviews'
+ */
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+});
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::index
+ * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @route '/faculty/reviews'
+ */
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        },
+    }),
+    method: 'get',
+});
+
+index.form = indexForm;
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
  * @see app/Http/Controllers/Faculty/ReviewController.php:35
  * @route '/faculty/reviews/{case}'
  */
-export const show = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const show = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-})
+});
 
 show.definition = {
-    methods: ["get","head"],
+    methods: ['get', 'head'],
     url: '/faculty/reviews/{case}',
-} satisfies RouteDefinition<["get","head"]>
+} satisfies RouteDefinition<['get', 'head']>;
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
  * @see app/Http/Controllers/Faculty/ReviewController.php:35
  * @route '/faculty/reviews/{case}'
  */
-show.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+show.url = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { case: args }
+        args = { case: args };
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id };
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        };
     }
 
-    args = applyUrlDefaults(args)
+    args = applyUrlDefaults(args);
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object' ? args.case.id : args.case,
+    };
 
-    return show.definition.url
+    return (
+        show.definition.url
             .replace('{case}', parsedArgs.case.toString())
             .replace(/\/+$/, '') + queryParams(options)
-}
+    );
+};
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
  * @see app/Http/Controllers/Faculty/ReviewController.php:35
  * @route '/faculty/reviews/{case}'
  */
-show.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+show.get = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-})
+});
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
  * @see app/Http/Controllers/Faculty/ReviewController.php:35
  * @route '/faculty/reviews/{case}'
  */
-show.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+show.head = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
- * @route '/faculty/reviews/{case}'
- */
-    const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
- * @route '/faculty/reviews/{case}'
- */
-        showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
- * @route '/faculty/reviews/{case}'
- */
-        showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::approve
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @route '/faculty/reviews/{case}'
+ */
+const showForm = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+});
+
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @route '/faculty/reviews/{case}'
+ */
+showForm.get = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+});
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::show
+ * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @route '/faculty/reviews/{case}'
+ */
+showForm.head = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'get'> => ({
+    action: show.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        },
+    }),
+    method: 'get',
+});
+
+show.form = showForm;
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::approve
  * @see app/Http/Controllers/Faculty/ReviewController.php:55
  * @route '/faculty/reviews/{case}/approve'
  */
-export const approve = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const approve = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
     url: approve.url(args, options),
     method: 'post',
-})
+});
 
 approve.definition = {
-    methods: ["post"],
+    methods: ['post'],
     url: '/faculty/reviews/{case}/approve',
-} satisfies RouteDefinition<["post"]>
+} satisfies RouteDefinition<['post']>;
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::approve
+ * @see \App\Http\Controllers\Faculty\ReviewController::approve
  * @see app/Http/Controllers/Faculty/ReviewController.php:55
  * @route '/faculty/reviews/{case}/approve'
  */
-approve.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+approve.url = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { case: args }
+        args = { case: args };
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id };
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        };
     }
 
-    args = applyUrlDefaults(args)
+    args = applyUrlDefaults(args);
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object' ? args.case.id : args.case,
+    };
 
-    return approve.definition.url
+    return (
+        approve.definition.url
             .replace('{case}', parsedArgs.case.toString())
             .replace(/\/+$/, '') + queryParams(options)
-}
+    );
+};
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::approve
+ * @see \App\Http\Controllers\Faculty\ReviewController::approve
  * @see app/Http/Controllers/Faculty/ReviewController.php:55
  * @route '/faculty/reviews/{case}/approve'
  */
-approve.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+approve.post = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
     url: approve.url(args, options),
     method: 'post',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
- * @route '/faculty/reviews/{case}/approve'
- */
-    const approveForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: approve.url(args, options),
-        method: 'post',
-    })
-
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
- * @route '/faculty/reviews/{case}/approve'
- */
-        approveForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: approve.url(args, options),
-            method: 'post',
-        })
-    
-    approve.form = approveForm
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::returnCase
+ * @see \App\Http\Controllers\Faculty\ReviewController::approve
+ * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @route '/faculty/reviews/{case}/approve'
+ */
+const approveForm = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: approve.url(args, options),
+    method: 'post',
+});
+
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::approve
+ * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @route '/faculty/reviews/{case}/approve'
+ */
+approveForm.post = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: approve.url(args, options),
+    method: 'post',
+});
+
+approve.form = approveForm;
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
  * @see app/Http/Controllers/Faculty/ReviewController.php:68
  * @route '/faculty/reviews/{case}/return'
  */
-export const returnCase = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const returnCase = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
     url: returnCase.url(args, options),
     method: 'post',
-})
+});
 
 returnCase.definition = {
-    methods: ["post"],
+    methods: ['post'],
     url: '/faculty/reviews/{case}/return',
-} satisfies RouteDefinition<["post"]>
+} satisfies RouteDefinition<['post']>;
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::returnCase
+ * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
  * @see app/Http/Controllers/Faculty/ReviewController.php:68
  * @route '/faculty/reviews/{case}/return'
  */
-returnCase.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+returnCase.url = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { case: args }
+        args = { case: args };
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id };
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        };
     }
 
-    args = applyUrlDefaults(args)
+    args = applyUrlDefaults(args);
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object' ? args.case.id : args.case,
+    };
 
-    return returnCase.definition.url
+    return (
+        returnCase.definition.url
             .replace('{case}', parsedArgs.case.toString())
             .replace(/\/+$/, '') + queryParams(options)
-}
+    );
+};
 
 /**
-* @see \App\Http\Controllers\Faculty\ReviewController::returnCase
+ * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
  * @see app/Http/Controllers/Faculty/ReviewController.php:68
  * @route '/faculty/reviews/{case}/return'
  */
-returnCase.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+returnCase.post = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
     url: returnCase.url(args, options),
     method: 'post',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\Faculty\ReviewController::returnCase
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
  * @see app/Http/Controllers/Faculty/ReviewController.php:68
  * @route '/faculty/reviews/{case}/return'
  */
-    const returnCaseForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: returnCase.url(args, options),
-        method: 'post',
-    })
+const returnCaseForm = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: returnCase.url(args, options),
+    method: 'post',
+});
 
-            /**
-* @see \App\Http\Controllers\Faculty\ReviewController::returnCase
+/**
+ * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
  * @see app/Http/Controllers/Faculty/ReviewController.php:68
  * @route '/faculty/reviews/{case}/return'
  */
-        returnCaseForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: returnCase.url(args, options),
-            method: 'post',
-        })
-    
-    returnCase.form = returnCaseForm
-const ReviewController = { index, show, approve, returnCase }
+returnCaseForm.post = (
+    args:
+        | { case: string | { id: string } }
+        | [caseParam: string | { id: string }]
+        | string
+        | { id: string },
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: returnCase.url(args, options),
+    method: 'post',
+});
 
-export default ReviewController
+returnCase.form = returnCaseForm;
+const ReviewController = { index, show, approve, returnCase };
+
+export default ReviewController;

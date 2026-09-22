@@ -31,9 +31,11 @@ export default defineConfig({
         ];
 
         if (process.env.DOCKER_BUILD !== 'true') {
-            plugins.push(wayfinder({
-                formVariants: true,
-            }));
+            plugins.push(
+                wayfinder({
+                    formVariants: true,
+                }),
+            );
         }
 
         return plugins;
