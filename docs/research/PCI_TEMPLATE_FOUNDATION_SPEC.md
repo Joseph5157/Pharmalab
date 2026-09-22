@@ -95,10 +95,19 @@ A service layer alone is not an authorization boundary. Foreign-key ownership mu
 erDiagram
     INSTITUTIONS ||--o{ PROGRAMMES : owns
     PROGRAMMES ||--o{ CURRICULUM_VERSIONS : has
+    CURRICULUM_VERSIONS ||--o{ CURRICULUM_SOURCE_REFERENCES : evidenced_by
     CURRICULUM_VERSIONS ||--o{ CURRICULUM_PERIODS : contains
     CURRICULUM_VERSIONS ||--o{ SUBJECTS : defines
     ACADEMIC_COHORTS }o--|| CURRICULUM_VERSIONS : adopts
+    USERS ||--o{ ACADEMIC_COHORT_MEMBERSHIPS : enrolled
+    ACADEMIC_COHORTS ||--o{ ACADEMIC_COHORT_MEMBERSHIPS : contains
+    ACADEMIC_COHORT_MEMBERSHIPS ||--o{ STUDENT_PERIOD_ENROLMENTS : progresses
+    CURRICULUM_PERIODS ||--o{ STUDENT_PERIOD_ENROLMENTS : records
+    CURRICULUM_PERIODS ||--o{ CURRICULUM_PERIOD_SUBJECTS : schedules
+    SUBJECTS ||--o{ CURRICULUM_PERIOD_SUBJECTS : appears_in
     INSTITUTIONS ||--o{ ACTIVITY_TYPES : configures
+    CURRICULUM_PERIODS ||--o{ CURRICULUM_ACTIVITY_REQUIREMENTS : requires
+    ACTIVITY_TYPES ||--o{ CURRICULUM_ACTIVITY_REQUIREMENTS : describes
     INSTITUTIONS ||--o{ TEMPLATES : owns
     TEMPLATES ||--o{ TEMPLATE_VERSIONS : versions
     TEMPLATE_VERSIONS ||--o{ TEMPLATE_ASSIGNMENTS : assigned
@@ -119,13 +128,36 @@ erDiagram
 | `institution_id` | ULID FK | Required tenant owner. |
 | `programme_id` | ULID FK | Must belong to the same institution. |
 | `name` | string | Human-readable version name. |
-| `regulatory_source` | text | Official title and version; detailed traceability remains in the register. |
+| `origin_kind` | string | Proposed: regulatory, institutional_extension or institutional_custom. |
+| `based_on_version_id` | nullable ULID FK | Required for an institutional extension; points to its immutable baseline. |
 | `effective_from`, `effective_to` | date, nullable date | Effective window for cohort adoption. |
 | `status` | string | Proposed values: draft, active, superseded, archived. |
 | `created_by`, `updated_by` | user FK | Integer IDs matching the existing users table. |
 | timestamps | timestamps | Normal administrative metadata. |
 
 Suggested uniqueness: `institution_id + programme_id + name`.
+
+Regulatory versions cannot be edited after activation. Editing an adopted baseline creates a new institution-owned extension with explicit provenance. For Phase 1 B.Pharm and Pharm.D, an institutional version must be regulatory or trace to a regulatory baseline; an unlinked institutional custom version requires a separately recorded product decision.
+
+#### `curriculum_source_references`
+
+This table holds the many source requirements supporting one curriculum version. It does not replace the document-level traceability register.
+
+| Column | Proposed type | Rule |
+| --- | --- | --- |
+| `id` | ULID | Primary key. |
+| `institution_id` | ULID FK | Must match the curriculum version. |
+| `curriculum_version_id` | ULID FK | Required. |
+| `reference_kind` | string | Proposed: regulatory or institutional. |
+| `document_title`, `document_version` | string | Human-readable official source identity. |
+| `official_url` | nullable text | Verified official location where available. |
+| `page_or_section` | nullable string | Remains empty while the mapping is a candidate. |
+| `requirement_summary` | text | Paraphrase only until quotation verification is complete. |
+| `verification_status` | string | Candidate, verified or rejected. |
+| `verified_by`, `verified_at` | nullable user FK/timestamp | Set only after faculty verification. |
+| timestamps | timestamps | Administrative metadata. |
+
+A regulatory curriculum version cannot be activated until its required source references are verified. Candidate references may exist in a draft version but cannot be treated as implementation authority.
 
 #### `curriculum_periods`
 
@@ -153,7 +185,7 @@ Calendar sessions and admission cohorts remain separate. `academic_cohorts.curri
 | `code`, `title` | string | Unique code within a curriculum version. |
 | `status` | string | Active/inactive. |
 
-Period membership may use a constrained `curriculum_period_subjects` join when one subject legitimately appears in more than one period. It must not be inferred from a free-text programme context.
+Period membership uses the constrained `curriculum_period_subjects` join below. It must not be inferred from a free-text programme context.
 
 #### `activity_types`
 
@@ -165,6 +197,70 @@ Period membership may use a constrained `curriculum_period_subjects` join when o
 | `status` | string | Active/inactive. |
 
 Examples include clinical case, practical experiment, posting log, project report and internship/residency record. The final catalogue is configured and versioned from approved curriculum requirements.
+
+#### `curriculum_period_subjects`
+
+| Column | Proposed type | Rule |
+| --- | --- | --- |
+| `id` | ULID | Primary key. |
+| `institution_id` | ULID FK | Must match the period and subject. |
+| `curriculum_period_id` | ULID FK | Required. |
+| `subject_id` | ULID FK | Required and from the same curriculum version. |
+| `sequence` | unsigned integer | Display order inside the period. |
+| `status` | string | Active/inactive. |
+
+Unique constraint: `institution_id + curriculum_period_id + subject_id`. Assessment configuration does not belong in this junction.
+
+#### `academic_cohort_memberships`
+
+| Column | Proposed type | Rule |
+| --- | --- | --- |
+| `id` | ULID | Primary key. |
+| `institution_id` | ULID FK | Must match student and cohort. |
+| `student_id` | user FK | Integer ID matching `users.id`; the user must have the student role. |
+| `academic_cohort_id` | ULID FK | Required. |
+| `status` | string | Proposed: active, suspended, withdrawn or completed. |
+| `starts_on`, `ends_on` | date, nullable date | Effective membership window. |
+| `created_by` | user FK | Same-institution actor. |
+| timestamps | timestamps | Administrative metadata. |
+
+A student may retain historical memberships. The implementation must transactionally prevent ambiguous active memberships for the same programme/curriculum context; this cannot be inferred from the client.
+
+#### `student_period_enrolments`
+
+| Column | Proposed type | Rule |
+| --- | --- | --- |
+| `id` | ULID | Primary key. |
+| `institution_id` | ULID FK | Must match the membership and period. |
+| `academic_cohort_membership_id` | ULID FK | Prevents cross-curriculum association. |
+| `curriculum_period_id` | ULID FK | Must belong to the membership cohort's curriculum version. |
+| `attempt_number` | unsigned integer | A repeat creates a new attempt row rather than rewriting history. |
+| `status` | string | Proposed: scheduled, enrolled, completed, withdrawn or transferred. |
+| `starts_on`, `ends_on` | date, nullable date | Effective progression window. |
+| `created_by` | user FK | Same-institution actor. |
+| timestamps | timestamps | Administrative metadata. |
+
+Unique constraint: `academic_cohort_membership_id + curriculum_period_id + attempt_number`. Overlapping enrolled periods for the same membership are rejected through transactional validation and locking, plus a PostgreSQL range exclusion constraint if the final column/operator types support it. Exact SQL belongs to the implementation gate.
+
+#### `curriculum_activity_requirements`
+
+This table states that an activity is expected. A template assignment separately states which published version renders that activity. Keeping these concerns separate allows the system to detect a required activity whose template is missing.
+
+| Column | Proposed type | Rule |
+| --- | --- | --- |
+| `id` | ULID | Primary key. |
+| `institution_id` | ULID FK | Must match every referenced entity. |
+| `curriculum_version_id` | ULID FK | Required. |
+| `curriculum_period_id` | ULID FK | Required. |
+| `activity_type_id` | ULID FK | Required. |
+| `subject_id` | nullable ULID FK | Required for a subject-scoped activity. |
+| `scope_kind` | string | Proposed: subject or period; rotation requirements remain in the rotation domain. |
+| `is_required` | boolean | Whether the configured activity must be completed. |
+| `status` | string | Draft/active/retired configuration state. |
+| `created_by` | user FK | Same-institution actor. |
+| timestamps | timestamps | Administrative metadata. |
+
+Programme-specific quotas and grace periods remain open decisions and are not fixed by this table in Gate 01.
 
 ### 4.3 Template identity and versions
 
@@ -232,17 +328,33 @@ Resolution uses:
 
 #### Resolution algorithm
 
-1. Derive the curriculum version from the student's active cohort; do not accept it from client input.
-2. Validate that the period, subject/rotation and activity belong to the same institution and permitted curriculum context.
-3. Find active assignments effective on the record start date.
-4. Use an exact rotation assignment when the activity is explicitly rotation-scoped; otherwise use the exact subject or period scope defined for that activity.
-5. Reject multiple matches at the same valid scope as a configuration error. Do not use an `is_primary` flag to hide an overlap.
-6. Return one exact published, non-retired `template_version_id` and persist it on the new domain record.
-7. Never replace the persisted version because a newer template is later published.
+1. Derive the active cohort membership and curriculum version from server-owned records; do not accept either identifier as authoritative client input.
+2. Resolve the student's effective period from `student_period_enrolments` on the proposed record start date. Zero or multiple effective periods are configuration errors.
+3. Resolve the expected activity from an active curriculum requirement, rotation requirement or later approved practical allocation. The subject or rotation context comes from that authorized record, not a free client parameter.
+4. Validate that the requirement, period, subject/rotation and activity belong to the same institution and permitted curriculum context.
+5. Find the exact assignment effective on the proposed record start date and matching the requirement scope.
+6. Reject zero matches for a required activity as unavailable configuration and alert administrators. Reject multiple matches as an overlap configuration error. Do not use an `is_primary` flag to hide ambiguity.
+7. Return one exact published, non-retired `template_version_id` and persist it when the domain record is created.
+8. Never replace the persisted version because a newer template is later published or assigned.
 
 Overlapping assignments at the same scope are invalid. The implementation gate must use transactional validation and locking, plus a database exclusion or equivalent constraint where PostgreSQL can express the effective-date rule safely.
 
 If a required activity has no resolvable assignment, the student sees a safe unavailable state and the administrator receives a configuration alert. The system must not silently interpret missing configuration as “no documentation required.”
+
+#### Assignment publication and replacement
+
+Publishing a template version creates no assignment automatically. An administrator must explicitly assign the published version to an approved context.
+
+Replacing an effective assignment is one audited transaction:
+
+1. Preview affected cohorts, future activities and existing in-progress records.
+2. Lock the affected assignment context.
+3. End the previous assignment immediately before the replacement starts.
+4. Create the replacement assignment with its approved effective window.
+5. Validate that the final state contains no same-scope overlap; otherwise roll back both changes.
+6. Record the old/new assignment IDs, actor, boundary and reason in append-only audit events.
+
+A published version cannot be retired while an active or future assignment points to it. Existing domain records remain bound to it after its assignments expire or the version is later retired. The implementation gate must define inclusive/exclusive date-boundary semantics once and use them consistently in validation, queries and any range constraint.
 
 ### 4.5 Copy provenance
 
@@ -315,6 +427,7 @@ The current runtime has student, faculty and administrator roles. “Curriculum 
 | `template_version.retired` | Version ID, actor, reason and time. |
 | `template.copied` | Source/destination IDs, approved context IDs, actor and time. |
 | `template_assignment.created` | Assignment and context IDs, effective window and actor. |
+| `template_assignment.replaced` | Previous/new assignment IDs, effective boundary, actor and reason. |
 | `template_assignment.retired` | Assignment ID, reason, actor and time. |
 
 Audit payloads use IDs and bounded metadata, not clinical narratives or entire schemas.
@@ -407,7 +520,22 @@ Every screen documents loading, empty, validation error, server/network failure,
 
 ## 8. Low-fidelity mobile and tablet wireframes
 
-### 8.1 Student renderer — phone first
+These layouts use a neutral `Sample Activity Report`; they do not approve clinical fields. Exact visual styling is deferred to implementation design review.
+
+### 8.1 Screen layout contracts
+
+| Screen | Target layout | Primary content | Persistent action/state |
+| --- | --- | --- | --- |
+| Template list | Phone responsive; tablet table enhancement | Search, status/version, assignments and create action. | Filters and loading/empty/error states. |
+| Draft builder | Tablet/desktop primary; sequential panels on phone | Section outline, canvas, selected-field settings and validation summary. | Save state, Preview and Submit for approval. |
+| Publication confirmation | Modal or focused page | Version, canonical hash preview, immutability warning and approval authority. | Cancel or Publish; no assignment action. |
+| Assignment manager | Tablet/desktop form; phone step sequence | Curriculum, period, subject/rotation, activity and effective window. | Overlap blocking, impact preview and Schedule replacement. |
+| Assigned activities | Phone first | Server-resolved activity cards, status, progress and due context if approved. | Start/Continue/View actions governed by availability. |
+| Form renderer | Phone first | Section stepper, governed fields, inline validation and instructions. | Previous, Save, Next plus sync state. |
+| Submission review | Phone/tablet | Read-only summary, version reference and applicable attestation. | Online Submit confirmation. |
+| Lock conflict | Phone/tablet | Local/server timestamps and section comparison supported by the accepted sync protocol. | Explicit local/server choice; never silent overwrite. |
+
+### 8.2 Student renderer — phone first
 
 ```mermaid
 flowchart TD
@@ -427,7 +555,7 @@ Requirements:
 - save, pending, offline, retry and conflict states remain visible;
 - submission is a separate online confirmation action.
 
-### 8.2 Administrator builder — tablet/desktop optimized
+### 8.3 Administrator builder — tablet/desktop optimized
 
 ```mermaid
 flowchart LR
@@ -438,9 +566,31 @@ flowchart LR
 
 On narrow screens, the outline, canvas and settings become sequential panels. Drag-and-drop is optional; keyboard-accessible Move Up, Move Down and Move to Section actions are mandatory. Destructive actions require confirmation and preserve undo where feasible.
 
-### 8.3 Preview
+### 8.4 Publication and assignment are separate
+
+```mermaid
+flowchart TD
+    A["Publish immutable version"] --> B["Version has no assignment"]
+    B --> C["Open assignment manager"]
+    C --> D["Select approved context and date"]
+    D --> E["Preview impact and validate overlap"]
+    E --> F["Create or atomically replace assignment"]
+```
+
+The publication confirmation contains no “assign now” control. A scheduled replacement shows the previous and new non-overlapping windows and confirms that existing records remain on their persisted version.
+
+### 8.5 Preview
 
 Preview is read-only and does not change lifecycle state. It uses the same renderer contract planned for student records and supports representative phone and tablet widths. Preview must distinguish simulated sample values from persisted student data.
+
+### 8.6 Version notice and lock conflict
+
+| State | Student message | Permitted action |
+| --- | --- | --- |
+| New template version available | The current record remains on its original version; future eligible records may use the replacement assignment. | Dismiss and continue the existing record. Do not create a duplicate record automatically. |
+| No required assignment | Documentation is not yet configured for this activity. | Contact/help path; administrator alert generated. |
+| Same-scope overlap | Configuration prevents the activity from starting. | Administrator resolution only. |
+| Optimistic-lock conflict | Another saved version exists for this section. | Use the explicit resolution choices and audit behavior proven by `SYNC-SPIKE-01`; no automatic merge or overwrite. |
 
 ## 9. Privacy, accessibility and sync alignment
 
@@ -508,6 +658,9 @@ Gate 01 is complete only when:
 - [ ] The product owner approves this architecture and gate boundary.
 - [ ] Faculty confirms the page/section-level PCI traceability register.
 - [ ] The proposed model is reconciled against the current institution-scoped runtime schema.
+- [ ] Cohort membership and period progression resolve from server-owned, effective records without introducing a separate students table.
+- [ ] Regulatory baselines, institutional extensions and their verified source references remain distinguishable.
+- [ ] Subject-period membership and required activities are defined separately from template assignments.
 - [ ] Lifecycle and permissions remain marked proposed wherever authority is unresolved.
 - [ ] Deterministic resolution rejects same-scope overlaps and retains the exact resolved version.
 - [ ] Copy provenance is a mandatory technical rule.
@@ -542,8 +695,8 @@ Later accepted gates remain responsible for clinical records, review, complete B
 
 Candidate backlog:
 
-- migrations and models for curriculum versions/periods, subjects, activity types, templates, versions and assignments;
-- compatible extension of academic cohorts;
+- migrations and models for curriculum versions/source references, periods, subjects, activity types, requirements, templates, versions and assignments;
+- compatible extension of academic cohorts plus cohort-membership and student-period-enrolment records;
 - policies, institution scopes, scoped validation and negative authorization tests;
 - transactional lifecycle service with canonical schema hashing and immutability guards;
 - deterministic resolution service with overlap prevention;
@@ -562,13 +715,26 @@ The implementation exit condition should demonstrate that an authorized administ
 - `BPHARM-PCI-TEMPLATES-01` configures the approved practical subject templates in staged curriculum groups.
 - `PORTFOLIO-REPORTING-01`, `PWA-RESILIENCE-01` and `PILOT-HARDENING-01` retain their existing concerns.
 
-## 13. Selected and rejected inspiration patterns
+## 13. Reference-product audit and pattern decisions
+
+The following official pages were reviewed on 22 September 2026. They provide interaction and governance patterns only; they are not regulatory authorities or sources of proprietary clinical content.
+
+| Product and official page | Observed pattern | Pharmalab decision |
+| --- | --- | --- |
+| [Form.io Concepts](https://help.form.io/form.io-concepts) | Component-based builder, JSON form definition, multi-step rendering and configurable validation/conditional settings. | Select a bounded schema-driven builder/renderer. Reject unlimited custom components, generated public APIs and the broader platform permission model. |
+| [OpenMRS O3 Form Builder](https://o3-docs.openmrs.org/en-US/docs/forms-in-o3/build-forms-with-o3-form-builder/) | Form dashboard states, schema editor, renderer preview and schema validation. | Select preview/editor separation and lifecycle cues. Reject patient-identifier concepts and healthcare-backend assumptions that conflict with educational de-identification. |
+| [Moodle Question Bank](https://docs.moodle.org/en/Question_bank) | Categorized reusable content with managed instances. | Use only as an information-organization reference. Do not reuse its grading-centric question model as the curriculum/template domain. |
+| [LabArchives experiment example](https://help.labarchives.com/hc/en-us/articles/34329886396820-Example-Notebook-Page-Recording-an-Experiment) and [page signing](https://help.labarchives.com/hc/en-us/articles/11778411173652-Signing-and-Witnessing-a-Notebook-Page) | Reusable experiment-page structures, organized sections and a signed/frozen record. | Select reusable practical-record structure and immutable approval concepts. Reject attachment-heavy assumptions and research-compliance language that is not approved for Pharmalab. |
+
+No observed product behavior is treated as a Pharmalab default without an explicit decision in this document.
+
+### 13.1 Selected and rejected patterns
 
 | Pattern | Decision | Reason |
 | --- | --- | --- |
 | Immutable published versions and explicit copy-to-new-draft | Select | Preserves historical academic evidence. |
 | Bounded schema-driven renderer | Select | Reuses infrastructure without creating an unlimited form platform. |
-| Assignment by curriculum context and effective window | Select | Gives deterministic cohort-specific requirements. |
+| Assignment by curriculum context and effective window | Select | Gives deterministic cohort-specific requirements; this is a Pharmalab domain decision rather than a copied LMS model. |
 | Mobile student sections, progress and persistent save state | Select | Fits ward/practical use and long records. |
 | Accessible reorder controls plus optional drag-and-drop | Select | Supports keyboard, touch and tablet workflows. |
 | Arbitrary JavaScript/form expressions | Reject | Creates security, reproducibility and maintenance risk. |
@@ -576,5 +742,5 @@ The implementation exit condition should demonstrate that an authorized administ
 | `is_primary` as a remedy for overlapping assignments | Reject | Hides configuration errors and weakens determinism. |
 | Patient initials as a standard identifier | Reject | May contribute to re-identification; use a generated educational ID. |
 | Full offline administrator builder in this phase | Reject | Not required by the accepted sync or mobile-student boundary. |
-
-Candidate reference families remain Moodle/Canvas, Form.io/OpenMRS forms, Clinirex/NEXPHARMED and experiential-education products, faculty grading workflows, electronic laboratory notebooks and relevant mobile field-work patterns. These are workflow references only, not endorsements or sources of proprietary content.
+| Auto-create a record by opening a creation route | Reject | Creates orphan records and makes data creation implicit. |
+| Silent template replacement for an in-progress record | Reject | Violates persisted-version integrity and may invalidate student work. |
