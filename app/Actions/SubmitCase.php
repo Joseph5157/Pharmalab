@@ -6,7 +6,6 @@ use App\Enums\CaseStatus;
 use App\Models\CaseStatusTransition;
 use App\Models\CaseVersion;
 use App\Models\ClinicalCase;
-use App\Models\SoapNote;
 use App\Models\User;
 use App\Services\AuditTrail;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +46,7 @@ class SubmitCase
                 'version_number' => $versionNumber,
                 'source_revision_number' => $soap->revision_number,
                 'snapshot' => $snapshot,
-                'snapshot_hash' => hash('sha256', json_encode($snapshot)),
+                'snapshot_hash' => hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR)),
                 'submitted_by' => $actor->id,
                 'submitted_at' => now(),
             ]);

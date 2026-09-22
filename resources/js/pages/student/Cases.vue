@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Plus, FileText, Clock, CheckCircle, RotateCcw, Eye } from '@lucide/vue';
+import {
+    Plus,
+    FileText,
+    Clock,
+    CheckCircle,
+    RotateCcw,
+    Eye,
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import InputError from '@/components/InputError.vue';
 
@@ -111,7 +118,9 @@ const formatDate = (value: string) =>
             >
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-sm font-bold text-[#0b2942] dark:text-white">
+                        <span
+                            class="text-sm font-bold text-[#0b2942] dark:text-white"
+                        >
                             #{{ caseItem.case_number }}
                         </span>
                         <span
@@ -129,9 +138,7 @@ const formatDate = (value: string) =>
                     >
                         {{ caseItem.case_category }}
                     </p>
-                    <p
-                        class="mt-1 text-xs text-slate-500"
-                    >
+                    <p class="mt-1 text-xs text-slate-500">
                         {{ formatDate(caseItem.created_at) }}
                         <template v-if="caseItem.clinical_site">
                             · {{ caseItem.clinical_site.name }}
@@ -140,10 +147,15 @@ const formatDate = (value: string) =>
                 </div>
                 <div class="flex items-center gap-2">
                     <Button
-                        v-if="caseItem.status === 'draft' || caseItem.status === 'returned'"
+                        v-if="
+                            caseItem.status === 'draft' ||
+                            caseItem.status === 'returned'
+                        "
                         size="sm"
                         variant="outline"
-                        @click="router.get(`/student/cases/${caseItem.id}/soap`)"
+                        @click="
+                            router.get(`/student/cases/${caseItem.id}/soap`)
+                        "
                     >
                         <FileText class="size-4" />
                     </Button>

@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Student;
 
-use App\Actions\SubmitCase;
 use App\Enums\CaseStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicalCase;
-use App\Models\RotationAssignment;
 use App\Services\AuditTrail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,7 +51,7 @@ class CaseController extends Controller
             'ward_id' => ['nullable', Rule::exists('wards', 'id')->where(fn ($query) => $query->where('institution_id', $institutionId))],
         ]);
 
-        DB::transaction(function () use ($request, $audit, $data): void {
+        $case = DB::transaction(function () use ($request, $audit, $data): ClinicalCase {
             $user = $request->user();
             $lastCaseNumber = ClinicalCase::query()
                 ->where('student_id', $user->id)
@@ -72,9 +70,11 @@ class CaseController extends Controller
                 'case_id' => $case->id,
                 'case_number' => $case->case_number,
             ]);
+
+            return $case;
         });
 
-        return redirect()->route('student.cases.show', $request->user()->cases()->latest()->first());
+        return redirect()->route('student.cases.show', $case);
     }
 
     public function show(Request $request, ClinicalCase $case): Response

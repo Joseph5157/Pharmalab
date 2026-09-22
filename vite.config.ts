@@ -31,9 +31,11 @@ export default defineConfig({
         ];
 
         if (process.env.DOCKER_BUILD !== 'true') {
-            plugins.push(wayfinder({
-                formVariants: true,
-            }));
+            plugins.push(
+                wayfinder({
+                    formVariants: true,
+                }),
+            );
         }
 
         return plugins;
@@ -77,7 +79,10 @@ export default defineConfig({
             '.github/**',
             'composer.json',
             'docs/**',
+            'resources/js/actions/**',
             'resources/js/components/ui/*',
+            'resources/js/routes/**',
+            'resources/js/wayfinder/**',
             'resources/views/mail/*',
         ],
         sortTailwindcss: {

@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
+use App\Enums\CaseStatus;
 use App\Enums\UserRole;
-use App\Models\ClinicalCase;
 use App\Models\SoapNote;
 use App\Models\User;
 
