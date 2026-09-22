@@ -13,71 +13,80 @@ Statuses:
 
 ## 2. Accepted decisions
 
-| ID | Decision | Reason / consequence |
-|---|---|---|
-| DEC-001 | Use Laravel + Inertia.js + Vue 3 + TypeScript + PostgreSQL. | Delivers an app-like interface while retaining a cohesive server-side authorization and relational domain model. |
-| DEC-002 | Build a modular monolith for Phase 1. | Avoids premature API/microservice overhead; domain services can be exposed later. |
-| DEC-003 | Phase 1 centers on clinical case documentation and faculty review. | Provides a valuable complete learning loop before knowledge-engine or AI features. |
-| DEC-004 | The record is a student educational case, not a live patient EHR. | UI, permissions and language must not imply clinical ordering or official medical-record status. |
-| DEC-005 | Use de-identification by design. | Standard forms will not collect patient name, full DOB, phone, address, government ID or hospital MRN. |
-| DEC-006 | Use a task-list case workspace with focused section screens. | Students can document in the order clinical information becomes available and resume easily. |
-| DEC-007 | Submitted and approved versions are immutable. | Faculty decisions must remain tied to exactly what was reviewed. |
-| DEC-008 | Authorization is enforced with Laravel policies and scoped queries. | Vue capability flags are presentation helpers only. |
-| DEC-009 | Offline support is limited to de-identified drafts. | Server remains source of truth; submission, return and approval require online/current state. |
-| DEC-010 | Do not rely solely on browser Background Sync. | Browser support is incomplete; foreground/manual retry is required. |
-| DEC-011 | Use structured records for labs, vitals, medicines, diagnoses and interventions. | Supports comparison, validation, reporting and future standards mapping. |
-| DEC-012 | Be FHIR-aligned where useful, but do not claim Phase 1 FHIR conformance. | Full conformance requires profiling, terminology and interoperability testing. |
-| DEC-013 | Use a faculty-approved local intervention taxonomy initially. | Full PCNE classification reuse requires licensing/permission review for commercial use. |
-| DEC-014 | AI-generated clinical recommendations are deferred. | Normal Phase 1 workflow and governed data must be established first. |
-| DEC-015 | Comprehensive drug monographs and DDI checking are deferred. | Content sourcing, licensing, clinical governance and update processes need separate work. |
-| DEC-016 | Academic, site, rotation and assignment records carry explicit institution ownership and use restrictive foreign keys. Referenced records are deactivated rather than deleted. | Keeps tenant boundaries queryable and preserves the academic context needed by later case records and audit history. |
+| ID      | Decision                                                                                                                                                                          | Reason / consequence                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| DEC-001 | Use Laravel + Inertia.js + Vue 3 + TypeScript + PostgreSQL.                                                                                                                       | Delivers an app-like interface while retaining a cohesive server-side authorization and relational domain model.                  |
+| DEC-002 | Build a modular monolith for Phase 1.                                                                                                                                             | Avoids premature API/microservice overhead; domain services can be exposed later.                                                 |
+| DEC-003 | Phase 1 centers on clinical case documentation and faculty review.                                                                                                                | Provides a valuable complete learning loop before knowledge-engine or AI features.                                                |
+| DEC-004 | The record is a student educational case, not a live patient EHR.                                                                                                                 | UI, permissions and language must not imply clinical ordering or official medical-record status.                                  |
+| DEC-005 | Use de-identification by design.                                                                                                                                                  | Standard forms will not collect patient name, full DOB, phone, address, government ID or hospital MRN.                            |
+| DEC-006 | Use a task-list case workspace with focused section screens.                                                                                                                      | Students can document in the order clinical information becomes available and resume easily.                                      |
+| DEC-007 | Submitted and approved versions are immutable.                                                                                                                                    | Faculty decisions must remain tied to exactly what was reviewed.                                                                  |
+| DEC-008 | Authorization is enforced with Laravel policies and scoped queries.                                                                                                               | Vue capability flags are presentation helpers only.                                                                               |
+| DEC-009 | Offline support is limited to de-identified drafts.                                                                                                                               | Server remains source of truth; submission, return and approval require online/current state.                                     |
+| DEC-010 | Do not rely solely on browser Background Sync.                                                                                                                                    | Browser support is incomplete; foreground/manual retry is required.                                                               |
+| DEC-011 | Use structured records for labs, vitals, medicines, diagnoses and interventions.                                                                                                  | Supports comparison, validation, reporting and future standards mapping.                                                          |
+| DEC-012 | Be FHIR-aligned where useful, but do not claim Phase 1 FHIR conformance.                                                                                                          | Full conformance requires profiling, terminology and interoperability testing.                                                    |
+| DEC-013 | Use a faculty-approved local intervention taxonomy initially.                                                                                                                     | Full PCNE classification reuse requires licensing/permission review for commercial use.                                           |
+| DEC-014 | AI-generated clinical recommendations are deferred.                                                                                                                               | Normal Phase 1 workflow and governed data must be established first.                                                              |
+| DEC-015 | Comprehensive drug monographs and DDI checking are deferred.                                                                                                                      | Content sourcing, licensing, clinical governance and update processes need separate work.                                         |
+| DEC-016 | Academic, site, rotation and assignment records carry explicit institution ownership and use restrictive foreign keys. Referenced records are deactivated rather than deleted.    | Keeps tenant boundaries queryable and preserves the academic context needed by later case records and audit history.              |
+| DEC-017 | Phase 1 programme scope is B.Pharm and Pharm.D; M.Pharm is deferred.                                                                                                              | Keeps the first release aligned to the product owner's confirmed student groups and available authoritative curricula.            |
+| DEC-018 | Use the PCI B.Pharm Syllabus 2026 aligned to NEP 2020 and the PCI Pharm.D Regulations 2008 as the curriculum baselines. ANU affiliation does not define these syllabus templates. | Prevents an affiliation assumption from becoming curriculum logic and gives each record an authoritative programme baseline.      |
+| DEC-019 | Pharm.D clinical documentation, B.Pharm practical records and B.Pharm clinical learning use distinct templates with a shared submission/review/portfolio lifecycle.               | The programmes have materially different learning activities but can reuse governance and review infrastructure.                  |
+| DEC-020 | Curriculum, clinical and practical templates are versioned. Published versions used by students and the records created from them are immutable.                                  | Protects historical academic evidence and prevents later curriculum/template edits from changing previously reviewed work.        |
+| DEC-021 | Phase 1 covers all B.Pharm practical subjects in the applicable PCI curriculum, configured in staged semester groups through a reusable record engine.                            | Avoids separate hard-coded forms while retaining the confirmed all-subject scope.                                                 |
+| DEC-022 | Every implementation gate receives a bounded requirements and inspiration pass before UX approval and coding.                                                                     | Allows relevant internet products and Mobbin patterns to inform usability without replacing PCI, privacy or faculty requirements. |
 
 ## 3. Provisional decisions requiring validation
 
-| ID | Provisional decision | Validation needed |
-|---|---|---|
-| DEC-101 | One primary preceptor reviews each case in Phase 1. | Confirm whether co-review or second approval is required. |
-| DEC-102 | Returned cases unlock only sections marked for correction, with faculty option to unlock all. | Confirm preferred academic practice and usability. |
-| DEC-103 | Case demographics use age/age unit or age band rather than DOB. | Confirm curriculum and hospital policy. |
-| DEC-104 | Student can enter free-text medicine/test names with controlled suggestions. | Confirm required terminology and local data availability. |
-| DEC-105 | ADR/Naranjo is P1 rather than walking-skeleton scope. | Confirm whether every submitted case requires it. |
-| DEC-106 | Counselling and monitoring is a separate optional section. | Confirm whether it belongs inside SOAP Plan or is independently graded. |
-| DEC-107 | Admin may see case content only through an explicit academic permission. | Confirm institutional administrative oversight policy. |
-| DEC-108 | Rotations retain the template/rubric versions selected at activation. | Confirm how mid-rotation curriculum changes should apply. |
-| DEC-109 | Section-level revision comparison is sufficient for Phase 1. | Test with faculty on medication/lab repeatable records. |
-| DEC-110 | One rotation assignment links one student to one primary preceptor for the walking skeleton, unique per student and rotation. | Confirm whether later gates require co-preceptors, second reviewers or separate faculty-assignment records before expanding this model. |
+| ID      | Provisional decision                                                                                                                         | Validation needed                                                                                                                       |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| DEC-101 | One primary preceptor reviews each case in Phase 1.                                                                                          | Confirm whether co-review or second approval is required.                                                                               |
+| DEC-102 | Returned cases unlock only sections marked for correction, with faculty option to unlock all.                                                | Confirm preferred academic practice and usability.                                                                                      |
+| DEC-103 | Case demographics use age/age unit or age band rather than DOB.                                                                              | Confirm curriculum and hospital policy.                                                                                                 |
+| DEC-104 | Student can enter free-text medicine/test names with controlled suggestions.                                                                 | Confirm required terminology and local data availability.                                                                               |
+| DEC-105 | ADR/Naranjo is P1 rather than walking-skeleton scope.                                                                                        | Confirm whether every submitted case requires it.                                                                                       |
+| DEC-106 | Counselling and monitoring is a separate optional section.                                                                                   | Confirm whether it belongs inside SOAP Plan or is independently graded.                                                                 |
+| DEC-107 | Admin may see case content only through an explicit academic permission.                                                                     | Confirm institutional administrative oversight policy.                                                                                  |
+| DEC-108 | Rotations retain the template/rubric versions selected at activation.                                                                        | Confirm how mid-rotation curriculum changes should apply.                                                                               |
+| DEC-109 | Section-level revision comparison is sufficient for Phase 1.                                                                                 | Test with faculty on medication/lab repeatable records.                                                                                 |
+| DEC-110 | One rotation assignment links one student to one primary preceptor for the walking skeleton, unique per student and rotation.                | Confirm whether later gates require co-preceptors, second reviewers or separate faculty-assignment records before expanding this model. |
+| DEC-111 | B.Pharm clinical learning uses masked/theoretical cases and simulations by default; real ward cases require explicit institutional approval. | Confirm placement practice, privacy authority and whether a separate B.Pharm real-patient workflow is required.                         |
+| DEC-112 | A reusable practical-record schema provides configurable sections, repeatable data and assessment hooks.                                     | Validate the common structure against representative PCI practical subjects before fixing the schema.                                   |
 
 ## 4. Open institutional decisions
 
 These should be answered during the Phase 0 workshop.
 
-| ID | Question | Why it matters |
-|---|---|---|
-| OPEN-001 | Which exact fields are required for Pharm.D, M.Pharm and B.Pharm cases? | Determines migrations, templates and completeness rules. |
-| OPEN-002 | Which case sections are optional or not applicable by rotation? | Determines task-list and submission behavior. |
-| OPEN-003 | What identifiers/demographics may be recorded under institutional and hospital policy? | Determines privacy boundaries and field design. |
-| OPEN-004 | Who may review, return, approve and reopen cases? | Determines role/permission matrix. |
-| OPEN-005 | Is a second reviewer or signature required? | May change the lifecycle and schema materially. |
-| OPEN-006 | What is the rubric, scoring scale and pass rule? | Determines rubric versioning and approval preconditions. |
-| OPEN-007 | Can a student edit all sections after return or only flagged sections? | Determines correction authorization. |
-| OPEN-008 | What case counts and categories are required per rotation? | Determines progress calculations. |
-| OPEN-009 | What happens to unfinished cases when a rotation ends? | Determines grace period and locking. |
-| OPEN-010 | Which reports/exports are mandatory and who may access them? | Determines reporting scope and privacy review. |
-| OPEN-011 | Is ADR/Naranjo mandatory, optional or only for suspected ADR cases? | Determines Phase 1 priority and completeness rules. |
-| OPEN-012 | Which low-risk calculators or approved references are required? | Determines reference-module scope. |
-| OPEN-013 | What are retention, backup and device-draft clearing periods? | Determines infrastructure and offline policy. |
-| OPEN-014 | Which browsers/devices and connectivity conditions are typical in wards? | Determines PWA test matrix and fallbacks. |
-| OPEN-015 | Is multilingual UI/content required for the pilot? | Affects design system, content and database fields. |
+| ID       | Question                                                                                                           | Why it matters                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| OPEN-001 | Within the PCI baselines, which exact fields are required for Pharm.D cases and B.Pharm clinical-learning records? | Determines migrations, published templates and completeness rules. |
+| OPEN-002 | Which case sections are optional or not applicable by rotation?                                                    | Determines task-list and submission behavior.                      |
+| OPEN-003 | What identifiers/demographics may be recorded under institutional and hospital policy?                             | Determines privacy boundaries and field design.                    |
+| OPEN-004 | Who may review, return, approve and reopen cases?                                                                  | Determines role/permission matrix.                                 |
+| OPEN-005 | Is a second reviewer or signature required?                                                                        | May change the lifecycle and schema materially.                    |
+| OPEN-006 | What is the rubric, scoring scale and pass rule?                                                                   | Determines rubric versioning and approval preconditions.           |
+| OPEN-007 | Can a student edit all sections after return or only flagged sections?                                             | Determines correction authorization.                               |
+| OPEN-008 | What case counts and categories are required per rotation?                                                         | Determines progress calculations.                                  |
+| OPEN-009 | What happens to unfinished cases when a rotation ends?                                                             | Determines grace period and locking.                               |
+| OPEN-010 | Which reports/exports are mandatory and who may access them?                                                       | Determines reporting scope and privacy review.                     |
+| OPEN-011 | Is ADR/Naranjo mandatory, optional or only for suspected ADR cases?                                                | Determines Phase 1 priority and completeness rules.                |
+| OPEN-012 | Which low-risk calculators or approved references are required?                                                    | Determines reference-module scope.                                 |
+| OPEN-013 | What are retention, backup and device-draft clearing periods?                                                      | Determines infrastructure and offline policy.                      |
+| OPEN-014 | Which browsers/devices and connectivity conditions are typical in wards?                                           | Determines PWA test matrix and fallbacks.                          |
+| OPEN-015 | Is multilingual UI/content required for the pilot?                                                                 | Affects design system, content and database fields.                |
 
 ## 5. Deferred decisions
 
-| ID | Decision area | Revisit when |
-|---|---|---|
-| DEF-001 | Drug-monograph API versus curated database | Phase 1 workflow is stable and licensing budget is known. |
-| DEF-002 | DDI data provider and clinical governance | Licensed data and pharmacist governance team are available. |
-| DEF-003 | AI provider, model, retrieval and evaluation | Sufficient governed cases exist and safety/evaluation protocol is approved. |
-| DEF-004 | Public API / native applications | A second client or external institution has a confirmed need. |
-| DEF-005 | Multi-tenant SaaS subscriptions and super-admin | Pilot proves institutional value and commercial model is approved. |
+| ID      | Decision area                                   | Revisit when                                                                              |
+| ------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| DEF-001 | Drug-monograph API versus curated database      | Phase 1 workflow is stable and licensing budget is known.                                 |
+| DEF-002 | DDI data provider and clinical governance       | Licensed data and pharmacist governance team are available.                               |
+| DEF-003 | AI provider, model, retrieval and evaluation    | Sufficient governed cases exist and safety/evaluation protocol is approved.               |
+| DEF-004 | Public API / native applications                | A second client or external institution has a confirmed need.                             |
+| DEF-005 | Multi-tenant SaaS subscriptions and super-admin | Pilot proves institutional value and commercial model is approved.                        |
+| DEF-006 | M.Pharm curriculum and records                  | A later phase explicitly approves M.Pharm scope and its authoritative curriculum package. |
 
 ## 6. Scope reconciliation records
 
@@ -89,6 +98,16 @@ These should be answered during the Phase 0 workshop.
 - Deferred from the schema/workflow direction: case-template and rubric references, requirements JSON, overlap scheduling rules, and activation prerequisites that depend on later institutional decisions.
 - Explicitly excluded: template/rubric builders (`ADM-09`/`ADM-10`), reports, clinical schema, and case/review workflow.
 - Reason: the authoritative milestone is limited to the minimum configuration an administrator needs to support the next walking-skeleton gate.
+
+### PCI curriculum and Phase 1 direction — 2026-09-22
+
+- Confirmed Phase 1 programmes: B.Pharm and Pharm.D.
+- Confirmed curriculum baselines: PCI B.Pharm Syllabus 2026 aligned to NEP 2020, and PCI Pharm.D Regulations 2008.
+- Superseded the earlier assumption that ANU affiliation determines the syllabus; it is affiliation/administration context only.
+- Added B.Pharm practical records for all applicable PCI practical subjects, implemented through a reusable versioned template engine in semester stages.
+- Kept Pharm.D clinical documentation distinct from B.Pharm practical/clinical-learning records while sharing submission, review and portfolio infrastructure.
+- Replaced the broad institutional-form blocker with a bounded template-foundation research/specification gate. Institutional validation still blocks final publication of affected forms and rubrics.
+- Detailed record: [`docs/decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md`](decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md).
 
 ## 7. Decision-change template
 
