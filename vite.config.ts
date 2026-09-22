@@ -79,7 +79,10 @@ export default defineConfig({
             '.github/**',
             'composer.json',
             'docs/**',
+            'resources/js/actions/**',
             'resources/js/components/ui/*',
+            'resources/js/routes/**',
+            'resources/js/wayfinder/**',
             'resources/views/mail/*',
         ],
         sortTailwindcss: {
