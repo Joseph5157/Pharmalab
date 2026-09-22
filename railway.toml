@@ -3,8 +3,10 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.production"
 
 [deploy]
-startCommand = "php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache"
-healthcheckPath = "/"
+# No startCommand: the image CMD (docker/start.sh) already runs config:cache,
+# migrate and then php-fpm + nginx. A startCommand here would override that
+# CMD and prevent the web server from starting.
+healthcheckPath = "/up"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
@@ -18,3 +20,7 @@ LOG_LEVEL = "info"
 SESSION_DRIVER = "database"
 CACHE_STORE = "redis"
 QUEUE_CONNECTION = "redis"
+REDIS_CLIENT = "phpredis"
+# Reference the Redis service (Railway private networking). Rename "Redis"
+# if your Redis service is named differently.
+REDIS_URL = "${{Redis.REDIS_URL}}"

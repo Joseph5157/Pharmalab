@@ -64,6 +64,9 @@ COPY docker/nginx.conf /etc/nginx/conf.d/app.conf
 # PHP-FPM pool configuration
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 
+# Production OPcache configuration
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+
 EXPOSE 8080
 
 CMD ["sh", "/var/www/html/docker/start.sh"]
