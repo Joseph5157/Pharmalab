@@ -3,7 +3,6 @@
 namespace Tests\Feature\Authorization;
 
 use App\Enums\CaseStatus;
-use App\Enums\UserRole;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
