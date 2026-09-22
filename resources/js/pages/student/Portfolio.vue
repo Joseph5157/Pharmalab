@@ -59,11 +59,16 @@ const formatDate = (value: string) =>
                 Approved cases
             </h1>
             <p class="mt-1 text-sm text-slate-500">
-                {{ cases.length }} approved case{{ cases.length !== 1 ? 's' : '' }}
+                {{ cases.length }} approved case{{
+                    cases.length !== 1 ? 's' : ''
+                }}
             </p>
         </div>
 
-        <section v-if="cases.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section
+            v-if="cases.length"
+            class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
             <article
                 v-for="caseItem in cases"
                 :key="caseItem.id"
@@ -78,7 +83,7 @@ const formatDate = (value: string) =>
                         </span>
                         <h3
                             v-if="caseItem.case_category"
-                            class="mt-2 font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                            class="font-display mt-2 text-lg font-semibold text-[#0b2942] dark:text-white"
                         >
                             {{ caseItem.case_category }}
                         </h3>
@@ -86,19 +91,32 @@ const formatDate = (value: string) =>
                     <Award class="size-5 text-green-600" />
                 </div>
 
-                <div class="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                    <p v-if="caseItem.clinical_site" class="flex items-center gap-1.5">
+                <div
+                    class="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-400"
+                >
+                    <p
+                        v-if="caseItem.clinical_site"
+                        class="flex items-center gap-1.5"
+                    >
                         <MapPin class="size-3.5" />
                         {{ caseItem.clinical_site.name }}
-                        <template v-if="caseItem.ward"> · {{ caseItem.ward.name }}</template>
+                        <template v-if="caseItem.ward">
+                            · {{ caseItem.ward.name }}</template
+                        >
                     </p>
-                    <p v-if="caseItem.approved_at" class="text-xs text-green-700 dark:text-green-400">
+                    <p
+                        v-if="caseItem.approved_at"
+                        class="text-xs text-green-700 dark:text-green-400"
+                    >
                         Approved {{ formatDate(caseItem.approved_at) }}
                     </p>
                 </div>
 
                 <div
-                    v-if="caseItem.versions.length && caseItem.versions[0].approved_by"
+                    v-if="
+                        caseItem.versions.length &&
+                        caseItem.versions[0].approved_by
+                    "
                     class="mt-3 border-t border-green-200 pt-3 dark:border-green-800"
                 >
                     <p class="text-xs text-slate-500">
@@ -112,7 +130,8 @@ const formatDate = (value: string) =>
             v-else
             class="rounded-3xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500"
         >
-            No approved cases yet. Complete and submit cases to build your portfolio.
+            No approved cases yet. Complete and submit cases to build your
+            portfolio.
         </p>
     </main>
 </template>

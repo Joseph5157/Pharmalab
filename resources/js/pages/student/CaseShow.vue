@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { FileText, Send, CheckCircle, RotateCcw, Clock, MapPin, User } from '@lucide/vue';
+import {
+    FileText,
+    Send,
+    CheckCircle,
+    RotateCcw,
+    Clock,
+    MapPin,
+    User,
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 type SoapNote = {
@@ -101,12 +109,18 @@ const formatDate = (value: string) =>
 
 const hasSoap = (soap: SoapNote | null): boolean => {
     if (!soap) return false;
-    return !!(soap.subjective || soap.objective || soap.assessment || soap.plan);
+    return !!(
+        soap.subjective ||
+        soap.objective ||
+        soap.assessment ||
+        soap.plan
+    );
 };
 
 const canSubmit = (): boolean => {
     return (
-        (props.clinicalCase.status === 'draft' || props.clinicalCase.status === 'returned') &&
+        (props.clinicalCase.status === 'draft' ||
+            props.clinicalCase.status === 'returned') &&
         hasSoap(props.clinicalCase.current_soap)
     );
 };
@@ -139,11 +153,16 @@ const canSubmit = (): boolean => {
             </div>
             <div class="flex gap-2">
                 <Button
-                    v-if="clinicalCase.status === 'draft' || clinicalCase.status === 'returned'"
+                    v-if="
+                        clinicalCase.status === 'draft' ||
+                        clinicalCase.status === 'returned'
+                    "
                     variant="outline"
-                    @click="router.get(`/student/cases/${clinicalCase.id}/soap`)"
+                    @click="
+                        router.get(`/student/cases/${clinicalCase.id}/soap`)
+                    "
                 >
-                    <FileText class="size-4 mr-1" /> Edit SOAP
+                    <FileText class="mr-1 size-4" /> Edit SOAP
                 </Button>
                 <Button
                     v-if="canSubmit()"
@@ -151,7 +170,7 @@ const canSubmit = (): boolean => {
                     :disabled="submitForm.processing"
                     @click="submitCase"
                 >
-                    <Send class="size-4 mr-1" /> Submit
+                    <Send class="mr-1 size-4" /> Submit
                 </Button>
             </div>
         </div>
@@ -160,37 +179,67 @@ const canSubmit = (): boolean => {
             <div
                 class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
             >
-                <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                <h2
+                    class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                >
                     Case details
                 </h2>
                 <dl class="mt-4 space-y-3 text-sm">
-                    <div v-if="clinicalCase.encounter_date" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.encounter_date"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Encounter date</dt>
-                        <dd class="font-medium">{{ formatDate(clinicalCase.encounter_date) }}</dd>
+                        <dd class="font-medium">
+                            {{ formatDate(clinicalCase.encounter_date) }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.case_category" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.case_category"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Category</dt>
-                        <dd class="font-medium">{{ clinicalCase.case_category }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.case_category }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.age_value" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.age_value"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Age</dt>
-                        <dd class="font-medium">{{ clinicalCase.age_value }} {{ clinicalCase.age_unit || '' }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.age_value }}
+                            {{ clinicalCase.age_unit || '' }}
+                        </dd>
                     </div>
                     <div v-if="clinicalCase.sex" class="flex justify-between">
                         <dt class="text-slate-500">Sex</dt>
                         <dd class="font-medium">{{ clinicalCase.sex }}</dd>
                     </div>
-                    <div v-if="clinicalCase.clinical_site" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.clinical_site"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Site</dt>
-                        <dd class="font-medium">{{ clinicalCase.clinical_site.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.clinical_site.name }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.department" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.department"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Department</dt>
-                        <dd class="font-medium">{{ clinicalCase.department.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.department.name }}
+                        </dd>
                     </div>
                     <div v-if="clinicalCase.ward" class="flex justify-between">
                         <dt class="text-slate-500">Ward</dt>
-                        <dd class="font-medium">{{ clinicalCase.ward.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.ward.name }}
+                        </dd>
                     </div>
                 </dl>
             </div>
@@ -198,34 +247,63 @@ const canSubmit = (): boolean => {
             <div
                 class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
             >
-                <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                <h2
+                    class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                >
                     SOAP note
                 </h2>
-                <div v-if="clinicalCase.current_soap && hasSoap(clinicalCase.current_soap)" class="mt-4 space-y-4">
+                <div
+                    v-if="
+                        clinicalCase.current_soap &&
+                        hasSoap(clinicalCase.current_soap)
+                    "
+                    class="mt-4 space-y-4"
+                >
                     <div v-if="clinicalCase.current_soap.subjective">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Subjective</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.subjective }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Subjective
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.subjective }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.objective">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Objective</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.objective }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Objective
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.objective }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.assessment">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Assessment</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.assessment }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Assessment
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.assessment }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.plan">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Plan</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.plan }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Plan
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.plan }}
+                        </p>
                     </div>
                 </div>
                 <p v-else class="mt-4 text-sm text-slate-500">
                     No SOAP note yet.
                     <Button
-                        v-if="clinicalCase.status === 'draft' || clinicalCase.status === 'returned'"
+                        v-if="
+                            clinicalCase.status === 'draft' ||
+                            clinicalCase.status === 'returned'
+                        "
                         variant="link"
-                        class="p-0 h-auto"
-                        @click="router.get(`/student/cases/${clinicalCase.id}/soap`)"
+                        class="h-auto p-0"
+                        @click="
+                            router.get(`/student/cases/${clinicalCase.id}/soap`)
+                        "
                     >
                         Start editing
                     </Button>
@@ -237,7 +315,9 @@ const canSubmit = (): boolean => {
             v-if="clinicalCase.versions.length"
             class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
         >
-            <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
                 Submission history
             </h2>
             <div class="mt-4 space-y-3">
@@ -251,12 +331,16 @@ const canSubmit = (): boolean => {
                             Version {{ version.version_number }}
                         </p>
                         <p class="text-xs text-slate-500">
-                            Submitted by {{ version.submitted_by.name }} · {{ formatDate(version.submitted_at) }}
+                            Submitted by {{ version.submitted_by.name }} ·
+                            {{ formatDate(version.submitted_at) }}
                         </p>
                     </div>
                     <div v-if="version.approved_by" class="text-right">
-                        <p class="flex items-center gap-1 text-xs text-green-600">
-                            <CheckCircle class="size-3" /> Approved by {{ version.approved_by.name }}
+                        <p
+                            class="flex items-center gap-1 text-xs text-green-600"
+                        >
+                            <CheckCircle class="size-3" /> Approved by
+                            {{ version.approved_by.name }}
                         </p>
                     </div>
                 </div>

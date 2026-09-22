@@ -6,16 +6,15 @@ use App\Actions\ApproveCase;
 use App\Actions\ReturnCase;
 use App\Actions\SubmitCase;
 use App\Enums\CaseStatus;
+use App\Models\CaseVersion;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
-use App\Models\Department;
 use App\Models\Institution;
 use App\Models\Programme;
 use App\Models\Rotation;
 use App\Models\RotationAssignment;
 use App\Models\SoapNote;
 use App\Models\User;
-use App\Models\Ward;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -104,7 +103,7 @@ class ClinicalCaseWorkflowTest extends TestCase
             'submitted_at' => now(),
         ]);
 
-        $version = \App\Models\CaseVersion::query()->withoutGlobalScopes()->create([
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'clinical_case_id' => $case->id,
             'version_number' => 1,

@@ -121,7 +121,10 @@ const formatDate = (value: string) =>
     }).format(new Date(value));
 
 const canReview = (): boolean => {
-    return props.clinicalCase.status === 'submitted' || props.clinicalCase.status === 'under_review';
+    return (
+        props.clinicalCase.status === 'submitted' ||
+        props.clinicalCase.status === 'under_review'
+    );
 };
 </script>
 
@@ -159,37 +162,67 @@ const canReview = (): boolean => {
             <div
                 class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
             >
-                <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                <h2
+                    class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                >
                     Case details
                 </h2>
                 <dl class="mt-4 space-y-3 text-sm">
-                    <div v-if="clinicalCase.encounter_date" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.encounter_date"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Encounter date</dt>
-                        <dd class="font-medium">{{ formatDate(clinicalCase.encounter_date) }}</dd>
+                        <dd class="font-medium">
+                            {{ formatDate(clinicalCase.encounter_date) }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.case_category" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.case_category"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Category</dt>
-                        <dd class="font-medium">{{ clinicalCase.case_category }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.case_category }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.age_value" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.age_value"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Age</dt>
-                        <dd class="font-medium">{{ clinicalCase.age_value }} {{ clinicalCase.age_unit || '' }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.age_value }}
+                            {{ clinicalCase.age_unit || '' }}
+                        </dd>
                     </div>
                     <div v-if="clinicalCase.sex" class="flex justify-between">
                         <dt class="text-slate-500">Sex</dt>
                         <dd class="font-medium">{{ clinicalCase.sex }}</dd>
                     </div>
-                    <div v-if="clinicalCase.clinical_site" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.clinical_site"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Site</dt>
-                        <dd class="font-medium">{{ clinicalCase.clinical_site.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.clinical_site.name }}
+                        </dd>
                     </div>
-                    <div v-if="clinicalCase.department" class="flex justify-between">
+                    <div
+                        v-if="clinicalCase.department"
+                        class="flex justify-between"
+                    >
                         <dt class="text-slate-500">Department</dt>
-                        <dd class="font-medium">{{ clinicalCase.department.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.department.name }}
+                        </dd>
                     </div>
                     <div v-if="clinicalCase.ward" class="flex justify-between">
                         <dt class="text-slate-500">Ward</dt>
-                        <dd class="font-medium">{{ clinicalCase.ward.name }}</dd>
+                        <dd class="font-medium">
+                            {{ clinicalCase.ward.name }}
+                        </dd>
                     </div>
                 </dl>
             </div>
@@ -197,25 +230,43 @@ const canReview = (): boolean => {
             <div
                 class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
             >
-                <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                <h2
+                    class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                >
                     SOAP note
                 </h2>
                 <div v-if="clinicalCase.current_soap" class="mt-4 space-y-4">
                     <div v-if="clinicalCase.current_soap.subjective">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Subjective</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.subjective }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Subjective
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.subjective }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.objective">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Objective</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.objective }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Objective
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.objective }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.assessment">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Assessment</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.assessment }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Assessment
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.assessment }}
+                        </p>
                     </div>
                     <div v-if="clinicalCase.current_soap.plan">
-                        <h3 class="text-xs font-bold text-slate-500 uppercase">Plan</h3>
-                        <p class="mt-1 text-sm whitespace-pre-wrap">{{ clinicalCase.current_soap.plan }}</p>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase">
+                            Plan
+                        </h3>
+                        <p class="mt-1 text-sm whitespace-pre-wrap">
+                            {{ clinicalCase.current_soap.plan }}
+                        </p>
                     </div>
                 </div>
                 <p v-else class="mt-4 text-sm text-slate-500">
@@ -228,7 +279,9 @@ const canReview = (): boolean => {
             v-if="clinicalCase.versions.length"
             class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
         >
-            <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
                 Submission history
             </h2>
             <div class="mt-4 space-y-3">
@@ -242,12 +295,16 @@ const canReview = (): boolean => {
                             Version {{ version.version_number }}
                         </p>
                         <p class="text-xs text-slate-500">
-                            Submitted by {{ version.submitted_by.name }} · {{ formatDate(version.submitted_at) }}
+                            Submitted by {{ version.submitted_by.name }} ·
+                            {{ formatDate(version.submitted_at) }}
                         </p>
                     </div>
                     <div v-if="version.approved_by" class="text-right">
-                        <p class="flex items-center gap-1 text-xs text-green-600">
-                            <CheckCircle class="size-3" /> Approved by {{ version.approved_by.name }}
+                        <p
+                            class="flex items-center gap-1 text-xs text-green-600"
+                        >
+                            <CheckCircle class="size-3" /> Approved by
+                            {{ version.approved_by.name }}
                         </p>
                     </div>
                 </div>
@@ -258,7 +315,9 @@ const canReview = (): boolean => {
             v-if="clinicalCase.status_transitions.length"
             class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
         >
-            <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
                 Status history
             </h2>
             <div class="mt-4 space-y-2">
@@ -271,19 +330,22 @@ const canReview = (): boolean => {
                     <span class="text-slate-600">
                         {{ transition.actor.name }}
                         changed status from
-                        <span class="font-semibold">{{ statusLabel(transition.from_status) }}</span>
+                        <span class="font-semibold">{{
+                            statusLabel(transition.from_status)
+                        }}</span>
                         to
-                        <span class="font-semibold">{{ statusLabel(transition.to_status) }}</span>
+                        <span class="font-semibold">{{
+                            statusLabel(transition.to_status)
+                        }}</span>
                     </span>
-                    <span class="text-xs text-slate-500">{{ formatDate(transition.created_at) }}</span>
+                    <span class="text-xs text-slate-500">{{
+                        formatDate(transition.created_at)
+                    }}</span>
                 </div>
             </div>
         </section>
 
-        <section
-            v-if="canReview()"
-            class="grid gap-5 lg:grid-cols-2"
-        >
+        <section v-if="canReview()" class="grid gap-5 lg:grid-cols-2">
             <form
                 class="rounded-3xl border border-green-200 bg-green-50/50 p-5 sm:p-7 dark:border-green-800 dark:bg-green-950/20"
                 @submit.prevent="approve"
@@ -295,14 +357,21 @@ const canReview = (): boolean => {
                         <CheckCircle class="size-5" />
                     </span>
                     <div>
-                        <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                        <h2
+                            class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                        >
                             Approve
                         </h2>
-                        <p class="text-xs text-slate-500">Mark this case as approved.</p>
+                        <p class="text-xs text-slate-500">
+                            Mark this case as approved.
+                        </p>
                     </div>
                 </div>
                 <div class="mt-4">
-                    <label for="approve-summary" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                    <label
+                        for="approve-summary"
+                        class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                    >
                         Summary / Attestation (optional)
                     </label>
                     <textarea
@@ -318,7 +387,7 @@ const canReview = (): boolean => {
                     class="mt-4 w-full bg-green-700 text-white sm:w-auto"
                     :disabled="approveForm.processing"
                 >
-                    <CheckCircle class="size-4 mr-1" /> Approve
+                    <CheckCircle class="mr-1 size-4" /> Approve
                 </Button>
             </form>
 
@@ -333,14 +402,21 @@ const canReview = (): boolean => {
                         <RotateCcw class="size-5" />
                     </span>
                     <div>
-                        <h2 class="font-display text-lg font-semibold text-[#0b2942] dark:text-white">
+                        <h2
+                            class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+                        >
                             Return
                         </h2>
-                        <p class="text-xs text-slate-500">Return for student correction.</p>
+                        <p class="text-xs text-slate-500">
+                            Return for student correction.
+                        </p>
                     </div>
                 </div>
                 <div class="mt-4">
-                    <label for="return-reason" class="text-sm font-semibold text-[#0b2942] dark:text-white">
+                    <label
+                        for="return-reason"
+                        class="text-sm font-semibold text-[#0b2942] dark:text-white"
+                    >
                         Reason *
                     </label>
                     <textarea
@@ -357,7 +433,7 @@ const canReview = (): boolean => {
                     class="mt-4 w-full bg-orange-600 text-white sm:w-auto"
                     :disabled="returnForm.processing || !returnForm.reason"
                 >
-                    <RotateCcw class="size-4 mr-1" /> Return
+                    <RotateCcw class="mr-1 size-4" /> Return
                 </Button>
             </form>
         </section>

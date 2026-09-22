@@ -7,6 +7,7 @@ use App\Enums\UserStatus;
 use App\Models\Institution;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 /**
  * Demo accounts. Idempotent and free of dev-only dependencies (no Faker), so it
@@ -42,7 +43,7 @@ class DemoUsersSeeder extends Seeder
                 'status' => UserStatus::Active,
                 'password' => 'password',
             ]);
-            $user->email_verified_at = now();
+            $user->email_verified_at = Carbon::now();
             $user->save();
         }
     }
