@@ -1,6 +1,8 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
+/playwright-report
+/test-results
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot
@@ -13,6 +15,7 @@
 /tests/**/__pycache__/
 /vendor
 .DS_Store
+/debug.log
 .env
 .env.backup
 .env.production
