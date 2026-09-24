@@ -31,12 +31,12 @@ Statuses:
 | DEC-014 | AI-generated clinical recommendations are deferred.                                                                                                                               | Normal Phase 1 workflow and governed data must be established first.                                                              |
 | DEC-015 | Comprehensive drug monographs and DDI checking are deferred.                                                                                                                      | Content sourcing, licensing, clinical governance and update processes need separate work.                                         |
 | DEC-016 | Academic, site, rotation and assignment records carry explicit institution ownership and use restrictive foreign keys. Referenced records are deactivated rather than deleted.    | Keeps tenant boundaries queryable and preserves the academic context needed by later case records and audit history.              |
-| DEC-017 | Phase 1 programme scope is B.Pharm and Pharm.D; M.Pharm is deferred.                                                                                                              | Keeps the first release aligned to the product owner's confirmed student groups and available authoritative curricula.            |
-| DEC-018 | Use the PCI B.Pharm Syllabus 2026 aligned to NEP 2020 and the PCI Pharm.D Regulations 2008 as the curriculum baselines. ANU affiliation does not define these syllabus templates. | Prevents an affiliation assumption from becoming curriculum logic and gives each record an authoritative programme baseline.      |
-| DEC-019 | Pharm.D clinical documentation, B.Pharm practical records and B.Pharm clinical learning use distinct templates with a shared submission/review/portfolio lifecycle.               | The programmes have materially different learning activities but can reuse governance and review infrastructure.                  |
-| DEC-020 | Curriculum, clinical and practical templates are versioned. Published versions used by students and the records created from them are immutable.                                  | Protects historical academic evidence and prevents later curriculum/template edits from changing previously reviewed work.        |
-| DEC-021 | Phase 1 covers all B.Pharm practical subjects in the applicable PCI curriculum, configured in staged semester groups through a reusable record engine.                            | Avoids separate hard-coded forms while retaining the confirmed all-subject scope.                                                 |
-| DEC-022 | Every implementation gate receives a bounded requirements and inspiration pass before UX approval and coding.                                                                     | Allows relevant internet products and Mobbin patterns to inform usability without replacing PCI, privacy or faculty requirements. |
+| DEC-017 | Phase 1 student groups are B.Pharm and Pharm.D; M.Pharm is deferred.                                                                                                              | Keeps the first release aligned to the product owner's confirmed users without introducing a curriculum package.                  |
+| DEC-022 | Every implementation gate receives a bounded requirements and inspiration pass before UX approval and coding.                                                                     | Allows relevant internet products and Mobbin patterns to inform usability without replacing privacy, faculty or client requirements. |
+| DEC-023 | Phase 1 uses direct student/rotation assignment and documentation; it does not store or resolve a regulatory curriculum model.                                                       | Aligns the build with the client-requested workflow and prevents speculative curriculum data from entering the database.           |
+| DEC-024 | Do not add curriculum versions, periods, subjects, regulatory mappings, activity requirements or curriculum-based template assignments in Phase 1.                                      | Makes the database boundary explicit and testable.                                                                                  |
+| DEC-025 | Begin with fixed faculty-approved form structures and a stable form-version identifier; defer the dynamic template builder.                                                               | Delivers the workflow with less complexity while preserving historical interpretation.                                             |
+| DEC-026 | Extend the accepted walking skeleton rather than create a second generic record or assignment engine.                                                                                    | Preserves tested authorization, sync, immutable snapshots and audit behaviour.                                                      |
 
 ## 3. Provisional decisions requiring validation
 
@@ -49,11 +49,9 @@ Statuses:
 | DEC-105 | ADR/Naranjo is P1 rather than walking-skeleton scope.                                                                                        | Confirm whether every submitted case requires it.                                                                                       |
 | DEC-106 | Counselling and monitoring is a separate optional section.                                                                                   | Confirm whether it belongs inside SOAP Plan or is independently graded.                                                                 |
 | DEC-107 | Admin may see case content only through an explicit academic permission.                                                                     | Confirm institutional administrative oversight policy.                                                                                  |
-| DEC-108 | Rotations retain the template/rubric versions selected at activation.                                                                        | Confirm how mid-rotation curriculum changes should apply.                                                                               |
 | DEC-109 | Section-level revision comparison is sufficient for Phase 1.                                                                                 | Test with faculty on medication/lab repeatable records.                                                                                 |
 | DEC-110 | One rotation assignment links one student to one primary preceptor for the walking skeleton, unique per student and rotation.                | Confirm whether later gates require co-preceptors, second reviewers or separate faculty-assignment records before expanding this model. |
 | DEC-111 | B.Pharm clinical learning uses masked/theoretical cases and simulations by default; real ward cases require explicit institutional approval. | Confirm placement practice, privacy authority and whether a separate B.Pharm real-patient workflow is required.                         |
-| DEC-112 | A reusable practical-record schema provides configurable sections, repeatable data and assessment hooks.                                     | Validate the common structure against representative PCI practical subjects before fixing the schema.                                   |
 
 ## 4. Open institutional decisions
 
@@ -61,7 +59,7 @@ These should be answered during the Phase 0 workshop.
 
 | ID       | Question                                                                                                           | Why it matters                                                     |
 | -------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| OPEN-001 | Within the PCI baselines, which exact fields are required for Pharm.D cases and B.Pharm clinical-learning records? | Determines migrations, published templates and completeness rules. |
+| OPEN-001 | Which exact fields are required for the first Pharm.D case and first B.Pharm practical record?                     | Determines migrations, fixed forms and completeness rules.         |
 | OPEN-002 | Which case sections are optional or not applicable by rotation?                                                    | Determines task-list and submission behavior.                      |
 | OPEN-003 | What identifiers/demographics may be recorded under institutional and hospital policy?                             | Determines privacy boundaries and field design.                    |
 | OPEN-004 | Who may review, return, approve and reopen cases?                                                                  | Determines role/permission matrix.                                 |
@@ -86,7 +84,7 @@ These should be answered during the Phase 0 workshop.
 | DEF-003 | AI provider, model, retrieval and evaluation    | Sufficient governed cases exist and safety/evaluation protocol is approved.               |
 | DEF-004 | Public API / native applications                | A second client or external institution has a confirmed need.                             |
 | DEF-005 | Multi-tenant SaaS subscriptions and super-admin | Pilot proves institutional value and commercial model is approved.                        |
-| DEF-006 | M.Pharm curriculum and records                  | A later phase explicitly approves M.Pharm scope and its authoritative curriculum package. |
+| DEF-006 | M.Pharm records                                 | A later phase explicitly approves M.Pharm scope and its record requirements.             |
 
 ## 6. Scope reconciliation records
 
@@ -99,15 +97,20 @@ These should be answered during the Phase 0 workshop.
 - Explicitly excluded: template/rubric builders (`ADM-09`/`ADM-10`), reports, clinical schema, and case/review workflow.
 - Reason: the authoritative milestone is limited to the minimum configuration an administrator needs to support the next walking-skeleton gate.
 
-### PCI curriculum and Phase 1 direction — 2026-09-22
+### PCI curriculum and template direction — 2026-09-22 — superseded
 
-- Confirmed Phase 1 programmes: B.Pharm and Pharm.D.
-- Confirmed curriculum baselines: PCI B.Pharm Syllabus 2026 aligned to NEP 2020, and PCI Pharm.D Regulations 2008.
-- Superseded the earlier assumption that ANU affiliation determines the syllabus; it is affiliation/administration context only.
-- Added B.Pharm practical records for all applicable PCI practical subjects, implemented through a reusable versioned template engine in semester stages.
-- Kept Pharm.D clinical documentation distinct from B.Pharm practical/clinical-learning records while sharing submission, review and portfolio infrastructure.
-- Replaced the broad institutional-form blocker with a bounded template-foundation research/specification gate. Institutional validation still blocks final publication of affected forms and rubrics.
-- Detailed record: [`docs/decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md`](decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md).
+- The proposed curriculum/template foundation was a research direction only and was not implemented.
+- Its curriculum database, automatic curriculum assignment and dynamic template-builder scope were superseded by the client decision recorded on 24 September 2026.
+- Historical context remains available in Git history; it is not an active implementation instruction.
+
+### Direct documentation Phase 1 direction — 2026-09-24
+
+- The client requires the direct documentation and faculty-review workflow, not curriculum-based activity assignment.
+- No new curriculum versions, periods, subjects, regulatory mappings, curriculum activity requirements, student-period enrolments or automatic curriculum-to-template assignments will be added.
+- Existing accepted programme, cohort, site, ward and rotation tables remain untouched but are not expanded into a curriculum engine.
+- Phase 1 begins with fixed faculty-approved form structures and stable form-version identification.
+- The active implementation gate is `DIRECT-DOCUMENTATION-IMPL-01`.
+- Detailed record: [`docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md`](decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md).
 
 ## 7. Decision-change template
 
