@@ -16,11 +16,11 @@ This file is the canonical source of truth for current project status, accepted 
 | Accepted feature baseline                        | `c167e9e` — accepted `WALKING-SKELETON-01`                                             |
 | Repository HEAD before this documentation change | `a1f91ed` — deployment/demo-seeding follow-up on `main`                                |
 | Last completed and accepted gate                 | Walking skeleton — `WALKING-SKELETON-01`                                               |
-| Active gate                                      | `PCI-TEMPLATE-FOUNDATION-01`                                                           |
-| Current milestone                                | Versioned curriculum/template foundation — research and specification                  |
-| Milestone status                                 | Active; implementation not started                                                     |
-| Exact next action                                | Complete and approve the focused template-builder/versioning inspiration specification |
-| Next gate after this milestone                   | `PHARMD-CASE-01`                                                                       |
+| Active gate                                      | `DIRECT-DOCUMENTATION-IMPL-01`                                                        |
+| Current milestone                                | Direct clinical/practical documentation and faculty review                             |
+| Milestone status                                 | Specification accepted through PR #6; implementation not started                       |
+| Exact next action                                | Obtain faculty-approved fixed fields and implement the bounded direct workflow          |
+| Next gate after this milestone                   | Detailed review/comments or the next approved fixed record type                         |
 
 ## 2. Completed and accepted work
 
@@ -94,16 +94,16 @@ This file is the canonical source of truth for current project status, accepted 
 
 ## 3. Active work
 
-### `PCI-TEMPLATE-FOUNDATION-01` — research and specification
+### `DIRECT-DOCUMENTATION-IMPL-01` — direct workflow implementation
 
-- **Status:** Active; implementation not started.
-- **Objective:** Define the minimum versioned curriculum and configurable template capability shared by Pharm.D clinical documentation and B.Pharm practical/clinical-learning records.
-- **Depends on:** `WALKING-SKELETON-01` (accepted), PCI B.Pharm Syllabus 2026 aligned to NEP 2020, PCI Pharm.D Regulations 2008, and the recorded competitor/reference audit.
-- **Exact next action:** Complete a focused internet/reference-product audit for template creation, publishing, version retention, curriculum assignment, assessment hooks and mobile preview; then approve the bounded specification and wireframes.
-- **Exit condition:** An accepted specification defines the template lifecycle, curriculum relationships, immutable version behaviour, admin screens, mobile preview, authorization boundaries and acceptance criteria required by `PHARMD-CASE-01` and `BPHARM-RECORD-ENGINE-01`.
-- **Scope boundary:** Research/specification only. Do not implement all B.Pharm experiment content, the full Pharm.D case schema, final rubrics, drug databases, AI, a public API or native applications in this gate.
-- **Institutional boundary:** Faculty forms, privacy rules and rubrics still block publication of affected final templates, but no longer block this bounded foundation specification.
-- **Detailed direction:** See [`docs/decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md`](docs/decisions/2026-09-22_PCI_CURRICULUM_AND_PHASE1_DIRECTION.md).
+- **Status:** Active after the PR #6 specification merge; implementation not started.
+- **Objective:** Extend the accepted walking skeleton with one faculty-approved fixed clinical or practical record structure and the complete direct documentation, return, resubmission and approval experience.
+- **Depends on:** `WALKING-SKELETON-01` (accepted), the accepted sync protocol and faculty approval of the first fixed record structure.
+- **Exact next action:** Confirm the exact fields, whether students self-start records or faculty creates each assignment, and the review-comment depth; then implement the smallest end-to-end slice.
+- **Exit condition:** One authorized student can start a fixed record, save, submit, receive feedback, correct, resubmit and obtain approval from the assigned faculty member while immutable history, privacy, sync and tenant authorization tests pass.
+- **Scope boundary:** Do not add curriculum versions, subjects, academic periods, regulatory mappings, curriculum activity requirements, automatic template resolution or a dynamic template builder. Drug databases, AI, public APIs and native applications remain deferred.
+- **Institutional boundary:** Faculty approval still blocks the exact clinical/practical field set, rubric and exceptional reopening policy.
+- **Detailed direction:** See [`docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md`](docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md) and [`docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md`](docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md).
 
 ## 4. Accepted decisions and reasons
 
@@ -120,11 +120,11 @@ This file is the canonical source of truth for current project status, accepted 
 | Section-level conflict handling                         | Accepted | The spike proved it prevents silent overwrite without automatic field/text merging. Reuse the protocol through a shared sync service; final device-retention policy remains open. |
 | AI-generated clinical recommendations                   | Deferred | Complete the governed normal workflow and collect suitable data before evaluating AI.                                                                                             |
 | Comprehensive drug monographs and DDI checking          | Deferred | Licensing, content governance and update processes require separate work.                                                                                                         |
-| Phase 1 programmes are B.Pharm and Pharm.D              | Accepted | These are the product owner's confirmed initial student groups; M.Pharm requires a later separately approved curriculum package.                                                  |
-| PCI defines the curriculum baselines                    | Accepted | Use PCI B.Pharm 2026/NEP 2020 and PCI Pharm.D Regulations 2008; ANU affiliation is not the syllabus source.                                                                       |
-| Versioned shared template foundation                    | Accepted | Distinct programme records need reusable infrastructure while retaining the exact published template used for every student record.                                               |
-| B.Pharm practical coverage uses one configurable engine | Accepted | Phase 1 covers all applicable PCI practical subjects, configured in semester stages rather than as unrelated hard-coded forms.                                                    |
-| Gate-level inspiration research                         | Accepted | Internet products and Mobbin may inform workflow and UX, but remain subordinate to PCI requirements, privacy and faculty approval.                                                |
+| Phase 1 student groups are B.Pharm and Pharm.D          | Accepted | The direct workflow may serve both groups through separately approved fixed record structures; no curriculum package is stored.                                                   |
+| Direct assignment and documentation workflow            | Accepted | Phase 1 centers on authorized record start, documentation, submission, faculty return/resubmission and approval.                                                                  |
+| No curriculum data model in Phase 1                     | Accepted | The client did not request curriculum versions, periods, subjects, regulatory mappings or automatic curriculum-to-form assignment.                                                |
+| Fixed approved forms before a dynamic builder           | Accepted | Start with faculty-approved structures and stable form-version identifiers; defer the general template builder.                                                                   |
+| Gate-level inspiration research                         | Accepted | Internet products and Mobbin may inform workflow and UX, but remain subordinate to privacy, faculty approval and the client-requested scope.                                      |
 
 The full durable decision register is maintained in [`docs/DECISIONS.md`](docs/DECISIONS.md). If this summary and that file disagree, stop and reconcile the inconsistency before implementation.
 
@@ -134,14 +134,14 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 
 | Question                                                                                                                        | Why it matters                                               | Who must answer                             | Gate blocked                                    | Current temporary assumption                                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Within the PCI baselines, which exact fields and sections are required for Pharm.D cases and B.Pharm clinical-learning records? | Determines published templates and completeness rules.       | Faculty/curriculum owner                    | `PHARMD-CASE-01` and final template publication | Preserve the minimal de-identified walking-skeleton record until approved forms are published.                        |
+| Which exact fields and sections are required for the first Pharm.D clinical case and B.Pharm practical record?                   | Determines fixed forms and completeness rules.               | Faculty leads                               | `DIRECT-DOCUMENTATION-IMPL-01`              | Preserve the minimal de-identified walking-skeleton record until a fixed form is approved.                        |
 | What identifiers and demographics may be recorded?                                                                              | Defines privacy boundaries and validation.                   | Institution privacy owner and hospital      | Walking skeleton and clinical documentation     | No patient name, full DOB, phone, address, government ID or hospital MRN; use age/age unit or age band provisionally. |
 | Who may review, return, approve and exceptionally reopen a case? Is a second signature required?                                | Materially changes permissions, lifecycle and schema.        | Faculty programme owner                     | Complete review workflow                        | One assigned primary faculty/preceptor reviews each case; do not implement multi-reviewer approval yet.               |
-| What rubric, scoring scale and pass rule apply?                                                                                 | Determines rubric versioning and approval prerequisites.     | Faculty/curriculum owner                    | Complete review workflow                        | Walking skeleton uses only a basic review summary/attestation and approval decision.                                  |
+| What rubric, scoring scale and pass rule apply?                                                                                 | Determines assessment and approval prerequisites.            | Faculty assessment owner                    | Complete review workflow                        | Walking skeleton uses only a basic review summary/attestation and approval decision.                                  |
 | After return, may students edit all sections or only flagged sections?                                                          | Determines correction authorization and UI.                  | Faculty programme owner                     | Complete review workflow                        | Provisional direction is flagged sections only, with an explicit faculty option to unlock all; do not finalize yet.   |
-| What case counts and categories are required per rotation?                                                                      | Determines progress and portfolio calculations.              | Faculty/curriculum owner                    | Portfolio/reporting                             | Show case status without enforcing programme-specific quotas.                                                         |
+| What case counts and categories are required per rotation?                                                                      | Determines progress and portfolio calculations.              | Faculty lead                                | Portfolio/reporting                             | Show case status without enforcing programme-specific quotas.                                                         |
 | Is ADR/Naranjo mandatory, optional, or used only for suspected ADR cases?                                                       | Determines form priority and completeness.                   | Faculty/pharmacovigilance owner             | Full clinical documentation                     | Defer it until the institutional form is reviewed.                                                                    |
-| Is counselling/monitoring separate or part of SOAP Plan?                                                                        | Affects section design and grading.                          | Faculty/curriculum owner                    | Full clinical documentation                     | Keep it out of the walking skeleton and defer the final structure.                                                    |
+| Is counselling/monitoring separate or part of SOAP Plan?                                                                        | Affects section design and grading.                          | Faculty lead                                | Full clinical documentation                     | Keep it out of the walking skeleton and defer the final structure.                                                    |
 | What reports and exports are mandatory, and who may access them?                                                                | Determines data exposure and reporting scope.                | Institution administrator and privacy owner | Portfolio/reporting                             | Implement only on-screen progress needed by the walking skeleton.                                                     |
 | What are retention, backup and device-draft clearing periods?                                                                   | Determines IndexedDB retention and offline privacy behavior. | Institution privacy/security owner          | Production PWA resilience                       | Clear local drafts on logout; make no permanent-storage guarantee; do not finalize retention duration.                |
 | Which browsers, devices and connectivity conditions are typical in wards?                                                       | Determines the supported PWA matrix and fallback behavior.   | Institution IT and pilot users              | Production PWA resilience                       | Use mobile-first responsive design and foreground/manual recovery; validate the actual device matrix before release.  |
@@ -170,19 +170,19 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 - **Reason:** The end-to-end minimal case submission, faculty approval and portfolio exit condition is now evidenced.
 - **Status:** The accepted feature baseline remains `c167e9e`; the next-gate direction recorded at closure has since been superseded by the PCI curriculum and template-foundation decisions below.
 
-### Curriculum authority and Phase 1 scope corrected
+### Curriculum/template direction superseded
 
-- **Previous:** Curriculum authority and programme-specific record boundaries were unresolved; an ANU-specific syllabus was considered.
-- **New:** PCI B.Pharm Syllabus 2026 aligned to NEP 2020 and PCI Pharm.D Regulations 2008 are the authoritative baselines. ANU is affiliation/administration context, not the syllabus source. Phase 1 serves B.Pharm and Pharm.D; M.Pharm is deferred.
-- **Reason:** The product owner confirmed the authority and supplied the applicable PCI source documents.
-- **Status:** Previous ANU-syllabus assumption is superseded.
+- **Previous:** Phase 1 planned a PCI curriculum data model, curriculum periods, subject/activity requirements, automatic template assignment and a reusable dynamic template engine.
+- **New:** The client confirmed that curriculum-based activities and curriculum data are not required in Phase 1. No new curriculum tables or automatic curriculum resolution will be implemented.
+- **Reason:** The requested value is the direct documentation and faculty-review workflow, not curriculum administration.
+- **Status:** The 22 September curriculum/template direction and the draft PCI template specification are superseded. Existing accepted programme, cohort and rotation tables remain untouched.
 
-### Institutional-form blocker narrowed
+### Direct documentation direction accepted
 
-- **Previous:** The complete clinical-documentation gate was blocked as a whole until institutional forms were obtained.
-- **New:** `PCI-TEMPLATE-FOUNDATION-01` may proceed as a research/specification gate using the authoritative PCI baselines and configurable versioning. Institutional approval still blocks publication of affected final forms, rubrics and privacy-sensitive rules.
-- **Reason:** The shared template architecture can be specified without prematurely fixing institution-specific clinical fields.
-- **Status:** Foundation research/specification active; implementation not started.
+- **Previous:** The next gate was a broad curriculum/template foundation.
+- **New:** The next gate is `DIRECT-DOCUMENTATION-IMPL-01`, using one faculty-approved fixed record structure and the direct submit, return, resubmit and approve lifecycle.
+- **Reason:** This is the smallest client-aligned extension of the accepted walking skeleton.
+- **Status:** Specification accepted through PR #6; implementation begins only after the first field set and assignment-start rule are confirmed.
 
 ## 7. Remaining gates
 
@@ -190,17 +190,16 @@ Do not turn these temporary assumptions into permanent schema or workflow rules.
 | ----: | ----------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 |     1 | Academic/rotation administration    | Accepted — `ADM-FOUNDATION-01`                | Admin can create the minimum programme, cohort, site, department, ward and rotation structure and assign one student and faculty member, with authorization and audit coverage. |
 |     2 | Walking skeleton                    | Accepted — `WALKING-SKELETON-01`              | The admin → student case/SOAP submission → faculty approval → portfolio loop passes end-to-end.                                                                                 |
-|     3 | PCI template foundation             | Active — research/specification               | Approved curriculum/template lifecycle, versioning, assignment, admin UX and acceptance criteria support both programme paths.                                                  |
-|     4 | Pharm.D clinical case               | Not started                                   | Faculty-approved de-identified case sections support structured entry, validation and the accepted sync approach.                                                               |
-|     5 | Pharm.D supporting clinical records | Not started                                   | Applicable intervention, ADR, counselling, interaction, drug-information, medication-history and posting records pass their workflows.                                          |
-|     6 | Complete review workflow            | Blocked by review-policy and rubric decisions | Comment, correction, resubmission, comparison, rubric, approval and exceptional reopen paths pass.                                                                              |
-|     7 | B.Pharm practical-record engine     | Not started                                   | A reusable configurable record supports representative PCI practical structures and faculty review without subject-specific code forks.                                         |
-|     8 | B.Pharm PCI subject templates       | Not started                                   | Applicable practical subjects are configured in semester stages, including governed internship, visit and project records.                                                      |
-|     9 | Portfolio/reporting                 | Not started                                   | Required authorized programme progress, approved portfolios and exports pass privacy review.                                                                                    |
-|    10 | PWA resilience                      | Not started; sync spike informs it            | Supported-device tests prove controlled caching, recovery and no silent data loss or overwrite.                                                                                 |
-|    11 | Pilot hardening                     | Not started                                   | Accessibility, security, performance, backup/restore and usability release gates pass.                                                                                          |
+|     3 | Direct documentation scope          | Accepted through PR #6                         | The client-aligned fixed-form workflow, data exclusions, screens and acceptance criteria are recorded.                                                                          |
+|     4 | Direct documentation implementation | Active — not started                           | One approved fixed record passes start, draft, submit, return, correction, resubmission and approval with immutable history.                                                     |
+|     5 | Supporting clinical records          | Not started                                    | Individually approved intervention, ADR, counselling, drug-information or posting records pass their direct workflows.                                                          |
+|     6 | Detailed review workflow             | Blocked by review-policy and rubric decisions  | Approved comments, comparison, assessment and exceptional reopen paths pass.                                                                                                    |
+|     7 | Additional B.Pharm practical records | Blocked by faculty-approved record structures  | Each requested fixed practical record is added without introducing curriculum tables or automatic curriculum assignment.                                                       |
+|     8 | Portfolio/reporting                  | Not started                                    | Required authorized record history, approved portfolios and exports pass privacy review.                                                                                        |
+|     9 | PWA resilience                      | Not started; sync spike informs it             | Supported-device tests prove controlled caching, recovery and no silent data loss or overwrite.                                                                                 |
+|    10 | Pilot hardening                     | Not started                                    | Accessibility, security, performance, backup/restore and usability release gates pass.
 
-Institutional validation runs in parallel and must be completed before finalizing clinical forms, review rules, reports, and production device-retention behavior.
+Faculty and institutional validation run in parallel and must be completed before finalizing fixed record fields, review rules, reports and production device-retention behavior.
 
 ## 8. Agent instructions
 
