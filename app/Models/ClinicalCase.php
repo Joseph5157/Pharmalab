@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
 use App\Models\Concerns\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -46,6 +47,14 @@ use Illuminate\Support\Carbon;
     'age_value',
     'age_unit',
     'sex',
+    'care_setting',
+    'hospital_day_at_first_review',
+    'information_source',
+    'weight_kg',
+    'height_cm',
+    'pregnancy_lactation_status',
+    'deidentification_attested_at',
+    'deidentification_attested_by',
     'clinical_site_id',
     'department_id',
     'ward_id',
@@ -60,9 +69,13 @@ class ClinicalCase extends Model
     {
         return [
             'status' => CaseStatus::class,
+            'form_version' => CaseFormVersion::class,
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'encounter_date' => 'date',
+            'deidentification_attested_at' => 'datetime',
+            'weight_kg' => 'decimal:2',
+            'height_cm' => 'decimal:2',
         ];
     }
 
@@ -94,6 +107,42 @@ class ClinicalCase extends Model
     public function ward(): BelongsTo
     {
         return $this->belongsTo(Ward::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function attestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deidentification_attested_by');
+    }
+
+    /** @return HasOne<CaseClinicalProfile, $this> */
+    public function clinicalProfile(): HasOne
+    {
+        return $this->hasOne(CaseClinicalProfile::class);
+    }
+
+    /** @return HasMany<CaseVital, $this> */
+    public function vitals(): HasMany
+    {
+        return $this->hasMany(CaseVital::class);
+    }
+
+    /** @return HasMany<CaseInvestigation, $this> */
+    public function investigations(): HasMany
+    {
+        return $this->hasMany(CaseInvestigation::class);
+    }
+
+    /** @return HasMany<CaseMedication, $this> */
+    public function medications(): HasMany
+    {
+        return $this->hasMany(CaseMedication::class);
+    }
+
+    /** @return HasMany<CaseClinicalActivity, $this> */
+    public function clinicalActivities(): HasMany
+    {
+        return $this->hasMany(CaseClinicalActivity::class);
     }
 
     /** @return HasOne<SoapNote, $this> */

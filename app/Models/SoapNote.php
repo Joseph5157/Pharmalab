@@ -32,6 +32,8 @@ use Illuminate\Support\Carbon;
     'objective',
     'assessment',
     'plan',
+    'drug_related_problem_status',
+    'drug_related_problem_categories',
     'author_id',
     'last_saved_by',
     'lock_version',
@@ -39,6 +41,13 @@ use Illuminate\Support\Carbon;
 class SoapNote extends Model
 {
     use BelongsToInstitution, HasUlids;
+
+    protected function casts(): array
+    {
+        return [
+            'drug_related_problem_categories' => 'array',
+        ];
+    }
 
     /** @return BelongsTo<ClinicalCase, $this> */
     public function clinicalCase(): BelongsTo
