@@ -23,6 +23,13 @@ export type SectionSyncOptions<T extends SyncedSection> = {
     endpoint: string;
     initialPayload: T;
     debounceMs?: number;
+    /**
+     * Extra keys of T that are server-computed/read-only display data (e.g. a
+     * denormalized display block), on top of the always-excluded
+     * `lock_version`/`updated_at`. The server's RejectsUnknownFields trait
+     * rejects any of these sent back as top-level request fields.
+     */
+    readonlyFields?: (keyof T)[];
 };
 
 export function useSectionSync<T extends SyncedSection>(
@@ -62,7 +69,11 @@ export function useSectionSync<T extends SyncedSection>(
                   sectionKey: options.sectionKey,
                   resourceId: options.resourceId,
                   userId: options.userId,
-                  payload: payload.value,
+                  // payload.value is reactive (ref() wraps object values via
+                  // reactive()); IndexedDB's put() uses the structured clone
+                  // algorithm, which — like structuredClone() above — cannot
+                  // clone a Proxy. Strip reactivity the same JSON-safe way.
+                  payload: JSON.parse(JSON.stringify(payload.value)),
                   baseLockVersion: baseLockVersion.value,
                   clientOperationId: operationId.value,
                   updatedAt: new Date().toISOString(),
@@ -110,6 +121,19 @@ export function useSectionSync<T extends SyncedSection>(
         const id = operationId.value;
         const sent = payload.value;
         const version = baseLockVersion.value;
+        // lock_version/updated_at are this composable's own server-authoritative
+        // fields; readonlyFields covers any caller-specific ones (e.g. a display
+        // block). Neither is a field the server accepts back on this endpoint.
+        const excluded = new Set<keyof T>([
+            'lock_version',
+            'updated_at',
+            ...(options.readonlyFields ?? []),
+        ]);
+        const editable = Object.fromEntries(
+            Object.entries(sent).filter(
+                ([key]) => !excluded.has(key as keyof T),
+            ),
+        );
         try {
             const response = await fetch(options.endpoint, {
                 method: 'PUT',
@@ -122,7 +146,7 @@ export function useSectionSync<T extends SyncedSection>(
                 body: JSON.stringify({
                     client_operation_id: id,
                     base_lock_version: version,
-                    ...sent,
+                    ...editable,
                     resolution,
                     confirmed,
                 }),

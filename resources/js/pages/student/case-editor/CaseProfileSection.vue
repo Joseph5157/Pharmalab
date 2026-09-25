@@ -45,6 +45,7 @@ const {
     sectionKey: 'case_context',
     endpoint: `/student/cases/${props.caseId}/context`,
     initialPayload: props.initial,
+    readonlyFields: ['case_display'],
 });
 const status = computed(
     () =>
