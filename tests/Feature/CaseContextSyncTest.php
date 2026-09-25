@@ -10,8 +10,10 @@ use App\Models\Programme;
 use App\Models\Rotation;
 use App\Models\RotationAssignment;
 use App\Models\User;
+use App\Services\SectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class CaseContextSyncTest extends TestCase
@@ -74,7 +76,7 @@ class CaseContextSyncTest extends TestCase
     {
         [, $student, $case] = $this->makeCase();
 
-        app(\App\Services\SectionSyncService::class)->sync(
+        app(SectionSyncService::class)->sync(
             $case,
             $student,
             'vitals_availability',
@@ -139,7 +141,7 @@ class CaseContextSyncTest extends TestCase
     }
 
     /** @param array<string, mixed> $attributes */
-    private function syncAs(User $student, ClinicalCase $case, array $attributes, int $baseLockVersion = 0, ?string $operationId = null): \Illuminate\Testing\TestResponse
+    private function syncAs(User $student, ClinicalCase $case, array $attributes, int $baseLockVersion = 0, ?string $operationId = null): TestResponse
     {
         return $this->actingAs($student)->putJson(route('student.cases.context.sync', $case), [
             'client_operation_id' => $operationId ?? (string) Str::uuid(),

@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
-use App\Models\CaseClinicalProfile;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
@@ -13,6 +12,7 @@ use App\Models\RotationAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class CaseClinicalProfileSyncTest extends TestCase
@@ -127,7 +127,7 @@ class CaseClinicalProfileSyncTest extends TestCase
     }
 
     /** @param array<string, mixed> $attributes */
-    private function syncAs(User $student, ClinicalCase $case, array $attributes, int $baseLockVersion = 0): \Illuminate\Testing\TestResponse
+    private function syncAs(User $student, ClinicalCase $case, array $attributes, int $baseLockVersion = 0): TestResponse
     {
         return $this->actingAs($student)->putJson(route('student.cases.clinical-profile.sync', $case), [
             'client_operation_id' => (string) Str::uuid(),

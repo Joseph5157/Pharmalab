@@ -5,6 +5,7 @@ namespace App\Contracts;
 interface Syncable
 {
     public function getLockVersion(string $sectionKey): int;
+
     public function getInstitutionId(): string;
 
     /** @param array<string, mixed> $attributes */

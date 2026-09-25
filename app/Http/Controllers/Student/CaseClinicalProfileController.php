@@ -36,7 +36,10 @@ class CaseClinicalProfileController extends Controller
             $envelope['confirmed'],
         );
 
-        return response()->json(['section' => $this->payload($result['model'])], $result['httpStatus']);
+        $model = $result['model'];
+        abort_unless($model instanceof CaseClinicalProfile, 500, 'Unexpected model type returned from sync.');
+
+        return response()->json(['section' => $this->payload($model)], $result['httpStatus']);
     }
 
     /** @return array<string, mixed> */

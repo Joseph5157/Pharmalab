@@ -37,7 +37,12 @@ class SyncOperationsMigrationTest extends TestCase
     {
         [$institution, $student] = $this->legacy();
         SyncOperation::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'user_id' => $student->id, 'case_draft_note_id' => null, 'syncable_type' => 'App\\Models\\ClinicalCase', 'syncable_id' => (string) Str::ulid(), 'client_operation_id' => (string) Str::uuid(), 'section_key' => 'case_context', 'base_lock_version' => 0, 'result_status' => 'saved', 'server_version' => 1]);
-        try { Artisan::call('migrate:rollback', ['--path' => self::PATH]); $this->fail('rollback should refuse'); } catch (\Throwable $e) { $this->assertStringContainsString('Cannot roll back: generalized sync_operations rows exist', $e->getMessage()); }
+        try {
+            Artisan::call('migrate:rollback', ['--path' => self::PATH]);
+            $this->fail('rollback should refuse');
+        } catch (\Throwable $e) {
+            $this->assertStringContainsString('Cannot roll back: generalized sync_operations rows exist', $e->getMessage());
+        }
         $this->assertTrue(Schema::hasColumns('sync_operations', ['syncable_type', 'syncable_id']));
         $this->assertSame(1, SyncOperation::query()->withoutGlobalScopes()->count());
     }
@@ -45,8 +50,10 @@ class SyncOperationsMigrationTest extends TestCase
     /** @return array{Institution, User, CaseDraftNote} */
     private function legacy(): array
     {
-        $institution = Institution::factory()->create(); $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
         $draft = CaseDraftNote::query()->withoutGlobalScopes()->create(['case_id' => (string) Str::ulid(), 'student_id' => $student->id, 'institution_id' => $institution->id, 'content' => 'legacy']);
+
         return [$institution, $student, $draft];
     }
 }

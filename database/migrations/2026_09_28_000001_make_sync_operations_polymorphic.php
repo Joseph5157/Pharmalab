@@ -11,6 +11,7 @@ return new class extends Migration
     {
         if (DB::connection()->getDriverName() === 'sqlite') {
             $this->rebuild(true);
+
             return;
         }
         DB::statement('ALTER TABLE sync_operations ALTER COLUMN case_draft_note_id DROP NOT NULL');
@@ -28,6 +29,7 @@ return new class extends Migration
         }
         if (DB::connection()->getDriverName() === 'sqlite') {
             $this->rebuild(false);
+
             return;
         }
         Schema::table('sync_operations', function (Blueprint $table): void {
@@ -44,7 +46,10 @@ return new class extends Migration
             $table->foreignUlid('institution_id')->constrained()->restrictOnDelete();
             $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->foreignUlid('case_draft_note_id')->nullable($polymorphic)->constrained('case_draft_notes')->restrictOnDelete();
-            if ($polymorphic) { $table->string('syncable_type', 150)->nullable(); $table->ulid('syncable_id')->nullable(); }
+            if ($polymorphic) {
+                $table->string('syncable_type', 150)->nullable();
+                $table->ulid('syncable_id')->nullable();
+            }
             $table->uuid('client_operation_id');
             $table->string('section_key', 80)->default('case_draft_note');
             $table->unsignedBigInteger('base_lock_version');
@@ -54,7 +59,9 @@ return new class extends Migration
             $suffix = $polymorphic ? 'poly' : 'legacy';
             $table->unique(['user_id', 'client_operation_id'], "sync_operations_{$suffix}_user_operation_unique");
             $table->index(['institution_id', 'case_draft_note_id'], "sync_operations_{$suffix}_institution_draft_index");
-            if ($polymorphic) $table->index(['syncable_type', 'syncable_id'], 'sync_operations_poly_syncable_index');
+            if ($polymorphic) {
+                $table->index(['syncable_type', 'syncable_id'], 'sync_operations_poly_syncable_index');
+            }
         });
         DB::statement('INSERT INTO sync_operations_rebuild (id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at) SELECT id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at FROM sync_operations');
         Schema::drop('sync_operations');

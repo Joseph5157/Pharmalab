@@ -24,7 +24,7 @@ use Illuminate\Support\Carbon;
  * @property CaseStatus $status
  * @property int $current_revision_number
  * @property int $lock_version
- * @property string|null $encounter_date
+ * @property Carbon|null $encounter_date
  * @property string|null $case_category
  * @property int|null $age_value
  * @property string|null $age_unit
