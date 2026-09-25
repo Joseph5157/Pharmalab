@@ -246,7 +246,7 @@ class CaseMedicationAndClinicalActivityTest extends TestCase
         $this->assertFalse(Gate::forUser($student)->allows('update', $activity));
     }
 
-    public function test_an_administrator_cannot_view_medications_or_activities(): void
+    public function test_a_same_institution_administrator_may_view_but_not_update_medications_and_activities(): void
     {
         [$institution, $student, $faculty, $case] = $this->makeCase();
         $administrator = User::factory()->administrator()->create(['institution_id' => $institution->id]);
@@ -266,10 +266,89 @@ class CaseMedicationAndClinicalActivityTest extends TestCase
             'recorded_by' => $student->id,
         ]);
 
-        $this->assertFalse(Gate::forUser($administrator)->allows('view', $medication));
+        $this->assertTrue(Gate::forUser($administrator)->allows('view', $medication));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $medication));
-        $this->assertFalse(Gate::forUser($administrator)->allows('view', $activity));
+        $this->assertTrue(Gate::forUser($administrator)->allows('view', $activity));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $activity));
+    }
+
+    public function test_a_cross_institution_administrator_cannot_view_medications_or_activities(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+        $otherInstitution = Institution::factory()->create();
+        $otherAdministrator = User::factory()->administrator()->create(['institution_id' => $otherInstitution->id]);
+
+        $medication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'generic_name' => 'Losartan',
+            'status' => MedicationStatus::Active->value,
+            'recorded_by' => $student->id,
+        ]);
+        $activity = CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Monitoring->value,
+            'status' => 'follow_up_required',
+            'recorded_by' => $student->id,
+        ]);
+
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('view', $medication));
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('view', $activity));
+    }
+
+    public function test_a_medication_and_activity_whose_case_is_institution_mismatched_is_denied_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+
+        $medication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'generic_name' => 'Losartan',
+            'status' => MedicationStatus::Active->value,
+            'recorded_by' => $student->id,
+        ]);
+        $activity = CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Monitoring->value,
+            'status' => 'follow_up_required',
+            'recorded_by' => $student->id,
+        ]);
+        $otherInstitution = Institution::factory()->create();
+        $case->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($student);
+
+        $this->assertFalse(Gate::forUser($student)->allows('view', $medication->fresh()));
+        $this->assertFalse(Gate::forUser($student)->allows('view', $activity->fresh()));
+    }
+
+    public function test_a_medication_and_activity_whose_case_rotation_assignment_is_institution_mismatched_is_denied_to_faculty_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+
+        $medication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'generic_name' => 'Losartan',
+            'status' => MedicationStatus::Active->value,
+            'recorded_by' => $student->id,
+        ]);
+        $activity = CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Monitoring->value,
+            'status' => 'follow_up_required',
+            'recorded_by' => $student->id,
+        ]);
+        $otherInstitution = Institution::factory()->create();
+        $case->rotationAssignment->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($faculty);
+
+        $this->assertFalse(Gate::forUser($faculty)->allows('view', $medication->fresh()));
+        $this->assertFalse(Gate::forUser($faculty)->allows('view', $activity->fresh()));
     }
 
     /** @return array{Institution, User, User, ClinicalCase} */

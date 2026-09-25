@@ -42,7 +42,6 @@ use Illuminate\Support\Carbon;
     'case_number',
     'status',
     'current_revision_number',
-    'form_version',
     'encounter_date',
     'case_category',
     'age_value',

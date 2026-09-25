@@ -242,7 +242,7 @@ class CaseVitalAndInvestigationTest extends TestCase
         $this->assertFalse(Gate::forUser($student)->allows('update', $vital));
     }
 
-    public function test_an_administrator_cannot_view_vitals_or_investigations(): void
+    public function test_a_same_institution_administrator_may_view_but_not_update_vitals_and_investigations(): void
     {
         [$institution, $student, $faculty, $case] = $this->makeCase();
         $administrator = User::factory()->administrator()->create(['institution_id' => $institution->id]);
@@ -264,10 +264,95 @@ class CaseVitalAndInvestigationTest extends TestCase
             'recorded_by' => $student->id,
         ]);
 
-        $this->assertFalse(Gate::forUser($administrator)->allows('view', $vital));
+        $this->assertTrue(Gate::forUser($administrator)->allows('view', $vital));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $vital));
-        $this->assertFalse(Gate::forUser($administrator)->allows('view', $investigation));
+        $this->assertTrue(Gate::forUser($administrator)->allows('view', $investigation));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $investigation));
+    }
+
+    public function test_a_cross_institution_administrator_cannot_view_vitals_or_investigations(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+        $otherInstitution = Institution::factory()->create();
+        $otherAdministrator = User::factory()->administrator()->create(['institution_id' => $otherInstitution->id]);
+
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse',
+            'value_numeric' => 80,
+            'unit' => 'beats/min',
+            'recorded_by' => $student->id,
+        ]);
+        $investigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'test_name' => 'Sodium',
+            'result_type' => 'numeric',
+            'result_value' => '140',
+            'recorded_by' => $student->id,
+        ]);
+
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('view', $vital));
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('view', $investigation));
+    }
+
+    public function test_a_vital_and_investigation_whose_case_is_institution_mismatched_is_denied_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse',
+            'value_numeric' => 80,
+            'unit' => 'beats/min',
+            'recorded_by' => $student->id,
+        ]);
+        $investigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'test_name' => 'Sodium',
+            'result_type' => 'numeric',
+            'result_value' => '140',
+            'recorded_by' => $student->id,
+        ]);
+        $otherInstitution = Institution::factory()->create();
+        $case->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($student);
+
+        $this->assertFalse(Gate::forUser($student)->allows('view', $vital->fresh()));
+        $this->assertFalse(Gate::forUser($student)->allows('view', $investigation->fresh()));
+    }
+
+    public function test_a_vital_and_investigation_whose_case_rotation_assignment_is_institution_mismatched_is_denied_to_faculty_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case] = $this->makeCase();
+
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse',
+            'value_numeric' => 80,
+            'unit' => 'beats/min',
+            'recorded_by' => $student->id,
+        ]);
+        $investigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'test_name' => 'Sodium',
+            'result_type' => 'numeric',
+            'result_value' => '140',
+            'recorded_by' => $student->id,
+        ]);
+        $otherInstitution = Institution::factory()->create();
+        $case->rotationAssignment->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($faculty);
+
+        $this->assertFalse(Gate::forUser($faculty)->allows('view', $vital->fresh()));
+        $this->assertFalse(Gate::forUser($faculty)->allows('view', $investigation->fresh()));
     }
 
     /** @return array{Institution, User, User, ClinicalCase} */

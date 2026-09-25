@@ -42,8 +42,8 @@ class CaseController extends Controller
                 ->where('student_id', $user->id)
                 ->max('case_number') ?? 0;
 
-            $case = ClinicalCase::query()->create([
-                ...$data,
+            $case = new ClinicalCase($data);
+            $case->forceFill([
                 'institution_id' => $user->institution_id,
                 'student_id' => $user->id,
                 'case_number' => $lastCaseNumber + 1,
@@ -51,6 +51,7 @@ class CaseController extends Controller
                 'current_revision_number' => 0,
                 'form_version' => CaseFormVersion::PharmdV1->value,
             ]);
+            $case->save();
 
             $audit->record($user, $case, 'clinical_case.created', [
                 'case_id' => $case->id,

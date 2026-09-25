@@ -17,15 +17,19 @@ class CaseVitalPolicy
 
         $case = $vital->clinicalCase;
 
+        if ($case === null) {
+            return false;
+        }
+
         if ($user->role === UserRole::Student) {
             return $case->student_id === $user->id;
         }
 
-        if ($user->role === UserRole::Faculty) {
-            return $case->rotationAssignment->primary_preceptor_id === $user->id;
+        if ($user->role === UserRole::Administrator) {
+            return true;
         }
 
-        return false;
+        return $case->rotationAssignment?->primary_preceptor_id === $user->id;
     }
 
     public function update(User $user, CaseVital $vital): bool
@@ -38,6 +42,6 @@ class CaseVitalPolicy
             return false;
         }
 
-        return in_array($vital->clinicalCase->status, [CaseStatus::Draft, CaseStatus::Returned]);
+        return in_array($vital->clinicalCase?->status, [CaseStatus::Draft, CaseStatus::Returned]);
     }
 }

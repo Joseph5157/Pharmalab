@@ -149,13 +149,47 @@ class CaseClinicalProfileTest extends TestCase
         $this->assertFalse(Gate::forUser($student)->allows('update', $profile));
     }
 
-    public function test_an_administrator_cannot_view_or_update_the_profile(): void
+    public function test_a_same_institution_administrator_may_view_but_not_update_the_profile(): void
     {
         [$institution, $student, $faculty, $case, $profile] = $this->makeCaseWithProfile();
         $administrator = User::factory()->administrator()->create(['institution_id' => $institution->id]);
 
-        $this->assertFalse(Gate::forUser($administrator)->allows('view', $profile));
+        $this->assertTrue(Gate::forUser($administrator)->allows('view', $profile));
         $this->assertFalse(Gate::forUser($administrator)->allows('update', $profile));
+    }
+
+    public function test_a_cross_institution_administrator_cannot_view_the_profile(): void
+    {
+        [$institution, $student, $faculty, $case, $profile] = $this->makeCaseWithProfile();
+        $otherInstitution = Institution::factory()->create();
+        $otherAdministrator = User::factory()->administrator()->create(['institution_id' => $otherInstitution->id]);
+
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('view', $profile));
+        $this->assertFalse(Gate::forUser($otherAdministrator)->allows('update', $profile));
+    }
+
+    public function test_a_profile_whose_case_is_institution_mismatched_is_denied_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case, $profile] = $this->makeCaseWithProfile();
+        $otherInstitution = Institution::factory()->create();
+
+        $case->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($student);
+
+        $this->assertFalse(Gate::forUser($student)->allows('view', $profile->fresh()));
+    }
+
+    public function test_a_profile_whose_case_rotation_assignment_is_institution_mismatched_is_denied_to_faculty_without_a_server_error(): void
+    {
+        [$institution, $student, $faculty, $case, $profile] = $this->makeCaseWithProfile();
+        $otherInstitution = Institution::factory()->create();
+
+        $case->rotationAssignment->forceFill(['institution_id' => $otherInstitution->id])->saveQuietly();
+
+        $this->actingAs($faculty);
+
+        $this->assertFalse(Gate::forUser($faculty)->allows('view', $profile->fresh()));
     }
 
     /** @return array{Institution, User, User, ClinicalCase} */

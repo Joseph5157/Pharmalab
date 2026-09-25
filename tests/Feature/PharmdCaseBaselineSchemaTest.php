@@ -34,6 +34,35 @@ class PharmdCaseBaselineSchemaTest extends TestCase
         $this->assertSame(CaseFormVersion::PharmdV1, $case->fresh()->form_version);
     }
 
+    public function test_form_version_is_not_mass_assignable(): void
+    {
+        [$institution, $student, $assignment] = $this->makeAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Draft,
+        ]);
+
+        $case->fill(['form_version' => 'malicious-version'])->save();
+        $this->assertSame(CaseFormVersion::PharmdV1, $case->fresh()->form_version);
+
+        $case->update(['form_version' => 'another-malicious-version']);
+        $this->assertSame(CaseFormVersion::PharmdV1, $case->fresh()->form_version);
+
+        $newCase = new ClinicalCase([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 2,
+            'status' => CaseStatus::Draft,
+            'form_version' => 'yet-another-malicious-version',
+        ]);
+        $this->assertNull($newCase->form_version);
+    }
+
     public function test_case_context_and_attestation_fields_persist(): void
     {
         [$institution, $student, $assignment] = $this->makeAssignment();
