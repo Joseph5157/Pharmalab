@@ -4,6 +4,7 @@ namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
+use App\Models\ClinicalCase;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -29,10 +30,19 @@ class UpdateClinicalCaseContextRequest extends FormRequest
     {
         $this->rejectUnknownFields($validator);
         $validator->after(function (Validator $validator): void {
-            if (! $this->has('age_value') || $this->input('age_value') === null) {
+            $case = $this->route('case');
+            if (! $case instanceof ClinicalCase) {
                 return;
-            } $max = self::AGE_MAX_BY_UNIT[$this->input('age_unit')] ?? null;
-            if ($max !== null && (int) $this->input('age_value') > $max) {
+            }
+            $ageValue = $this->has('age_value') ? $this->input('age_value') : $case->age_value;
+            $ageUnit = $this->has('age_unit') ? $this->input('age_unit') : $case->age_unit;
+
+            if ($ageValue === null) {
+                return;
+            }
+
+            $max = self::AGE_MAX_BY_UNIT[$ageUnit] ?? null;
+            if ($max !== null && (int) $ageValue > $max) {
                 $validator->errors()->add('age_value', "The age value must not exceed {$max}.");
             }
         });

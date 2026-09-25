@@ -52,6 +52,7 @@ const {
     replaceServer,
     retry,
     confirmingReplace,
+    validationErrors,
 } = useSectionSync<ClinicalProfilePayload>({
     userId: props.userId,
     resourceId: props.caseId,
@@ -472,6 +473,22 @@ function removeDiagnosis(index: number): void {
                 </button>
             </div>
         </section>
+        <div
+            v-if="state === 'failed'"
+            data-test="history-diagnosis-errors"
+            role="alert"
+            class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
+        >
+            <p v-if="validationErrors.length === 0">
+                This section could not be saved. Check your connection and try
+                again.
+            </p>
+            <ul v-else class="list-disc space-y-1 pl-5">
+                <li v-for="(message, index) in validationErrors" :key="index">
+                    {{ message }}
+                </li>
+            </ul>
+        </div>
         <button
             v-if="state === 'failed'"
             type="button"

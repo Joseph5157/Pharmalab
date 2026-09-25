@@ -56,6 +56,7 @@ export function useSectionSync<T extends SyncedSection>(
     const conflict = ref<{ server: T; local: T } | null>(null);
     const confirmingReplace = ref(false);
     const deviceCopyKept = ref(false);
+    const validationErrors = ref<string[]>([]);
     let timer: ReturnType<typeof setTimeout> | undefined;
     let syncing = false;
     let snapshotGeneration = 0;
@@ -82,6 +83,7 @@ export function useSectionSync<T extends SyncedSection>(
     async function edit() {
         conflict.value = null;
         confirmingReplace.value = false;
+        validationErrors.value = [];
         operationId.value = crypto.randomUUID();
         state.value = 'unsynced';
         const current = draft();
@@ -103,6 +105,7 @@ export function useSectionSync<T extends SyncedSection>(
         conflict.value = null;
         confirmingReplace.value = false;
         deviceCopyKept.value = false;
+        validationErrors.value = [];
         await deleteSection(storageKey);
         state.value = 'server';
     }
@@ -117,6 +120,7 @@ export function useSectionSync<T extends SyncedSection>(
         }
         syncing = true;
         state.value = 'saving';
+        validationErrors.value = [];
         const generation = snapshotGeneration;
         const id = operationId.value;
         const sent = payload.value;
@@ -157,6 +161,21 @@ export function useSectionSync<T extends SyncedSection>(
                 if (operationId.value === id) {
                     conflict.value = { server: body.section, local: sent };
                     state.value = 'conflict';
+                }
+                return;
+            }
+            if (response.status === 422) {
+                const body = (await response.json()) as {
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                };
+                if (operationId.value === id) {
+                    validationErrors.value = body.errors
+                        ? Object.values(body.errors).flat()
+                        : body.message
+                          ? [body.message]
+                          : ['This section could not be saved.'];
+                    state.value = 'failed';
                 }
                 return;
             }
@@ -255,6 +274,7 @@ export function useSectionSync<T extends SyncedSection>(
         conflict,
         confirmingReplace,
         deviceCopyKept,
+        validationErrors,
         edit,
         resolveWithServer,
         keepDeviceCopy,

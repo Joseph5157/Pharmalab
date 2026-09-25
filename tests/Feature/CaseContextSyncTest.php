@@ -72,6 +72,26 @@ class CaseContextSyncTest extends TestCase
             ->assertJsonValidationErrors('age_value');
     }
 
+    public function test_a_partial_age_value_update_is_validated_against_the_stored_unit(): void
+    {
+        [, $student, $case] = $this->makeCase(['age_value' => 45, 'age_unit' => 'years']);
+
+        $this->syncAs($student, $case, ['age_value' => 121])->assertUnprocessable()
+            ->assertJsonValidationErrors('age_value');
+
+        $this->assertSame(45, $case->fresh()->age_value);
+    }
+
+    public function test_a_partial_age_unit_update_is_validated_against_the_stored_value(): void
+    {
+        [, $student, $case] = $this->makeCase(['age_value' => 80, 'age_unit' => 'years']);
+
+        $this->syncAs($student, $case, ['age_unit' => 'months'])->assertUnprocessable()
+            ->assertJsonValidationErrors('age_value');
+
+        $this->assertSame('years', $case->fresh()->age_unit);
+    }
+
     public function test_case_profile_locking_is_independent_from_other_case_sections(): void
     {
         [, $student, $case] = $this->makeCase();
