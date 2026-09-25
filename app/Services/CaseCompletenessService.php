@@ -33,10 +33,10 @@ class CaseCompletenessService
     /** @return list<string> */
     public function missingSections(ClinicalCase $case): array
     {
-        return array_values(array_keys(array_filter(
+        return array_keys(array_filter(
             $this->sectionCompletion($case),
             fn (bool $complete): bool => ! $complete,
-        )));
+        ));
     }
 
     public function isReadyForSubmission(ClinicalCase $case): bool
