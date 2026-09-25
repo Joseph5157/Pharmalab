@@ -18,8 +18,8 @@ This file is the canonical source of truth for current project status, accepted 
 | Last completed and accepted gate                 | Walking skeleton — `WALKING-SKELETON-01`                                       |
 | Active gate                                      | `DIRECT-DOCUMENTATION-IMPL-01`                                                 |
 | Current milestone                                | Direct clinical/practical documentation and faculty review                     |
-| Milestone status                                 | Product decisions accepted; implementation ready to begin                       |
-| Exact next action                                | Implement Slice 1 domain/schema reconciliation on a short-lived feature branch  |
+| Milestone status                                 | Product decisions accepted; implementation ready to begin                      |
+| Exact next action                                | Implement Slice 1 domain/schema reconciliation on a short-lived feature branch |
 | Next gate after this milestone                   | Detailed review/comments or the next approved fixed record type                |
 
 ## 2. Completed and accepted work
@@ -124,12 +124,12 @@ This file is the canonical source of truth for current project status, accepted 
 | Direct assignment and documentation workflow           | Accepted | Phase 1 centers on authorized record start, documentation, submission, faculty return/resubmission and approval.                                                                  |
 | No curriculum data model in Phase 1                    | Accepted | The client did not request curriculum versions, periods, subjects, regulatory mappings or automatic curriculum-to-form assignment.                                                |
 | Fixed approved forms before a dynamic builder          | Accepted | Start with faculty-approved structures and stable form-version identifiers; defer the general template builder.                                                                   |
-| Pharm.D fixed clinical form baseline                    | Accepted | Required sections, conditional activities, India-first units and server-authoritative validations are approved for implementation.                                               |
-| Review, correction and reopening                        | Accepted | Assigned faculty reviews; returned cases unlock all sections with flagged highlights; section comments are supported; audited faculty reopening is exceptional.                 |
-| Phase 1 assessment                                      | Accepted | No marks, rubric, pass score, second reviewer or field-level annotation in the pilot.                                                                                            |
-| Targets, reports and retention                          | Accepted | Faculty-set rotation targets, role-scoped progress, de-identified PDF and retention through course completion plus one year are approved.                                       |
-| Pilot boundary                                          | Accepted | English; Android Chrome phone/tablet and desktop Chrome/Edge; no student attachments.                                                                                            |
-| B.Pharm delivery sequence                               | Accepted | B.Pharm practical records follow as a separate next gate after the Pharm.D clinical module.                                                                                      |
+| Pharm.D fixed clinical form baseline                   | Accepted | Required sections, conditional activities, India-first units and server-authoritative validations are approved for implementation.                                                |
+| Review, correction and reopening                       | Accepted | Assigned faculty reviews; returned cases unlock all sections with flagged highlights; section comments are supported; audited faculty reopening is exceptional.                   |
+| Phase 1 assessment                                     | Accepted | No marks, rubric, pass score, second reviewer or field-level annotation in the pilot.                                                                                             |
+| Targets, reports and retention                         | Accepted | Faculty-set rotation targets, role-scoped progress, de-identified PDF and retention through course completion plus one year are approved.                                         |
+| Pilot boundary                                         | Accepted | English; Android Chrome phone/tablet and desktop Chrome/Edge; no student attachments.                                                                                             |
+| B.Pharm delivery sequence                              | Accepted | B.Pharm practical records follow as a separate next gate after the Pharm.D clinical module.                                                                                       |
 | Gate-level inspiration research                        | Accepted | Internet products and Mobbin may inform workflow and UX, but remain subordinate to privacy, faculty approval and the client-requested scope.                                      |
 
 The full durable decision register is maintained in [`docs/DECISIONS.md`](docs/DECISIONS.md). If this summary and that file disagree, stop and reconcile the inconsistency before implementation.
@@ -138,12 +138,12 @@ The full durable decision register is maintained in [`docs/DECISIONS.md`](docs/D
 
 The first Pharm.D form no longer has unresolved product-field, reviewer, correction, reporting, attachment, retention, language or device-scope decisions. The following items remain before production pilot and must not be silently hard-coded.
 
-| Question | Why it matters | Owner | Current boundary |
-| --- | --- | --- | --- |
-| What happens to unfinished drafts when a rotation ends? | Determines grace period, read-only locking or explicit extension. | Faculty/product owner | Do not add automatic rotation-end locking in the first implementation slice. |
-| Has the hospital/institution approved the de-identification boundary? | Confirms permitted case-date precision and local governance. | Privacy owner and hospital | Implement the approved no-direct-identifier baseline; obtain sign-off before pilot. |
-| What backup/restore procedure and operational owner apply? | Required before retaining pilot educational cases. | Institution IT/admin | Rehearse backup/restore before pilot; do not implement unsafe automatic deletion. |
-| What final PDF branding/layout is approved? | Affects external academic record presentation. | Institution admin/faculty | Generate only de-identified content; finalize branding before pilot release. |
+| Question                                                              | Why it matters                                                    | Owner                      | Current boundary                                                                    |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| What happens to unfinished drafts when a rotation ends?               | Determines grace period, read-only locking or explicit extension. | Faculty/product owner      | Do not add automatic rotation-end locking in the first implementation slice.        |
+| Has the hospital/institution approved the de-identification boundary? | Confirms permitted case-date precision and local governance.      | Privacy owner and hospital | Implement the approved no-direct-identifier baseline; obtain sign-off before pilot. |
+| What backup/restore procedure and operational owner apply?            | Required before retaining pilot educational cases.                | Institution IT/admin       | Rehearse backup/restore before pilot; do not implement unsafe automatic deletion.   |
+| What final PDF branding/layout is approved?                           | Affects external academic record presentation.                    | Institution admin/faculty  | Generate only de-identified content; finalize branding before pilot release.        |
 
 ## 6. Changes and superseded decisions
 
