@@ -18,8 +18,8 @@ This file is the canonical source of truth for current project status, accepted 
 | Last completed and accepted gate                 | Walking skeleton — `WALKING-SKELETON-01`                                       |
 | Active gate                                      | `DIRECT-DOCUMENTATION-IMPL-01`                                                 |
 | Current milestone                                | Direct clinical/practical documentation and faculty review                     |
-| Milestone status                                 | Specification accepted through PR #6; implementation not started               |
-| Exact next action                                | Obtain faculty-approved fixed fields and implement the bounded direct workflow |
+| Milestone status                                 | Product decisions accepted; implementation ready to begin                      |
+| Exact next action                                | Implement Slice 1 domain/schema reconciliation on a short-lived feature branch |
 | Next gate after this milestone                   | Detailed review/comments or the next approved fixed record type                |
 
 ## 2. Completed and accepted work
@@ -96,13 +96,13 @@ This file is the canonical source of truth for current project status, accepted 
 
 ### `DIRECT-DOCUMENTATION-IMPL-01` — direct workflow implementation
 
-- **Status:** Active after the PR #6 specification merge; implementation not started.
+- **Status:** Active; product decisions and fixed Pharm.D form baseline accepted, implementation ready.
 - **Objective:** Extend the accepted walking skeleton with one faculty-approved fixed clinical or practical record structure and the complete direct documentation, return, resubmission and approval experience.
 - **Depends on:** `WALKING-SKELETON-01` (accepted), the accepted sync protocol and faculty approval of the first fixed record structure.
-- **Exact next action:** Confirm the exact fields, whether students self-start records or faculty creates each assignment, and the review-comment depth; then implement the smallest end-to-end slice.
+- **Exact next action:** Create a short-lived implementation branch and complete Slice 1 domain/schema reconciliation from `docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`.
 - **Exit condition:** One authorized student can start a fixed record, save, submit, receive feedback, correct, resubmit and obtain approval from the assigned faculty member while immutable history, privacy, sync and tenant authorization tests pass.
 - **Scope boundary:** Do not add curriculum versions, subjects, academic periods, regulatory mappings, curriculum activity requirements, automatic template resolution or a dynamic template builder. Drug databases, AI, public APIs and native applications remain deferred.
-- **Institutional boundary:** Faculty approval still blocks the exact clinical/practical field set, rubric and exceptional reopening policy.
+- **Institutional boundary:** Product/faculty decisions for the first Pharm.D form are accepted. Hospital/privacy validation, backup/restore procedure and rotation-end draft policy remain required before production pilot.
 - **Detailed direction:** See [`docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md`](docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md) and [`docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md`](docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md).
 
 ## 4. Accepted decisions and reasons
@@ -124,28 +124,26 @@ This file is the canonical source of truth for current project status, accepted 
 | Direct assignment and documentation workflow           | Accepted | Phase 1 centers on authorized record start, documentation, submission, faculty return/resubmission and approval.                                                                  |
 | No curriculum data model in Phase 1                    | Accepted | The client did not request curriculum versions, periods, subjects, regulatory mappings or automatic curriculum-to-form assignment.                                                |
 | Fixed approved forms before a dynamic builder          | Accepted | Start with faculty-approved structures and stable form-version identifiers; defer the general template builder.                                                                   |
+| Pharm.D fixed clinical form baseline                   | Accepted | Required sections, conditional activities, India-first units and server-authoritative validations are approved for implementation.                                                |
+| Review, correction and reopening                       | Accepted | Assigned faculty reviews; returned cases unlock all sections with flagged highlights; section comments are supported; audited faculty reopening is exceptional.                   |
+| Phase 1 assessment                                     | Accepted | No marks, rubric, pass score, second reviewer or field-level annotation in the pilot.                                                                                             |
+| Targets, reports and retention                         | Accepted | Faculty-set rotation targets, role-scoped progress, de-identified PDF and retention through course completion plus one year are approved.                                         |
+| Pilot boundary                                         | Accepted | English; Android Chrome phone/tablet and desktop Chrome/Edge; no student attachments.                                                                                             |
+| B.Pharm delivery sequence                              | Accepted | B.Pharm practical records follow as a separate next gate after the Pharm.D clinical module.                                                                                       |
 | Gate-level inspiration research                        | Accepted | Internet products and Mobbin may inform workflow and UX, but remain subordinate to privacy, faculty approval and the client-requested scope.                                      |
 
 The full durable decision register is maintained in [`docs/DECISIONS.md`](docs/DECISIONS.md). If this summary and that file disagree, stop and reconcile the inconsistency before implementation.
 
 ## 5. Open decisions
 
-Do not turn these temporary assumptions into permanent schema or workflow rules.
+The first Pharm.D form no longer has unresolved product-field, reviewer, correction, reporting, attachment, retention, language or device-scope decisions. The following items remain before production pilot and must not be silently hard-coded.
 
-| Question                                                                                                       | Why it matters                                               | Who must answer                             | Gate blocked                                | Current temporary assumption                                                                                          |
-| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Which exact fields and sections are required for the first Pharm.D clinical case and B.Pharm practical record? | Determines fixed forms and completeness rules.               | Faculty leads                               | `DIRECT-DOCUMENTATION-IMPL-01`              | Preserve the minimal de-identified walking-skeleton record until a fixed form is approved.                            |
-| What identifiers and demographics may be recorded?                                                             | Defines privacy boundaries and validation.                   | Institution privacy owner and hospital      | Walking skeleton and clinical documentation | No patient name, full DOB, phone, address, government ID or hospital MRN; use age/age unit or age band provisionally. |
-| Who may review, return, approve and exceptionally reopen a case? Is a second signature required?               | Materially changes permissions, lifecycle and schema.        | Faculty programme owner                     | Complete review workflow                    | One assigned primary faculty/preceptor reviews each case; do not implement multi-reviewer approval yet.               |
-| What rubric, scoring scale and pass rule apply?                                                                | Determines assessment and approval prerequisites.            | Faculty assessment owner                    | Complete review workflow                    | Walking skeleton uses only a basic review summary/attestation and approval decision.                                  |
-| After return, may students edit all sections or only flagged sections?                                         | Determines correction authorization and UI.                  | Faculty programme owner                     | Complete review workflow                    | Provisional direction is flagged sections only, with an explicit faculty option to unlock all; do not finalize yet.   |
-| What case counts and categories are required per rotation?                                                     | Determines progress and portfolio calculations.              | Faculty lead                                | Portfolio/reporting                         | Show case status without enforcing programme-specific quotas.                                                         |
-| Is ADR/Naranjo mandatory, optional, or used only for suspected ADR cases?                                      | Determines form priority and completeness.                   | Faculty/pharmacovigilance owner             | Full clinical documentation                 | Defer it until the institutional form is reviewed.                                                                    |
-| Is counselling/monitoring separate or part of SOAP Plan?                                                       | Affects section design and grading.                          | Faculty lead                                | Full clinical documentation                 | Keep it out of the walking skeleton and defer the final structure.                                                    |
-| What reports and exports are mandatory, and who may access them?                                               | Determines data exposure and reporting scope.                | Institution administrator and privacy owner | Portfolio/reporting                         | Implement only on-screen progress needed by the walking skeleton.                                                     |
-| What are retention, backup and device-draft clearing periods?                                                  | Determines IndexedDB retention and offline privacy behavior. | Institution privacy/security owner          | Production PWA resilience                   | Clear local drafts on logout; make no permanent-storage guarantee; do not finalize retention duration.                |
-| Which browsers, devices and connectivity conditions are typical in wards?                                      | Determines the supported PWA matrix and fallback behavior.   | Institution IT and pilot users              | Production PWA resilience                   | Use mobile-first responsive design and foreground/manual recovery; validate the actual device matrix before release.  |
-| Is multilingual UI/content required for the pilot?                                                             | Affects layouts, content design and stored fields.           | Institution/faculty owner                   | Pilot hardening                             | English-only pilot UI until confirmed otherwise.                                                                      |
+| Question                                                              | Why it matters                                                    | Owner                      | Current boundary                                                                    |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| What happens to unfinished drafts when a rotation ends?               | Determines grace period, read-only locking or explicit extension. | Faculty/product owner      | Do not add automatic rotation-end locking in the first implementation slice.        |
+| Has the hospital/institution approved the de-identification boundary? | Confirms permitted case-date precision and local governance.      | Privacy owner and hospital | Implement the approved no-direct-identifier baseline; obtain sign-off before pilot. |
+| What backup/restore procedure and operational owner apply?            | Required before retaining pilot educational cases.                | Institution IT/admin       | Rehearse backup/restore before pilot; do not implement unsafe automatic deletion.   |
+| What final PDF branding/layout is approved?                           | Affects external academic record presentation.                    | Institution admin/faculty  | Generate only de-identified content; finalize branding before pilot release.        |
 
 ## 6. Changes and superseded decisions
 

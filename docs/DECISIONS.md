@@ -37,43 +37,34 @@ Statuses:
 | DEC-024 | Do not add curriculum versions, periods, subjects, regulatory mappings, activity requirements or curriculum-based template assignments in Phase 1.                                      | Makes the database boundary explicit and testable.                                                                                  |
 | DEC-025 | Begin with fixed faculty-approved form structures and a stable form-version identifier; defer the dynamic template builder.                                                               | Delivers the workflow with less complexity while preserving historical interpretation.                                             |
 | DEC-026 | Extend the accepted walking skeleton rather than create a second generic record or assignment engine.                                                                                    | Preserves tested authorization, sync, immutable snapshots and audit behaviour.                                                      |
+| DEC-027 | The first Pharm.D form uses the field catalogue and validation policy approved on 25 September 2026. | Converts the candidate into a fixed implementation baseline while preserving server-authoritative validation. |
+| DEC-028 | Students start cases within an authorized rotation; the assigned faculty member is the single reviewer. | Fits ward-round practice and the existing assignment model without per-case faculty setup or a second signature. |
+| DEC-029 | Returned or reopened cases unlock all sections and highlight faculty-flagged sections. | Allows clinically connected corrections without complex field locking. |
+| DEC-030 | Faculty feedback supports overall and section-level comments; marks, rubrics and field annotations are excluded. | Provides actionable feedback with bounded Phase 1 complexity. |
+| DEC-031 | Assigned faculty may reopen an approved case only with a mandatory audited reason. | Supports genuine correction without silently rewriting approved evidence. |
+| DEC-032 | Faculty configures simple rotation case targets; progress is role-scoped and approved cases export as de-identified PDF. | Supports learning oversight without curriculum tables. |
+| DEC-033 | No student attachments; approved educational cases are retained through course completion plus one year. | Reduces privacy/storage risk and avoids indefinite retention. |
+| DEC-034 | Pilot UI is English and officially supports Android Chrome phone/tablet and desktop Chrome/Edge. | Keeps the initial Indian pilot device matrix focused and testable. |
+| DEC-035 | B.Pharm practical records are delivered in a separate next gate after the Pharm.D clinical module. | Avoids coupling two different record domains in the first implementation gate. |
+
 
 ## 3. Provisional decisions requiring validation
 
-| ID      | Provisional decision                                                                                                                         | Validation needed                                                                                                                       |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| DEC-101 | One primary preceptor reviews each case in Phase 1.                                                                                          | Confirm whether co-review or second approval is required.                                                                               |
-| DEC-102 | Returned cases unlock only sections marked for correction, with faculty option to unlock all.                                                | Confirm preferred academic practice and usability.                                                                                      |
-| DEC-103 | Case demographics use age/age unit or age band rather than DOB.                                                                              | Confirm curriculum and hospital policy.                                                                                                 |
-| DEC-104 | Student can enter free-text medicine/test names with controlled suggestions.                                                                 | Confirm required terminology and local data availability.                                                                               |
-| DEC-105 | ADR/Naranjo is P1 rather than walking-skeleton scope.                                                                                        | Confirm whether every submitted case requires it.                                                                                       |
-| DEC-106 | Counselling and monitoring is a separate optional section.                                                                                   | Confirm whether it belongs inside SOAP Plan or is independently graded.                                                                 |
-| DEC-107 | Admin may see case content only through an explicit academic permission.                                                                     | Confirm institutional administrative oversight policy.                                                                                  |
-| DEC-109 | Section-level revision comparison is sufficient for Phase 1.                                                                                 | Test with faculty on medication/lab repeatable records.                                                                                 |
-| DEC-110 | One rotation assignment links one student to one primary preceptor for the walking skeleton, unique per student and rotation.                | Confirm whether later gates require co-preceptors, second reviewers or separate faculty-assignment records before expanding this model. |
-| DEC-111 | B.Pharm clinical learning uses masked/theoretical cases and simulations by default; real ward cases require explicit institutional approval. | Confirm placement practice, privacy authority and whether a separate B.Pharm real-patient workflow is required.                         |
+| ID | Provisional decision | Validation needed |
+| --- | --- | --- |
+| DEC-109 | Section-level revision comparison is sufficient for Phase 1. | Test repeatable medication and investigation rows with faculty during implementation. |
+| DEC-111 | B.Pharm clinical learning uses masked/theoretical cases by default. | Resolve separately in the B.Pharm gate; it does not block the Pharm.D implementation. |
 
 ## 4. Open institutional decisions
 
-These should be answered during the Phase 0 workshop.
+These items remain before production pilot; the 25 September product decisions resolved the former field, workflow, attachment, report, retention-duration, language and device-scope questions.
 
-| ID       | Question                                                                                                           | Why it matters                                                     |
-| -------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| OPEN-001 | Which exact fields are required for the first Pharm.D case and first B.Pharm practical record?                     | Determines migrations, fixed forms and completeness rules.         |
-| OPEN-002 | Which case sections are optional or not applicable by rotation?                                                    | Determines task-list and submission behavior.                      |
-| OPEN-003 | What identifiers/demographics may be recorded under institutional and hospital policy?                             | Determines privacy boundaries and field design.                    |
-| OPEN-004 | Who may review, return, approve and reopen cases?                                                                  | Determines role/permission matrix.                                 |
-| OPEN-005 | Is a second reviewer or signature required?                                                                        | May change the lifecycle and schema materially.                    |
-| OPEN-006 | What is the rubric, scoring scale and pass rule?                                                                   | Determines rubric versioning and approval preconditions.           |
-| OPEN-007 | Can a student edit all sections after return or only flagged sections?                                             | Determines correction authorization.                               |
-| OPEN-008 | What case counts and categories are required per rotation?                                                         | Determines progress calculations.                                  |
-| OPEN-009 | What happens to unfinished cases when a rotation ends?                                                             | Determines grace period and locking.                               |
-| OPEN-010 | Which reports/exports are mandatory and who may access them?                                                       | Determines reporting scope and privacy review.                     |
-| OPEN-011 | Is ADR/Naranjo mandatory, optional or only for suspected ADR cases?                                                | Determines Phase 1 priority and completeness rules.                |
-| OPEN-012 | Which low-risk calculators or approved references are required?                                                    | Determines reference-module scope.                                 |
-| OPEN-013 | What are retention, backup and device-draft clearing periods?                                                      | Determines infrastructure and offline policy.                      |
-| OPEN-014 | Which browsers/devices and connectivity conditions are typical in wards?                                           | Determines PWA test matrix and fallbacks.                          |
-| OPEN-015 | Is multilingual UI/content required for the pilot?                                                                 | Affects design system, content and database fields.                |
+| ID | Question | Why it matters |
+| --- | --- | --- |
+| OPEN-003 | Has the hospital/institution approved the de-identification boundary and permitted case-date precision? | Confirms local privacy governance. |
+| OPEN-009 | What happens to unfinished cases when a rotation ends? | Determines grace period, read-only state or explicit extension. |
+| OPEN-013 | What backup/restore procedure and operational owner apply to retained educational records? | Required for pilot resilience and recovery. |
+| OPEN-016 | What final PDF branding/layout is approved? | Determines the formal appearance of exported academic records. |
 
 ## 5. Deferred decisions
 

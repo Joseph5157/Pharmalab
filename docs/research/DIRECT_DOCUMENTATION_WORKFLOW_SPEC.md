@@ -88,7 +88,7 @@ The assigned faculty member can:
 - approve the record;
 - view prior submissions and status transitions.
 
-Detailed inline comments, rubrics, marks and exceptional reopening remain separate decisions. They are not implied by the basic return/approve workflow.
+Phase 1 includes overall feedback and section-level comments. Field-level annotations, rubrics, marks and a second reviewer are excluded. Assigned faculty may exceptionally reopen an approved case only with a mandatory audited reason.
 
 ### 4.3 Administration
 
@@ -149,7 +149,7 @@ Required transition behaviour:
 | Returned to Submitted | A new immutable submission snapshot is created; previous snapshots remain available. |
 | Under Review to Approved | Reviewer decision and time are recorded against the exact snapshot. |
 
-Approved-record reopening is not part of the normal Phase 1 workflow and requires a separately approved exceptional policy.
+Approved-record reopening is exceptional: only the assigned faculty member may reopen, a reason is mandatory, the event is audited and the previously approved snapshot remains immutable.
 
 ## 8. Screens and routes
 
@@ -212,19 +212,24 @@ Every screen must define loading, empty, validation, network failure, unauthoriz
 - [ ] CI, PHPStan, Pint, frontend lint/formatting, TypeScript and production build pass.
 - [ ] Browser verification covers the complete return/resubmission/approval loop.
 
-## 12. Decisions still required
+## 12. Accepted product decisions
 
-| Decision | Owner | Blocks |
-| --- | --- | --- |
-| Exact Pharm.D clinical case sections and mandatory fields | Pharm.D faculty lead | Complete case form |
-| First B.Pharm practical record structure and fields | B.Pharm faculty lead | B.Pharm record implementation |
-| Whether students self-start records or faculty creates every assignment | Product owner + faculty | Start-record workflow |
-| Detailed comment model: summary only, section comments or field comments | Faculty lead | Review workspace |
-| Whether Phase 1 includes marks/rubrics | Faculty assessment owner | Assessment implementation |
-| Approved-record reopening authority and reason codes | Product owner + faculty | Exceptional reopen path |
-| Retention and exceptional deletion policy | Privacy/legal owner + IT | Production policy |
-| Supported pilot devices and browsers | Institution IT + pilot users | Pilot certification |
-| Attachment policy | Privacy owner + IT + faculty | Any file upload |
+| Area | Accepted Phase 1 outcome |
+| --- | --- |
+| Case start | Student starts inside an active authorized rotation. |
+| Mandatory content | De-identified context/demographics, history/diagnosis/allergy, medicines, relevant vitals/investigations, SOAP and attestation. |
+| Activities | Intervention, ADR and counselling are conditional; SOAP monitoring plan or justified not applicable is required. |
+| Review | Assigned faculty; overall and section comments; return/approve; audited faculty reopen. |
+| Correction | All sections editable after return/reopen, with flagged sections highlighted. |
+| Assessment | No marks, rubric, pass score or second reviewer. |
+| Targets/reports | Faculty-set rotation targets, role-scoped progress and de-identified PDF. |
+| Attachments/retention | No student uploads; retain through course completion plus one year. |
+| Pilot | English; Android Chrome phone/tablet and desktop Chrome/Edge. |
+| B.Pharm | Separate next gate after Pharm.D clinical documentation. |
+
+The detailed field catalogue is in [PHARMD_CASE_FORM_CANDIDATE_01.md](PHARMD_CASE_FORM_CANDIDATE_01.md). The implementation slices are in [DIRECT_DOCUMENTATION_IMPL_01_PLAN.md](../implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md).
+
+Institutional privacy/hospital sign-off, rotation-end unfinished-draft handling, backup/restore ownership and final PDF branding remain pre-pilot items rather than blockers to the first implementation slice.
 
 ## 13. Next gate
 
