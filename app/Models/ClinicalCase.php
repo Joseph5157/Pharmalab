@@ -122,6 +122,18 @@ class ClinicalCase extends Model
         return $this->hasOne(CaseClinicalProfile::class);
     }
 
+    /** @return HasMany<CaseVital, $this> */
+    public function vitals(): HasMany
+    {
+        return $this->hasMany(CaseVital::class);
+    }
+
+    /** @return HasMany<CaseInvestigation, $this> */
+    public function investigations(): HasMany
+    {
+        return $this->hasMany(CaseInvestigation::class);
+    }
+
     /** @return HasOne<SoapNote, $this> */
     public function currentSoap(): HasOne
     {
