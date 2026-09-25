@@ -159,6 +159,18 @@ const canSubmit = (): boolean => {
                     "
                     variant="outline"
                     @click="
+                        router.get(`/student/cases/${clinicalCase.id}/edit`)
+                    "
+                >
+                    Continue documentation
+                </Button>
+                <Button
+                    v-if="
+                        clinicalCase.status === 'draft' ||
+                        clinicalCase.status === 'returned'
+                    "
+                    variant="outline"
+                    @click="
                         router.get(`/student/cases/${clinicalCase.id}/soap`)
                     "
                 >

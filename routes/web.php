@@ -11,6 +11,7 @@ use App\Http\Controllers\Faculty\ReviewController;
 use App\Http\Controllers\Student\CaseController;
 use App\Http\Controllers\Student\CaseClinicalProfileController;
 use App\Http\Controllers\Student\CaseContextController;
+use App\Http\Controllers\Student\CaseEditorController;
 use App\Http\Controllers\Student\PortfolioController;
 use App\Http\Controllers\Student\SoapController;
 use App\Http\Controllers\Student\SubmissionController;
@@ -32,6 +33,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('student/cases/{case}', [CaseController::class, 'show'])->name('student.cases.show');
         Route::put('student/cases/{case}/context', [CaseContextController::class, 'sync'])->name('student.cases.context.sync');
         Route::put('student/cases/{case}/clinical-profile', [CaseClinicalProfileController::class, 'sync'])->name('student.cases.clinical-profile.sync');
+        Route::get('student/cases/{case}/edit', [CaseEditorController::class, 'show'])->name('student.cases.edit');
         Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap');
         Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update');
         Route::post('student/cases/{case}/submit', [SubmissionController::class, 'store'])->name('student.cases.submit');
