@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -67,9 +69,9 @@ use Illuminate\Support\Carbon;
     'submitted_at',
     'approved_at',
 ])]
-class ClinicalCase extends Model
+class ClinicalCase extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {
@@ -173,5 +175,15 @@ class ClinicalCase extends Model
     public function statusTransitions(): HasMany
     {
         return $this->hasMany(CaseStatusTransition::class);
+    }
+
+    protected function lockVersionColumn(string $sectionKey): string
+    {
+        return match ($sectionKey) {
+            'vitals_availability' => 'vitals_availability_lock_version',
+            'investigations_availability' => 'investigations_availability_lock_version',
+            'medication_chart_availability' => 'medication_chart_availability_lock_version',
+            default => 'lock_version',
+        };
     }
 }
