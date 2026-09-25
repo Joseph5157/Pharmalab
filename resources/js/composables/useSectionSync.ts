@@ -33,7 +33,14 @@ export function useSectionSync<T extends SyncedSection>(
         options.sectionKey,
         options.resourceId,
     );
-    const payload = ref(structuredClone(options.initialPayload)) as Ref<T>;
+    // The initial payload is often a reactive Inertia prop (a Proxy). The
+    // structured clone algorithm cannot clone Proxy objects at all, even when
+    // the underlying data is plain and JSON-safe — a JSON round-trip both
+    // strips reactivity and produces a real deep clone for this composable's
+    // always-JSON-serializable sync payloads.
+    const payload = ref(
+        JSON.parse(JSON.stringify(options.initialPayload)),
+    ) as Ref<T>;
     const baseLockVersion = ref(options.initialPayload.lock_version);
     const operationId = ref<string | null>(null);
     const state = ref<SyncState>('server');
