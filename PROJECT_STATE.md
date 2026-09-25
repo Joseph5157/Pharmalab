@@ -14,12 +14,12 @@ This file is the canonical source of truth for current project status, accepted 
 | Repository                                       | `Joseph5157/Pharmalab`                                                         |
 | Accepted baseline branch                         | `main`                                                                         |
 | Accepted feature baseline                        | `c167e9e` — accepted `WALKING-SKELETON-01`                                     |
-| Repository HEAD before this documentation change | `a1f91ed` — deployment/demo-seeding follow-up on `main`                        |
+| Repository HEAD before this documentation change | `ba58646` — merge of PR #8, `DIRECT-DOCUMENTATION-IMPL-01` Slice 1             |
 | Last completed and accepted gate                 | Walking skeleton — `WALKING-SKELETON-01`                                       |
 | Active gate                                      | `DIRECT-DOCUMENTATION-IMPL-01`                                                 |
 | Current milestone                                | Direct clinical/practical documentation and faculty review                     |
-| Milestone status                                 | Product decisions accepted; implementation ready to begin                      |
-| Exact next action                                | Implement Slice 1 domain/schema reconciliation on a short-lived feature branch |
+| Milestone status                                 | Slice 1 (domain and schema reconciliation) accepted and merged via PR #8; Slice 2 (mobile case editor) active |
+| Exact next action                                | Implement Slice 2 (mobile case editor) on a short-lived feature branch from `docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`, including the explicit-absence schema fields (vitals/investigations unavailable, no current medicines) scoped to this slice on PR #8 before building the form UI |
 | Next gate after this milestone                   | Detailed review/comments or the next approved fixed record type                |
 
 ## 2. Completed and accepted work
@@ -96,14 +96,26 @@ This file is the canonical source of truth for current project status, accepted 
 
 ### `DIRECT-DOCUMENTATION-IMPL-01` — direct workflow implementation
 
-- **Status:** Active; product decisions and fixed Pharm.D form baseline accepted, implementation ready.
+- **Status:** Active; Slice 1 (domain and schema reconciliation) accepted and merged. Slice 2 (mobile case editor) not started.
 - **Objective:** Extend the accepted walking skeleton with one faculty-approved fixed clinical or practical record structure and the complete direct documentation, return, resubmission and approval experience.
 - **Depends on:** `WALKING-SKELETON-01` (accepted), the accepted sync protocol and faculty approval of the first fixed record structure.
-- **Exact next action:** Create a short-lived implementation branch and complete Slice 1 domain/schema reconciliation from `docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`.
 - **Exit condition:** One authorized student can start a fixed record, save, submit, receive feedback, correct, resubmit and obtain approval from the assigned faculty member while immutable history, privacy, sync and tenant authorization tests pass.
 - **Scope boundary:** Do not add curriculum versions, subjects, academic periods, regulatory mappings, curriculum activity requirements, automatic template resolution or a dynamic template builder. Drug databases, AI, public APIs and native applications remain deferred.
 - **Institutional boundary:** Product/faculty decisions for the first Pharm.D form are accepted. Hospital/privacy validation, backup/restore procedure and rotation-end draft policy remain required before production pilot.
 - **Detailed direction:** See [`docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md`](docs/decisions/2026-09-24_DIRECT_DOCUMENTATION_PHASE1_DIRECTION.md) and [`docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md`](docs/research/DIRECT_DOCUMENTATION_WORKFLOW_SPEC.md).
+
+#### Slice 1 — Domain and compatibility (accepted and merged)
+
+- **Pull request:** GitHub PR #8
+- **Merge commit:** `ba58646` (fast-forward merge to `main`)
+- **Plan:** [`docs/superpowers/plans/2026-09-25-direct-documentation-impl-01-slice-1.md`](docs/superpowers/plans/2026-09-25-direct-documentation-impl-01-slice-1.md), including its execution ledger recording every deviation from the plan as a ruling.
+- **Delivered:** Pharm.D baseline fields and a server-fixed, non-mass-assignable `form_version` on `clinical_cases`/`soap_notes`; five new detail tables (`case_clinical_profiles`, `case_vitals`, `case_investigations`, `case_medications`, `case_clinical_activities`) with matching Eloquent models, authorization policies (student/assigned-faculty/same-institution-administrator view, student-only edit while draft or returned) and `FormRequest` validation; `CaseCompletenessService` (section-presence checks only). No new routes, controllers or frontend changes — only the existing `POST /student/cases` route was extended.
+- **Verification:** 131 tests, 129 passed, 2 skipped, 453 assertions. PHPStan 0 errors. Pint clean. Frontend checks/build unchanged (no frontend touched). GitHub CI passed on PR #8 (run #52) and again on merged `main`. Cross-institution/faculty authorization and the "no eager child rows" rule verified by mutation testing (temporarily removing the tenancy trait and neutering policy checks, confirming tests catch it). A legacy walking-skeleton `clinical_cases` row was proven to migrate forward and back cleanly.
+- **Pre-merge blockers fixed before merge:** same-institution administrators can view (not edit) new clinical detail records, cross-institution administrators remain denied; a missing/institution-mismatched parent case or rotation assignment now denies safely instead of returning a 500; `form_version` was removed from `ClinicalCase`'s mass-assignable fields entirely (set via `forceFill` only).
+- **Scope decisions recorded on merge (owning slice assigned, not yet implemented):**
+  - `CaseCompletenessService`'s presence checks are incomplete against the full field catalogue (e.g. omit `information_source`, `chief_complaints`; a vital with neither `value_numeric` nor `value_text` still counts as present) — **belongs to Slice 3**, alongside the full submission-completeness validation policy that slice already owns.
+  - No schema field yet for "vitals unavailable" / "investigations unavailable" / "no current medicines" (explicit-absence) answers — **belongs to Slice 2, before that slice's form UI implementation.**
+- **Deferred minors (no owning slice assigned):** policy logic duplicated across 7 classes (`SoapNotePolicy`, `CaseVersionPolicy` and the five new Slice 1 policies); some validation rules looser than the field catalogue's enumerated values; `ClinicalCase`'s docblock not updated for the new columns.
 
 ## 4. Accepted decisions and reasons
 
