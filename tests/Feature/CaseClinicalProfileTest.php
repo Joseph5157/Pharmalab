@@ -11,6 +11,7 @@ use App\Models\Programme;
 use App\Models\Rotation;
 use App\Models\RotationAssignment;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
@@ -55,7 +56,7 @@ class CaseClinicalProfileTest extends TestCase
             'last_saved_by' => $student->id,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         CaseClinicalProfile::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,

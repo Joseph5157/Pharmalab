@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\ApproveCase;
 use App\Actions\ReturnCase;
 use App\Actions\SubmitCase;
+use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
 use App\Models\CaseVersion;
 use App\Models\ClinicalCase;
@@ -206,5 +207,42 @@ class ClinicalCaseWorkflowTest extends TestCase
 
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
         $this->assertDatabaseHas('case_versions', ['clinical_case_id' => $case->id, 'version_number' => 2]);
+    }
+
+    public function test_creating_a_case_persists_new_context_fields_and_always_uses_the_server_form_version(): void
+    {
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $faculty = User::factory()->faculty()->create(['institution_id' => $institution->id]);
+        $site = ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Hospital', 'code' => 'HSP', 'status' => 'active']);
+        $programme = Programme::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Pharm.D', 'code' => 'PD', 'duration_years' => 6, 'status' => 'active']);
+        $rotation = Rotation::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'programme_id' => $programme->id, 'clinical_site_id' => $site->id, 'name' => 'Rotation', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31', 'status' => 'active']);
+        $assignment = RotationAssignment::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'rotation_id' => $rotation->id,
+            'student_id' => $student->id,
+            'primary_preceptor_id' => $faculty->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($student);
+
+        $response = $this->post(route('student.cases.store'), [
+            'rotation_assignment_id' => $assignment->id,
+            'care_setting' => 'inpatient',
+            'hospital_day_at_first_review' => 3,
+            'information_source' => 'case sheet',
+            'weight_kg' => 65.25,
+            'height_cm' => 168,
+            'form_version' => 'spoofed-version',
+        ]);
+
+        $response->assertRedirect();
+
+        $case = ClinicalCase::query()->where('student_id', $student->id)->firstOrFail();
+        $this->assertSame(CaseFormVersion::PharmdV1, $case->form_version);
+        $this->assertSame('inpatient', $case->care_setting);
+        $this->assertSame(3, $case->hospital_day_at_first_review);
+        $this->assertSame('65.25', $case->weight_kg);
     }
 }
