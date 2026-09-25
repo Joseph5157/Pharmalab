@@ -19,17 +19,19 @@ Creating a row and toggling its section "unavailable" must never silently coexis
 All constraints from Slice 2A's Global Constraints apply unchanged (PowerShell for PHP/Composer/npm; no `Schema::table()->change()`; regenerate and commit Wayfinder files with every route change; `lock_version` never mass-fillable; sync-capable models implement `Syncable` via `SyncsWithLockVersion` and are only ever mutated through `SectionSyncService`; every sync/store request uses `HasSyncEnvelope` + `RejectsUnknownFields`; no JS unit-test runner exists — frontend correctness is verified via `npm run types:check` plus the manual browser-verification task). In addition:
 
 - A row's `clinical_case_id` must always be cross-checked against the `{case}` route segment before any read/write, even though `CaseVitalPolicy`/`CaseInvestigationPolicy`/`CaseMedicationPolicy` already scope by institution and ownership — those policies check that the row's **own** case is owned by the requesting student, not that it matches the specific case in the URL. A student could otherwise pass `case=A` in the URL while editing a row that actually belongs to their own `case=B`, silently mis-attributing the edit. Every row controller action calls `abort_unless($row->clinical_case_id === $case->id, 404)` immediately after loading the row.
-- Row creation (`POST .../vitals`, `.../investigations`, `.../medications`) is idempotent by `client_operation_id` via `SectionSyncService::create()` (new in this slice), exactly as row/field edits are idempotent by `client_operation_id` via `SectionSyncService::sync()`. `create()` takes the expected model class as an explicit parameter and checks it against a replayed operation's stored `syncable_type` — the same class-confusion guard Slice 2A's `sync()` uses, never `new $row->syncable_type(...)`.
+- Row creation (`POST .../vitals`, `.../investigations`, `.../medications`) is idempotent by `client_operation_id` via `SectionSyncService::create()` (new in this slice), exactly as row/field edits are idempotent by `client_operation_id` via `SectionSyncService::sync()`. `create()` derives the expected model class internally from `modelClassForSection($sectionKey)` (Slice 2A Task 2) and checks it against a replayed operation's stored `syncable_type` — it does **not** accept an "expected class" argument from its caller, which would let a controller bug route around the section allow-list.
 - Every `Store*Request` for a repeatable row makes every clinical field `nullable`/optional at creation time — a bare "Add row" tap with no data must succeed and produce an empty/draft row that the student fills in afterward. Field-specific conditional requirements (e.g. `stop_reference` required when `status` is `stopped`/`completed`) still apply once those specific fields are present in *any* request, create or later edit — but creation itself is never blocked by missing content. Strict completeness (every mandatory field filled in) is Slice 3's submission-gate job, not this slice's.
 - Row-level `Update*Request` classes follow the same `'sometimes'`-partial pattern established in Slice 2A — a PUT to an existing row that only changes one field (e.g. just `note`) must not require or overwrite the others.
 - Row creation is offline-capable via `useRepeatableRowCreate` (Task 5); row deletion of an already-*synced* row is not — the "Remove row" control is disabled while `navigator.onLine` is `false` for a row with a real server id, with a visible reason. Removing a row that is still a local, not-yet-synced draft (its id is the client-generated `local:<uuid>` placeholder) is a pure local operation and is always available, online or not — it simply cancels the queued create.
-- Every repeatable-row Vue component (`VitalRow.vue`, `InvestigationRow.vue`, `MedicationRow.vue`) gets the identical three-way conflict panel (`Use server version` / `Keep local draft as a copy` / `Replace server version`) that Slice 2A's `CaseProfileSection.vue` already has — a conflict on a row is not merely displayed with an icon, it is resolvable through the same three options every other syncable section offers.
+- Deleting a row is subject to the same optimistic-concurrency check as editing one: every `DELETE .../vitals/{vital}` (and the investigations/medications/activity equivalents) requires `base_lock_version` in the JSON request body and goes through `SectionSyncService::delete()` (Task 2), which locks the row, compares versions inside the same transaction, and — on a match — deletes and records an audit event (`"{$sectionKey}.deleted"`) before returning; a stale version returns 409 with the current row state and deletes nothing. A `destroy()` action that calls `Model::delete()` directly, without going through `SectionSyncService::delete()`, is a regression of this fix.
+- Every repeatable-row Vue component (`VitalRow.vue`, `InvestigationRow.vue`, `MedicationRow.vue`) gets the identical three-way conflict panel (`Use server version` / `Keep local draft as a copy` / `Replace server version`) that Slice 2A's `CaseProfileSection.vue` already has — a conflict on a row is not merely displayed with an icon, it is resolvable through the same three options every other syncable section offers. Each row also sends its current `baseLockVersion` (exposed by `useSectionSync`, Slice 2A Task 3) in its delete request body.
 
 ## Review Focus
 
 - **Cross-case row edit (IDOR-shaped correctness bug, not a tenant leak).** A request for `PUT /student/cases/{caseA}/vitals/{vitalBelongingToCaseB}` where both cases belong to the same authenticated student must be rejected with 404, not silently accepted because the ownership policy alone passes. Every row-editing task's test suite includes this exact cross-case scenario.
 - **Duplicate row from a retried or replayed create.** Resubmitting the same `client_operation_id` for a row creation (simulating a flaky network retry, or the offline-queue replaying a create that already reached the server before the device went offline again) must return the **same** row, not create a second one — and reusing that same operation ID against a *different* section endpoint must be rejected outright. Each row-creation task's tests cover both.
 - **Stale per-row `lock_version` overwriting a concurrent edit, unresolvable in the UI.** Two edits to the *same row* with the same stale `base_lock_version` must produce exactly one successful save and one 409 conflict, and the conflicting client must be able to resolve it through the same three-way panel Case Profile has — not just see an icon.
+- **Deletion bypassing optimistic concurrency or leaving no audit trail.** A delete carrying a stale `base_lock_version` must 409 and delete nothing; a successful delete must record an audit event naming the deleted row's id and the lock version it was deleted at. Each row-deletion task's tests cover both the conflict path and the audit assertion.
 - **Section status desynchronized from actual rows.** Creating a row must flip its section's status to `recorded`/`documented` and clear any stale unavailable-reason; attempting to mark a section unavailable while rows still exist must be rejected, not silently accepted alongside the rows. Each backend task's tests cover both directions.
 - **Offline row creation lost, duplicated, or stuck.** Adding a row while offline must render immediately, survive a section switch, and replay exactly once when connectivity returns — never silently dropped, never duplicated by the same draft being replayed twice. Task 5's tests (documented as manual, per the no-JS-test-runner constraint) and Task 2/3/4's backend idempotency tests together cover this; Task 7's device verification exercises the full offline-to-online path interactively.
 
@@ -220,7 +222,7 @@ Expected: PASS (5 tests).
 - [ ] **Step 6: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 170 previous (Slice 2A total) + 5 new — 175 passed / 2 skipped.
+Expected: 169 previous passed (Slice 2A total) + 5 new — 174 passed / 2 skipped (176 total).
 
 - [ ] **Step 7: Commit**
 
@@ -245,7 +247,7 @@ git commit -m "feat: add per-row lock_version, BP pairing, not-stated flags and 
 - Test: `tests/Feature/CaseVitalSyncTest.php`
 
 **Interfaces:**
-- Produces: `SectionSyncService::create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId, string $expectedClass): array{status: string, httpStatus: int, model: Model&Syncable}` (reused by Tasks 3 and 4, and by Slice 2C's repeatable clinical-activity rows). `POST /student/cases/{case}/vitals`, `PUT /student/cases/{case}/vitals/{vital}`, `DELETE /student/cases/{case}/vitals/{vital}`, `PUT /student/cases/{case}/vitals-availability`.
+- Produces: `SectionSyncService::create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId): array{status: string, httpStatus: int, model: Model&Syncable}` and `SectionSyncService::delete(Model&Syncable $model, User $user, string $sectionKey, int $baseLockVersion): array{status: string, httpStatus: int, model: (Model&Syncable)|null}` (both reused by Tasks 3 and 4, and by Slice 2C's repeatable clinical-activity rows). `POST /student/cases/{case}/vitals`, `PUT /student/cases/{case}/vitals/{vital}`, `DELETE /student/cases/{case}/vitals/{vital}` (now requires `base_lock_version` in the JSON body), `PUT /student/cases/{case}/vitals-availability`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -412,15 +414,34 @@ class CaseVitalSyncTest extends TestCase
         $response->assertNotFound();
     }
 
-    public function test_owning_student_can_delete_a_vital_row(): void
+    public function test_owning_student_can_delete_a_vital_row_at_the_correct_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
         $vital = $this->makeVital($case, $student);
 
-        $this->deleteJson("/student/cases/{$case->id}/vitals/{$vital->id}")->assertNoContent();
+        $this->deleteJson("/student/cases/{$case->id}/vitals/{$vital->id}", ['base_lock_version' => 0])->assertNoContent();
 
         $this->assertCount(0, $case->fresh()->vitals);
+        $this->assertDatabaseHas('audit_events', [
+            'event_type' => 'vitals.deleted',
+        ]);
+    }
+
+    public function test_deleting_a_vital_row_with_a_stale_base_lock_version_returns_409_and_does_not_delete(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $vital = $this->makeVital($case, $student);
+        $this->putJson("/student/cases/{$case->id}/vitals/{$vital->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'note' => 'Bumps the lock version.',
+        ])->assertOk();
+
+        $response = $this->deleteJson("/student/cases/{$case->id}/vitals/{$vital->id}", ['base_lock_version' => 0]);
+
+        $response->assertStatus(409);
+        $this->assertCount(1, $case->fresh()->vitals);
+        $this->assertDatabaseMissing('audit_events', ['event_type' => 'vitals.deleted']);
     }
 
     public function test_owning_student_can_mark_vitals_unavailable_with_a_reason(): void
@@ -474,6 +495,33 @@ class CaseVitalSyncTest extends TestCase
         $this->assertNull($case->fresh()->vitals_unavailable_reason);
     }
 
+    public function test_an_unknown_field_on_create_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->postJson("/student/cases/{$case->id}/vitals", [
+            'client_operation_id' => (string) Str::uuid(), 'observation_type' => 'pulse', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
+    }
+
+    public function test_an_unknown_field_on_the_availability_toggle_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/vitals-availability", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'vitals_status' => 'recorded', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
+    }
+
     public function test_a_different_student_cannot_create_edit_or_delete_a_vital(): void
     {
         [$institution, $student, $case] = $this->makeCase();
@@ -520,7 +568,9 @@ class CaseVitalSyncTest extends TestCase
 Run (PowerShell): `php artisan test --filter=CaseVitalSyncTest`
 Expected: FAIL — routes not found.
 
-- [ ] **Step 3: Add `create()` to `SectionSyncService` and extend `SECTION_MODELS`**
+- [ ] **Step 3: Add `create()` and `delete()` to `SectionSyncService`, extend `SECTION_MODELS`**
+
+**Revision (second review round):** `create()` originally took a caller-supplied `$expectedClass` argument — a controller bug could pass anything, routing around the whole point of the section allow-list. It now derives the expected class internally via `modelClassForSection()` (Slice 2A Task 2), the same resolver `sync()` uses, and asserts the model the factory actually produced matches. This step also adds `delete()`, giving row deletion the same optimistic-concurrency check and audit trail every other write already has (the original draft's `destroy()` endpoints deleted unconditionally with no lock check and no audit event).
 
 In `app/Services/SectionSyncService.php`, add three entries to the `SECTION_MODELS` constant (add the imports `use App\Models\CaseVital;`, `use App\Models\CaseInvestigation;`, `use App\Models\CaseMedication;`):
 
@@ -530,16 +580,17 @@ In `app/Services/SectionSyncService.php`, add three entries to the `SECTION_MODE
         'medications' => CaseMedication::class,
 ```
 
-Add this public method (after `sync()`):
+Add these two public methods (after `sync()`):
 
 ```php
     /**
      * @param  \Closure(): (Model&Syncable)  $factory
-     * @param  class-string  $expectedClass
      * @return array{status: string, httpStatus: int, model: Model&Syncable}
      */
-    public function create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId, string $expectedClass): array
+    public function create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId): array
     {
+        $expectedClass = $this->modelClassForSection($sectionKey);
+
         return DB::transaction(function () use ($factory, $user, $sectionKey, $clientOperationId, $expectedClass): array {
             $existing = SyncOperation::query()
                 ->where('user_id', $user->id)
@@ -561,10 +612,47 @@ Add this public method (after `sync()`):
 
             /** @var Model&Syncable $model */
             $model = $factory();
+            abort_unless($model::class === $expectedClass, 500, "Model/section mismatch: {$sectionKey} expects {$expectedClass}, got {$model::class}.");
 
             $this->recordOperation($user, $model, $sectionKey, $clientOperationId, 0, 'saved');
 
             return ['status' => 'saved', 'httpStatus' => 201, 'model' => $model];
+        });
+    }
+
+    /**
+     * Deleting a row is subject to the same optimistic-concurrency check as
+     * editing one — a client whose base_lock_version is stale must not be
+     * able to delete a row it hasn't actually seen the latest state of. On a
+     * successful delete this also records an audit event; the destroy()
+     * endpoints this replaces previously called Model::delete() directly and
+     * recorded nothing.
+     *
+     * @return array{status: string, httpStatus: int, model: (Model&Syncable)|null}
+     */
+    public function delete(Model&Syncable $model, User $user, string $sectionKey, int $baseLockVersion): array
+    {
+        $expectedClass = $this->modelClassForSection($sectionKey);
+        abort_unless($model::class === $expectedClass, 500, "Model/section mismatch: {$sectionKey} expects {$expectedClass}, got {$model::class}.");
+
+        return DB::transaction(function () use ($model, $user, $sectionKey, $baseLockVersion): array {
+            /** @var Model&Syncable $locked */
+            $locked = $model::query()->whereKey($model->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($baseLockVersion !== $locked->getLockVersion($sectionKey)) {
+                return ['status' => 'conflict', 'httpStatus' => 409, 'model' => $locked];
+            }
+
+            $deletedId = $locked->getKey();
+            $deletedLockVersion = $locked->getLockVersion($sectionKey);
+            $locked->delete();
+
+            $this->audit->record($user, $locked, "{$sectionKey}.deleted", [
+                'deleted_id' => $deletedId,
+                'lock_version_at_deletion' => $deletedLockVersion,
+            ]);
+
+            return ['status' => 'deleted', 'httpStatus' => 200, 'model' => null];
         });
     }
 ```
@@ -613,6 +701,8 @@ class StoreCaseVitalRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->rejectUnknownFields($validator);
+
         $validator->after(function (Validator $validator): void {
             $type = $this->input('observation_type');
 
@@ -682,6 +772,8 @@ class UpdateCaseVitalRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->rejectUnknownFields($validator);
+
         $validator->after(function (Validator $validator): void {
             $vital = $this->route('vital');
             $type = $this->has('observation_type') ? $this->input('observation_type') : $vital?->observation_type;
@@ -731,6 +823,8 @@ class UpdateVitalsAvailabilityRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->rejectUnknownFields($validator);
+
         $validator->after(function (Validator $validator): void {
             if ($this->input('vitals_status') !== 'unavailable') {
                 return;
@@ -760,6 +854,7 @@ use App\Models\CaseVital;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
@@ -791,7 +886,6 @@ class CaseVitalController extends Controller
             $request->user(),
             'vitals',
             $clientOperationId,
-            CaseVital::class,
         );
 
         return response()->json(['vital' => $this->payload($result['model'])], $result['httpStatus']);
@@ -817,12 +911,18 @@ class CaseVitalController extends Controller
         return response()->json(['vital' => $this->payload($result['model'])], $result['httpStatus']);
     }
 
-    public function destroy(ClinicalCase $case, CaseVital $vital): Response
+    public function destroy(Request $request, ClinicalCase $case, CaseVital $vital, SectionSyncService $sync): JsonResponse|Response
     {
         Gate::authorize('update', $vital);
         abort_unless($vital->clinical_case_id === $case->id, 404);
 
-        $vital->delete();
+        $data = $request->validate(['base_lock_version' => ['required', 'integer', 'min:0']]);
+
+        $result = $sync->delete($vital, $request->user(), 'vitals', $data['base_lock_version']);
+
+        if ($result['status'] === 'conflict') {
+            return response()->json(['vital' => $this->payload($result['model'])], 409);
+        }
 
         return response()->noContent();
     }
@@ -899,12 +999,12 @@ Run (PowerShell): `npm run build`
 - [ ] **Step 10: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=CaseVitalSyncTest`
-Expected: PASS (14 tests).
+Expected: PASS (17 tests).
 
 - [ ] **Step 11: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 175 previous + 14 new — 189 passed / 2 skipped.
+Expected: 174 previous passed + 17 new — 191 passed / 2 skipped (193 total).
 
 - [ ] **Step 12: Commit**
 
@@ -1057,15 +1157,32 @@ class CaseInvestigationSyncTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_owning_student_can_delete_an_investigation_row(): void
+    public function test_owning_student_can_delete_an_investigation_row_at_the_correct_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
         $investigation = $this->makeInvestigation($case, $student);
 
-        $this->deleteJson("/student/cases/{$case->id}/investigations/{$investigation->id}")->assertNoContent();
+        $this->deleteJson("/student/cases/{$case->id}/investigations/{$investigation->id}", ['base_lock_version' => 0])->assertNoContent();
 
         $this->assertCount(0, $case->fresh()->investigations);
+        $this->assertDatabaseHas('audit_events', ['event_type' => 'investigations.deleted']);
+    }
+
+    public function test_deleting_an_investigation_row_with_a_stale_base_lock_version_returns_409_and_does_not_delete(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $investigation = $this->makeInvestigation($case, $student);
+        $this->putJson("/student/cases/{$case->id}/investigations/{$investigation->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'interpretation' => 'Bumps the lock version.',
+        ])->assertOk();
+
+        $response = $this->deleteJson("/student/cases/{$case->id}/investigations/{$investigation->id}", ['base_lock_version' => 0]);
+
+        $response->assertStatus(409);
+        $this->assertCount(1, $case->fresh()->investigations);
+        $this->assertDatabaseMissing('audit_events', ['event_type' => 'investigations.deleted']);
     }
 
     public function test_marking_investigations_unavailable_is_rejected_while_rows_exist(): void
@@ -1155,6 +1272,7 @@ namespace App\Http\Requests\Student;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreCaseInvestigationRequest extends FormRequest
 {
@@ -1183,6 +1301,11 @@ class StoreCaseInvestigationRequest extends FormRequest
             'interpretation' => ['nullable', 'string', 'max:2000'],
         ];
     }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
+    }
 }
 ```
 
@@ -1197,6 +1320,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCaseInvestigationRequest extends FormRequest
 {
@@ -1224,6 +1348,11 @@ class UpdateCaseInvestigationRequest extends FormRequest
             'observed_at_time' => ['sometimes', 'nullable', 'date_format:H:i'],
             'interpretation' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -1262,6 +1391,8 @@ class UpdateInvestigationsAvailabilityRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->rejectUnknownFields($validator);
+
         $validator->after(function (Validator $validator): void {
             if ($this->input('investigations_status') !== 'unavailable') {
                 return;
@@ -1290,6 +1421,7 @@ use App\Models\CaseInvestigation;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
@@ -1321,7 +1453,6 @@ class CaseInvestigationController extends Controller
             $request->user(),
             'investigations',
             $clientOperationId,
-            CaseInvestigation::class,
         );
 
         return response()->json(['investigation' => $this->payload($result['model'])], $result['httpStatus']);
@@ -1347,12 +1478,18 @@ class CaseInvestigationController extends Controller
         return response()->json(['investigation' => $this->payload($result['model'])], $result['httpStatus']);
     }
 
-    public function destroy(ClinicalCase $case, CaseInvestigation $investigation): Response
+    public function destroy(Request $request, ClinicalCase $case, CaseInvestigation $investigation, SectionSyncService $sync): JsonResponse|Response
     {
         Gate::authorize('update', $investigation);
         abort_unless($investigation->clinical_case_id === $case->id, 404);
 
-        $investigation->delete();
+        $data = $request->validate(['base_lock_version' => ['required', 'integer', 'min:0']]);
+
+        $result = $sync->delete($investigation, $request->user(), 'investigations', $data['base_lock_version']);
+
+        if ($result['status'] === 'conflict') {
+            return response()->json(['investigation' => $this->payload($result['model'])], 409);
+        }
 
         return response()->noContent();
     }
@@ -1433,7 +1570,7 @@ Expected: PASS (12 tests).
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 189 previous + 12 new — 201 passed / 2 skipped.
+Expected: 191 previous passed + 12 new — 203 passed / 2 skipped (205 total).
 
 - [ ] **Step 11: Commit**
 
@@ -1599,15 +1736,32 @@ class CaseMedicationSyncTest extends TestCase
         ])->assertNotFound();
     }
 
-    public function test_owning_student_can_delete_a_medication_row(): void
+    public function test_owning_student_can_delete_a_medication_row_at_the_correct_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
         $medication = $this->makeMedication($case, $student);
 
-        $this->deleteJson("/student/cases/{$case->id}/medications/{$medication->id}")->assertNoContent();
+        $this->deleteJson("/student/cases/{$case->id}/medications/{$medication->id}", ['base_lock_version' => 0])->assertNoContent();
 
         $this->assertCount(0, $case->fresh()->medications);
+        $this->assertDatabaseHas('audit_events', ['event_type' => 'medications.deleted']);
+    }
+
+    public function test_deleting_a_medication_row_with_a_stale_base_lock_version_returns_409_and_does_not_delete(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $medication = $this->makeMedication($case, $student);
+        $this->putJson("/student/cases/{$case->id}/medications/{$medication->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'notes' => 'Bumps the lock version.',
+        ])->assertOk();
+
+        $response = $this->deleteJson("/student/cases/{$case->id}/medications/{$medication->id}", ['base_lock_version' => 0]);
+
+        $response->assertStatus(409);
+        $this->assertCount(1, $case->fresh()->medications);
+        $this->assertDatabaseMissing('audit_events', ['event_type' => 'medications.deleted']);
     }
 
     public function test_marking_no_current_medicines_is_rejected_while_rows_exist(): void
@@ -1699,6 +1853,7 @@ use App\Enums\MedicationStatus;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreCaseMedicationRequest extends FormRequest
 {
@@ -1731,6 +1886,11 @@ class StoreCaseMedicationRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
+    }
 }
 ```
 
@@ -1746,6 +1906,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCaseMedicationRequest extends FormRequest
 {
@@ -1777,6 +1938,11 @@ class UpdateCaseMedicationRequest extends FormRequest
             'prn_indication' => ['sometimes', 'nullable', 'required_if:status,prn', 'string', 'max:120'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -1815,6 +1981,8 @@ class UpdateMedicationChartAvailabilityRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->rejectUnknownFields($validator);
+
         $validator->after(function (Validator $validator): void {
             if ($this->input('medication_chart_status') !== 'none_documented') {
                 return;
@@ -1843,6 +2011,7 @@ use App\Models\CaseMedication;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 
@@ -1874,7 +2043,6 @@ class CaseMedicationController extends Controller
             $request->user(),
             'medications',
             $clientOperationId,
-            CaseMedication::class,
         );
 
         return response()->json(['medication' => $this->payload($result['model'])], $result['httpStatus']);
@@ -1900,12 +2068,18 @@ class CaseMedicationController extends Controller
         return response()->json(['medication' => $this->payload($result['model'])], $result['httpStatus']);
     }
 
-    public function destroy(ClinicalCase $case, CaseMedication $medication): Response
+    public function destroy(Request $request, ClinicalCase $case, CaseMedication $medication, SectionSyncService $sync): JsonResponse|Response
     {
         Gate::authorize('update', $medication);
         abort_unless($medication->clinical_case_id === $case->id, 404);
 
-        $medication->delete();
+        $data = $request->validate(['base_lock_version' => ['required', 'integer', 'min:0']]);
+
+        $result = $sync->delete($medication, $request->user(), 'medications', $data['base_lock_version']);
+
+        if ($result['status'] === 'conflict') {
+            return response()->json(['medication' => $this->payload($result['model'])], 409);
+        }
 
         return response()->noContent();
     }
@@ -1990,7 +2164,7 @@ Expected: PASS (13 tests).
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 201 previous + 13 new — 214 passed / 2 skipped.
+Expected: 203 previous passed + 13 new — 216 passed / 2 skipped (218 total).
 
 - [ ] **Step 11: Static analysis and formatting**
 
@@ -2266,7 +2440,7 @@ type VitalPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: VitalPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
     useSectionSync<VitalPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2285,10 +2459,18 @@ async function remove() {
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
+            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
         },
+        body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
     if (response.ok) emit('removed', props.initial.id);
+    // A 409 here means the row changed since this device last saw it —
+    // the same conflict this component already surfaces for edits; the
+    // simplest correct behavior for a delete conflict is to leave the row
+    // in place and let its normal conflict panel (driven by useSectionSync)
+    // catch up on the next edit/sync rather than duplicating a second
+    // conflict UI just for deletion.
 }
 </script>
 
@@ -2394,7 +2576,7 @@ type InvestigationPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: InvestigationPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
     useSectionSync<InvestigationPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2413,8 +2595,10 @@ async function remove() {
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
+            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
         },
+        body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
     if (response.ok) emit('removed', props.initial.id);
 }
@@ -2741,7 +2925,7 @@ const FREQUENCY_OPTIONS: { value: string; label: string }[] = [
 const props = defineProps<{ caseId: string; userId: number; initial: MedicationPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
     useSectionSync<MedicationPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2760,8 +2944,10 @@ async function remove() {
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
+            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
         },
+        body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
     if (response.ok) emit('removed', props.initial.id);
 }
@@ -3072,7 +3258,7 @@ Expected: no errors.
 - [ ] **Step 13: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 214 previous + 1 (extended test, replacing the one Step 1 modified) — 214 passed / 2 skipped.
+Expected: 216 previous passed + 1 new (the extended `CaseEditorPageTest` method) — 217 passed / 2 skipped (219 total).
 
 - [ ] **Step 14: Commit**
 
@@ -3193,7 +3379,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 3: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 214 previous + 3 new — 217 passed / 2 skipped.
+Expected: 217 previous passed + 3 new — 220 passed / 2 skipped (222 total).
 
 - [ ] **Step 4: Static analysis and formatting**
 
@@ -3258,5 +3444,5 @@ Note the verification outcome in the pull-request description when 2B is opened 
 
 - **Spec coverage:** Requirement 1 (explicit unavailable states) — UI lands here (Tasks 2–5), now enforced two-directionally against actual row existence, not just visually plausible. Requirement 2 (mobile section editor) — extended in Task 5. Requirement 3 (repeatable rows) — Tasks 2–5, all three resource types, now offline-capable at creation. Requirement 4 (partial autosave) — every `Update*Request` in Tasks 2–4 uses `'sometimes'`; every `Store*Request` makes every clinical field optional so a bare "Add" never fails. Requirement 5 (outbox/idempotency/locking/conflict) — reused from Slice 2A for row *edits*; row *creation* gets its own idempotency via `SectionSyncService::create()` (Task 2, now class-checked against replay) and its own offline queue via `useRepeatableRowCreate` (Task 5); every row gets the same three-way conflict panel Case Profile has. Requirement 8 (authorization tests) — Task 6. Requirement 9 (device verification) — Task 7, including the offline row-creation path and the corrected offline-refresh script. Requirement 6 (conditional allergy/ADR) and requirement 7 (de-identification, already delivered in 2A) — the Medication Chart's and Investigations' `DeidentificationNotice` reuse in Task 5 extends requirement 7's coverage to this slice's free-text fields; ADR proper remains Slice 2C.
 - **Placeholder scan:** No task defers real logic; the section-status-vs-rows consistency rule is now actually enforced (both directions), not merely documented as a boundary. The "pending row" placeholder in the frontend is a real, minimal, explicitly-scoped UI state (not editable until synced), with the scope boundary stated directly in Task 5.
-- **Type consistency:** `SectionSyncService::create()`'s return shape matches `sync()`'s (`array{status, httpStatus, model}`). Every row payload method (`CaseVitalController::payload()`, etc.) returns the same field set the corresponding `Update*Request` accepts, so a synced row and a freshly created row are interchangeable on the frontend. Every `syncAvailability()` method returns its section's *own* lock column under the JSON key `lock_version`, matching the `SyncedSection` type `useSectionSync` expects — verified explicitly in Task 2's controller note and re-used identically in Tasks 3 and 4.
-- **Review Focus coverage:** cross-case row edit, duplicate/misdirected replay, stale-lock-with-no-resolution-path, status/row desynchronization, and offline-creation loss/duplication each have a named test in the task that owns the relevant code, plus a manual-verification step in Task 7 for the parts only a real browser can exercise.
+- **Type consistency:** `SectionSyncService::create()`'s and `delete()`'s return shapes both match `sync()`'s (`array{status, httpStatus, model}`); none of the three accept a caller-supplied model class, all three derive it from `modelClassForSection()`. Every row payload method (`CaseVitalController::payload()`, etc.) returns the same field set the corresponding `Update*Request` accepts, so a synced row and a freshly created row are interchangeable on the frontend. Every `syncAvailability()` method returns its section's *own* lock column under the JSON key `lock_version`, matching the `SyncedSection` type `useSectionSync` expects — verified explicitly in Task 2's controller note and re-used identically in Tasks 3 and 4. Every request class that defines `withValidator()` calls `$this->rejectUnknownFields($validator)` as its first statement — verified per class in Tasks 2–4 rather than assumed from the trait alone.
+- **Review Focus coverage:** cross-case row edit, duplicate/misdirected replay, stale-lock-with-no-resolution-path, deletion bypassing concurrency/audit, status/row desynchronization, and offline-creation loss/duplication each have a named test in the task that owns the relevant code, plus a manual-verification step in Task 7 for the parts only a real browser can exercise.

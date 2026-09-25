@@ -25,6 +25,7 @@ All constraints from Slices 2A and 2B apply unchanged. In addition:
 - Every `case_clinical_activities.details` write merges into the existing JSON rather than replacing it (see Architecture) — this applies to `syncAdr`, `syncCounselling`, and the generic repeatable-row `sync()` alike.
 - ADR and Counselling singleton rows are protected against concurrent double-creation by both a partial unique database index (`case_clinical_activities_singleton_unique`, scoped to `activity_type IN ('adr', 'counselling')`) and an application-level lock on the parent `ClinicalCase` row before the `firstOrCreate` call, added in Task 3 and reused by Task 4 — do not rely on `firstOrCreate()` alone, which is not race-free under concurrent requests.
 - Every sync/store request added in this slice uses `HasSyncEnvelope` + `RejectsUnknownFields`, per the Global Constraints established in Slice 2A/2B.
+- `RejectsUnknownFields` rejects only **top-level** unknown keys; it does not descend into array/object values. Because `case_clinical_activities.details` is a JSON object whose keys are validated separately with dot-notation rules (`details.event`, `details.topics`, …), every request that accepts `details` also restricts its keys with Laravel's `array:key1,key2,…` rule listing exactly the allowed nested keys (Tasks 3, 4 and 5). Without that, an unknown nested key such as `details.patient_name` would sail through the top-level trait check and be silently persisted into the JSON column — the exact "nested details keys can pass through" gap the second review flagged.
 
 ## Review Focus
 
@@ -32,6 +33,7 @@ All constraints from Slices 2A and 2B apply unchanged. In addition:
 - **SOAP `lock_version` mass-assignment regression.** Same shape as the `CaseClinicalProfile` bug Slice 2A fixed: `SoapNote`'s Fillable must not include `'lock_version'`, or a client could set an arbitrary starting lock version. Task 1's test asserts a client-supplied `lock_version` in a create payload is ignored.
 - **Singleton double-creation under concurrent first-sync requests.** Two near-simultaneous first syncs of ADR (or Counselling) for the same case must not produce two rows. Task 3's tests cover both the schema-level guard (a raw duplicate insert throws) and the application-level guard (two sequential controller calls reuse the same row), with an explicit note on why true parallel concurrency isn't exercised in single-process PHPUnit.
 - **`details.*` partial-update overwriting sibling keys, or leaking stale detail data after a status change.** A one-field update to `details` on an already-populated ADR/Counselling/Intervention/Monitoring row must preserve every previously-saved sibling key; a status change that hides the detail fields in the UI must also clear them server-side. Tasks 3, 4 and 6's tests cover both directions.
+- **An unknown nested `details` key silently persisting into the JSON column.** The `RejectsUnknownFields` trait only rejects top-level keys, so an unknown key *inside* the `details` object (e.g. `details.patient_name`) would otherwise be accepted and written to the JSON column. Every `details`-accepting request restricts its keys with `array:key1,key2,…`, and Tasks 3, 4 and 5 each include both a top-level and a nested unknown-field 422 test to pin this down.
 - **Losing the old SOAP page's data path, or a dead link to it.** Task 1's tests prove the new sync endpoint round-trips all SOAP fields (including the new monitoring-plan fields) without touching the old page; Task 6's tests prove the old route is gone and `CaseShow.vue` no longer links anywhere dead, and that the SOAP audit events (`soap_note.created`/`soap_note.updated`) still fire through the new path exactly as the old controller recorded them.
 - **Six-section progress/navigation regressions.** Adding the fifth and sixth section to `CaseEditor.vue`'s `sections` array must not break Previous/Next boundary logic or the nav-pill `aria-current` state for the sections Slices 2A/2B already shipped. Task 7's test and Task 9's manual pass both re-verify all six sections, not just the two new ones.
 
@@ -409,7 +411,7 @@ Expected: PASS (9 tests).
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 217 previous (Slice 2A+2B total) + 9 new — 226 passed / 2 skipped.
+Expected: 220 previous passed (Slice 2A+2B total) + 9 new — 229 passed / 2 skipped (231 total).
 
 - [ ] **Step 11: Commit**
 
@@ -530,7 +532,7 @@ Expected: PASS (2 tests).
 - [ ] **Step 6: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 226 previous + 2 new — 228 passed / 2 skipped.
+Expected: 229 previous passed + 2 new — 231 passed / 2 skipped (233 total).
 
 - [ ] **Step 7: Commit**
 
@@ -721,6 +723,33 @@ class AdrActivitySyncTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_an_unknown_top_level_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'no', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
+    }
+
+    public function test_an_unknown_nested_details_key_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'yes',
+            'details' => ['event' => 'Rash', 'suspected_medicine' => 'Amoxicillin', 'patient_name' => 'Should be rejected'],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('details');
+    }
+
     /** @return array{Institution, User, ClinicalCase} */
     private function makeCase(CaseStatus $status = CaseStatus::Draft): array
     {
@@ -802,7 +831,7 @@ class UpdateAdrActivityRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'status' => ['sometimes', 'required', Rule::in(['yes', 'no', 'unable_to_assess'])],
-            'details' => ['sometimes', 'nullable', 'array'],
+            'details' => ['sometimes', 'nullable', 'array:event,onset_reference,stop_reference,suspected_medicine,dose_route_frequency,concomitant_medicines,relevant_tests,action_taken,seriousness,outcome,dechallenge,rechallenge'],
             'details.event' => ['required_if:status,yes', 'nullable', 'string', 'max:1000'],
             'details.onset_reference' => ['sometimes', 'nullable', 'string', 'max:30'],
             'details.stop_reference' => ['sometimes', 'nullable', 'string', 'max:30'],
@@ -939,12 +968,12 @@ Run (PowerShell): `npm run build`
 - [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=AdrActivitySyncTest`
-Expected: PASS (9 tests).
+Expected: PASS (11 tests).
 
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 228 previous + 9 new — 237 passed / 2 skipped.
+Expected: 231 previous passed + 11 new — 242 passed / 2 skipped (244 total).
 
 - [ ] **Step 11: Commit**
 
@@ -1102,6 +1131,33 @@ class CounsellingActivitySyncTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_an_unknown_top_level_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'not_indicated', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
+    }
+
+    public function test_an_unknown_nested_details_key_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'performed',
+            'details' => ['topics' => 'Dosing schedule.', 'patient_name' => 'Should be rejected'],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('details');
+    }
+
     /** @return array{Institution, User, ClinicalCase} */
     private function makeCase(CaseStatus $status = CaseStatus::Draft): array
     {
@@ -1149,7 +1205,7 @@ class UpdateCounsellingActivityRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'status' => ['sometimes', 'required', Rule::in(['performed', 'planned', 'not_indicated', 'unable_to_perform'])],
-            'details' => ['sometimes', 'nullable', 'array'],
+            'details' => ['sometimes', 'nullable', 'array:topics,medicine_purpose,administration,adherence,precautions,adverse_effects,storage,lifestyle_follow_up,understanding_checked'],
             'details.topics' => ['required_if:status,performed', 'required_if:status,planned', 'nullable', 'string', 'max:2000'],
             'details.medicine_purpose' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'details.administration' => ['sometimes', 'nullable', 'string', 'max:1000'],
@@ -1210,12 +1266,12 @@ Run (PowerShell): `npm run build`
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=CounsellingActivitySyncTest`
-Expected: PASS (7 tests).
+Expected: PASS (9 tests).
 
 - [ ] **Step 9: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 237 previous + 7 new — 244 passed / 2 skipped.
+Expected: 242 previous passed + 9 new — 251 passed / 2 skipped (253 total).
 
 - [ ] **Step 10: Commit**
 
@@ -1342,15 +1398,61 @@ class RepeatableClinicalActivitySyncTest extends TestCase
         $this->assertCount(1, $case->fresh()->clinicalActivities);
     }
 
-    public function test_owning_student_can_delete_a_monitoring_row(): void
+    public function test_owning_student_can_delete_a_monitoring_row_at_the_correct_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
         $activity = $this->makeActivity($case, $student, ClinicalActivityType::Monitoring);
 
-        $this->deleteJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}")->assertNoContent();
+        $this->deleteJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}", ['base_lock_version' => 0])->assertNoContent();
 
         $this->assertCount(0, $case->fresh()->clinicalActivities);
+        $this->assertDatabaseHas('audit_events', ['event_type' => 'clinical_activities.deleted']);
+    }
+
+    public function test_deleting_a_monitoring_row_with_a_stale_base_lock_version_returns_409_and_does_not_delete(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $activity = $this->makeActivity($case, $student, ClinicalActivityType::Monitoring);
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'details' => ['notes' => 'Bumps the lock version.'],
+        ])->assertOk();
+
+        $response = $this->deleteJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}", ['base_lock_version' => 0]);
+
+        $response->assertStatus(409);
+        $this->assertCount(1, $case->fresh()->clinicalActivities);
+        $this->assertDatabaseMissing('audit_events', ['event_type' => 'clinical_activities.deleted']);
+    }
+
+    public function test_an_unknown_top_level_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $activity = $this->makeActivity($case, $student, ClinicalActivityType::Intervention);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
+    }
+
+    public function test_an_unknown_nested_details_key_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $activity = $this->makeActivity($case, $student, ClinicalActivityType::Intervention);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/{$activity->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'details' => ['problem' => 'Dose too low', 'patient_name' => 'Should be rejected'],
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('details');
     }
 
     public function test_a_different_student_cannot_create_edit_or_delete_an_activity_row(): void
@@ -1429,7 +1531,7 @@ class StoreCaseClinicalActivityRequest extends FormRequest
             'client_operation_id' => ['required', 'uuid'],
             'activity_type' => ['required', Rule::in([ClinicalActivityType::Intervention->value, ClinicalActivityType::Monitoring->value])],
             'status' => ['nullable', 'string', 'max:30'],
-            'details' => ['nullable', 'array'],
+            'details' => ['nullable', 'array:problem,recommendation,recipient,communication_method,case_date,outcome,follow_up,parameter,result,observed_on,notes'],
         ];
     }
 }
@@ -1463,12 +1565,12 @@ class UpdateCaseClinicalActivityRequest extends FormRequest
         $rules = [
             ...$this->syncEnvelopeRules(),
             'status' => ['sometimes', 'nullable', 'string', 'max:30'],
-            'details' => ['sometimes', 'nullable', 'array'],
         ];
 
         if ($this->route('activity')?->activity_type === ClinicalActivityType::Intervention) {
             return [
                 ...$rules,
+                'details' => ['sometimes', 'nullable', 'array:problem,recommendation,recipient,communication_method,case_date,outcome,follow_up'],
                 'details.problem' => ['sometimes', 'nullable', 'string', 'max:1000'],
                 'details.recommendation' => ['sometimes', 'nullable', 'string', 'max:1000'],
                 'details.recipient' => ['sometimes', 'nullable', 'string', 'max:120'],
@@ -1481,6 +1583,7 @@ class UpdateCaseClinicalActivityRequest extends FormRequest
 
         return [
             ...$rules,
+            'details' => ['sometimes', 'nullable', 'array:parameter,result,observed_on,notes'],
             'details.parameter' => ['sometimes', 'nullable', 'string', 'max:255'],
             'details.result' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'details.observed_on' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
@@ -1497,6 +1600,7 @@ Add imports:
 ```php
 use App\Http\Requests\Student\StoreCaseClinicalActivityRequest;
 use App\Http\Requests\Student\UpdateCaseClinicalActivityRequest;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 ```
@@ -1520,7 +1624,6 @@ Add the methods (after `syncCounselling`):
             $request->user(),
             'clinical_activities',
             $clientOperationId,
-            CaseClinicalActivity::class,
         );
 
         return response()->json(['activity' => $this->payload($result['model'])], $result['httpStatus']);
@@ -1551,13 +1654,19 @@ Add the methods (after `syncCounselling`):
         return response()->json(['activity' => $this->payload($result['model'])], $result['httpStatus']);
     }
 
-    public function destroy(ClinicalCase $case, CaseClinicalActivity $activity): Response
+    public function destroy(Request $request, ClinicalCase $case, CaseClinicalActivity $activity, SectionSyncService $sync): JsonResponse|Response
     {
         Gate::authorize('update', $activity);
         abort_unless($activity->clinical_case_id === $case->id, 404);
         abort_unless(in_array($activity->activity_type, [ClinicalActivityType::Intervention, ClinicalActivityType::Monitoring], true), 404);
 
-        $activity->delete();
+        $data = $request->validate(['base_lock_version' => ['required', 'integer', 'min:0']]);
+
+        $result = $sync->delete($activity, $request->user(), 'clinical_activities', $data['base_lock_version']);
+
+        if ($result['status'] === 'conflict') {
+            return response()->json(['activity' => $this->payload($result['model'])], 409);
+        }
 
         return response()->noContent();
     }
@@ -1584,12 +1693,12 @@ Run (PowerShell): `npm run build`
 - [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=RepeatableClinicalActivitySyncTest`
-Expected: PASS (7 tests).
+Expected: PASS (10 tests).
 
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 244 previous + 7 new — 251 passed / 2 skipped.
+Expected: 251 previous passed + 10 new — 261 passed / 2 skipped (263 total).
 
 - [ ] **Step 11: Static analysis and formatting**
 
@@ -1901,7 +2010,7 @@ Expected: no errors. Search the codebase for `SoapEditor` before this step to co
 - [ ] **Step 12: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 251 previous, minus the one removed test, plus the two extended/new `CaseEditorPageTest` methods — net 252 passed / 2 skipped.
+Expected: 261 previous passed, minus the one removed `SoapNoteSyncTest` test, plus the two new `CaseEditorPageTest` methods — 262 passed / 2 skipped (264 total).
 
 - [ ] **Step 13: Commit**
 
@@ -2437,7 +2546,7 @@ Expected: no errors.
 - [ ] **Step 9: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 252 previous + 1 (extended test) — 252 passed / 2 skipped.
+Expected: 262 previous passed + 1 new (the extended `CaseEditorPageTest` method) — 263 passed / 2 skipped (265 total).
 
 - [ ] **Step 10: Commit**
 
@@ -2550,7 +2659,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 3: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 252 previous + 3 new — 255 passed / 2 skipped.
+Expected: 263 previous passed + 3 new — 266 passed / 2 skipped (268 total).
 
 - [ ] **Step 4: Static analysis and formatting**
 
@@ -2601,7 +2710,7 @@ Repeat Step 2's walkthrough at both viewports. Pay particular attention to the C
 
 - [ ] **Step 5: Full-suite regression and logout check**
 
-Run (PowerShell): `php artisan test` one final time and confirm 255 passed / 2 skipped (or the actual cumulative count if any earlier task's manual verification surfaced a fix). Log out from the fully-populated case editor and confirm (DevTools Application → IndexedDB) that `pharmalab-section-outbox` is empty afterward — this re-confirms Slice 2A Task 3's logout hook still works once every section in this series has written to the outbox at least once.
+Run (PowerShell): `php artisan test` one final time and confirm 266 passed / 2 skipped (268 total) (or the actual cumulative count if any earlier task's manual verification surfaced a fix). Log out from the fully-populated case editor and confirm (DevTools Application → IndexedDB) that `pharmalab-section-outbox` is empty afterward — this re-confirms Slice 2A Task 3's logout hook still works once every section in this series has written to the outbox at least once.
 
 - [ ] **Step 6: Record the result and update `PROJECT_STATE.md`**
 
@@ -2609,9 +2718,156 @@ This is the point where Slice 2 as a whole (2A + 2B + 2C) is complete. Once this
 
 ---
 
+## Task 10: Retire the SYNC-SPIKE-01 `CaseDraftNote` experiment
+
+**Revision (second review round):** The accepted SYNC-SPIKE-01 spike (`CaseDraftNoteController`, `/student/sync-spike`, `CaseDraftNote.vue`, `caseDraftStore.ts`) proved the offline-sync protocol this entire Slice 2 series generalized from it. It was deliberately left untouched through Tasks 1–9 of 2A/2B/2C so the accepted spike kept working while the real engine was built alongside it (Slice 2A's Architecture section says so explicitly). Now that the six-section editor covers everything the spike demonstrated — and more (structured multi-field sections, not one free-text note) — leaving the spike's route, page and controller live indefinitely is unfinished cleanup, not caution. This task retires it. It does **not** touch the `case_draft_notes` table or any historical `sync_operations` row that references it — Slice 2A Task 2's migration already made `sync_operations.case_draft_note_id` nullable and permanently blocks a rollback once generalized rows exist (see that task's `down()` guard); nothing about *this* task changes any stored data, only the UI/route surface that let a student reach the experiment.
+
+**Files:**
+- Modify: `routes/web.php` (remove the three `student.sync-spike*` routes and the `CaseDraftNoteController` import)
+- Delete: `app/Http/Controllers/CaseDraftNoteController.php`
+- Delete: `app/Http/Requests/SyncCaseDraftNoteRequest.php`
+- Delete: `app/Policies/CaseDraftNotePolicy.php` (and its registration, if `AuthServiceProvider` or model-discovery config maps it explicitly — check `app/Providers/AuthServiceProvider.php` for a `CaseDraftNote::class => CaseDraftNotePolicy::class` entry)
+- Delete: `resources/js/pages/student/CaseDraftNote.vue`
+- Delete: `resources/js/lib/caseDraftStore.ts`
+- Modify: `resources/js/pages/student/Dashboard.vue` (remove the "sync-spike" nav card/link)
+- Modify: `resources/js/components/UserMenuContent.vue` (remove the now-dead `clearCaseDraftStorage()` import and call — `clearSectionOutbox()`, added in Slice 2A Task 3, remains and is now the only store logout clears)
+- Delete: `tests/Feature/Sync/CaseDraftNoteSyncTest.php` (7 tests covering the spike directly — removed, not migrated, since every guarantee it tested is now covered by `SectionSyncServiceTest` and the per-section sync tests throughout 2A/2B/2C)
+- Delete: `tests/Browser/sync_spike.py` (if present — a Playwright/Python script outside the PHPUnit suite; confirm nothing in CI configuration references it before deleting, and update that configuration in the same commit if it does)
+- Test: `tests/Feature/CaseDraftNoteRetirementTest.php`
+
+**Interfaces:** None produced — this task only removes surface area. No other task in this plan series depends on anything created here.
+
+- [ ] **Step 1: Confirm feature parity before removing anything**
+
+Cross-reference the spike's demonstrated capabilities against the shipped editor, and do not proceed until every row below is checked:
+
+| SYNC-SPIKE-01 capability | Where it now lives |
+| --- | --- |
+| IndexedDB-backed offline draft | `outboxStore.ts` (Slice 2A Task 3), used by every section |
+| Idempotent `client_operation_id` autosave | `SectionSyncService::sync()`/`create()` (Slice 2A/2B) |
+| Optimistic locking via `lock_version` | `Syncable`/`SyncsWithLockVersion` (Slice 2A Task 2), per-section lock columns |
+| Conflict resolution (use server / keep device copy / replace server) | `useSectionSync.ts`'s three-way panel, now on every section and every repeatable row |
+| A single free-text note a student can edit | Superseded — the six-section structured editor is strictly more capable, not a like-for-like swap of one text field |
+
+- [ ] **Step 2: Write the failing test**
+
+```php
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Institution;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class CaseDraftNoteRetirementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_the_sync_spike_routes_no_longer_exist(): void
+    {
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $this->actingAs($student);
+
+        $this->get('/student/sync-spike')->assertNotFound();
+    }
+
+    public function test_the_dashboard_still_renders_after_the_sync_spike_link_is_removed(): void
+    {
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $this->actingAs($student);
+
+        // A broken render here is the regression this catches: removing the
+        // sync-spike card/import from Dashboard.vue must not leave the page
+        // referencing a now-deleted component or route helper. The route's
+        // absence itself is proven by the first test.
+        $this->get('/student/dashboard')->assertOk();
+    }
+}
+```
+
+- [ ] **Step 3: Run the test to verify it fails**
+
+Run (PowerShell): `php artisan test --filter=CaseDraftNoteRetirementTest`
+Expected: FAIL — `/student/sync-spike` still resolves.
+
+- [ ] **Step 4: Remove the routes**
+
+In `routes/web.php`, remove these three lines and the `use App\Http\Controllers\CaseDraftNoteController;` import:
+
+```php
+        Route::get('student/sync-spike', [CaseDraftNoteController::class, 'index'])->name('student.sync-spike');
+        Route::get('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'show'])->name('student.sync-spike.show');
+        Route::put('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'sync'])->name('student.sync-spike.sync');
+```
+
+- [ ] **Step 5: Delete the backend files**
+
+Delete `app/Http/Controllers/CaseDraftNoteController.php`, `app/Http/Requests/SyncCaseDraftNoteRequest.php`, and `app/Policies/CaseDraftNotePolicy.php`. Search `app/Providers/AuthServiceProvider.php` for a `CaseDraftNote::class => CaseDraftNotePolicy::class` entry in its `$policies` array and remove it if present.
+
+- [ ] **Step 6: Delete the frontend files and remove the dashboard link**
+
+Delete `resources/js/pages/student/CaseDraftNote.vue` and `resources/js/lib/caseDraftStore.ts`.
+
+In `resources/js/pages/student/Dashboard.vue`, remove the `<Link href="/student/sync-spike" ...>` card entirely (and its surrounding wrapper if the card was the only content of that wrapper).
+
+- [ ] **Step 7: Remove the dead import from the logout handler**
+
+In `resources/js/components/UserMenuContent.vue`, remove the `import { clearCaseDraftStorage } from '@/lib/caseDraftStore';` import and the `await clearCaseDraftStorage();` line from `handleLogout()`, leaving:
+
+```typescript
+const handleLogout = async () => {
+    await clearSectionOutbox();
+    router.flushAll();
+    router.post(logout.url());
+};
+```
+
+Note: this does not retroactively clear any `caseDraftStore` data already sitting in a browser's IndexedDB from before this task shipped — that database is now permanently orphaned (nothing reads or writes it again) rather than actively wiped. This is an acceptable, explicitly-stated scope boundary for a UI/route retirement, not a silent gap: the data was already device-local, non-syncing, and inaccessible through the app the moment `CaseDraftNote.vue`'s route stops resolving.
+
+- [ ] **Step 8: Delete the spike's own tests**
+
+Delete `tests/Feature/Sync/CaseDraftNoteSyncTest.php`. Delete `tests/Browser/sync_spike.py` if it exists and nothing else references it.
+
+- [ ] **Step 9: Regenerate Wayfinder files**
+
+Run (PowerShell): `npm run build`
+Removing routes changes generated files too — confirm `resources/js/actions/App/Http/Controllers/CaseDraftNoteController.ts` and `resources/js/routes/student/sync-spike/index.ts` are gone from `git status`, and commit their removal in this same commit.
+
+- [ ] **Step 10: Run the test to verify it passes**
+
+Run (PowerShell): `php artisan test --filter=CaseDraftNoteRetirementTest`
+Expected: PASS (2 tests).
+
+- [ ] **Step 11: Type-check and run the full suite**
+
+Run (PowerShell): `npm run types:check`
+Expected: no errors — confirms nothing still imports the deleted `.vue`/`.ts` files.
+
+Run (PowerShell): `php artisan test`
+Expected: 266 previous passed, minus 7 removed (`CaseDraftNoteSyncTest`), plus 2 new — 261 passed / 2 skipped (263 total).
+
+- [ ] **Step 12: Manual check — confirm nothing links to the old route**
+
+Search the rendered app (or `grep -r "sync-spike" resources/js`) and confirm zero remaining references outside of generated/build artifacts that will be regenerated away. Load the dashboard as a seeded student and visually confirm the sync-spike card is gone.
+
+- [ ] **Step 13: Commit**
+
+```bash
+git add routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/Dashboard.vue resources/js/components/UserMenuContent.vue tests/Feature/CaseDraftNoteRetirementTest.php
+git rm app/Http/Controllers/CaseDraftNoteController.php app/Http/Requests/SyncCaseDraftNoteRequest.php app/Policies/CaseDraftNotePolicy.php resources/js/pages/student/CaseDraftNote.vue resources/js/lib/caseDraftStore.ts tests/Feature/Sync/CaseDraftNoteSyncTest.php
+git commit -m "chore: retire the SYNC-SPIKE-01 CaseDraftNote experiment now that the six-section editor covers it"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** Requirement 2 (mobile section editor) — completed here; all six sections now live in one `CaseEditor.vue`, and the transition never leaves the app without a working SOAP save path (Task 1 additive, Task 6 atomic retirement). Requirement 3 (repeatable rows) — Intervention and Monitoring follow-up added (Task 5) with the same offline-capable creation Slice 2B built, completing the full set. Requirement 5 (sync engine) — proven against its two remaining consumer shapes (a revisioned singleton with lazy creation for SOAP, and a concurrency-guarded lazy-singleton pattern for ADR/Counselling) without any new locking mechanism, and its idempotency/class-check hardening (Slice 2A/2B) is exercised by every new section key added here. Requirement 6 (conditional allergy and ADR fields) — ADR's Yes/No/Unable-to-assess gate with required-only-on-Yes details and the full accepted field set (Task 3, Task 7); counselling's parallel structure with its full field set (Task 4, Task 7). Requirement 7 (de-identification warnings) — extended to SOAP Subjective/Objective/Assessment/Plan, the ADR event field, intervention recommendation, and monitoring notes. Requirement 8 (authorization tests) — Task 8. Requirement 9 (device verification) — Task 9, covering the full six-section flow end to end including offline row creation, closing out Slice 2.
 - **Placeholder scan:** No task defers real logic. The visual-polish deferrals in Task 9 Step 4 are explicitly named as recorded limitations, not silently skipped work. Task 3's concurrency test explicitly documents why true parallel-request racing isn't reproducible in single-process PHPUnit and names the two tests that together stand in for it, rather than silently omitting the coverage.
-- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A. Every `details` write in this plan goes through the same merge-or-clear helper (`mergeOrClearDetails()` for the two singletons, an inline equivalent for the generic repeatable-row `sync()`), so the partial-update behavior is identical across all four conditional-activity shapes.
-- **Review Focus coverage:** wrong-door singleton access, the SOAP Fillable regression, singleton double-creation (schema + app level), `details.*` partial-update/clear-on-exit behavior, the old-page transition and its audit trail, and six-section navigation regressions each have a named test in the task that owns the relevant code, plus Task 9's manual pass for what only a real browser proves.
+- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A. Every `details` write in this plan goes through the same merge-or-clear helper (`mergeOrClearDetails()` for the two singletons, an inline equivalent for the generic repeatable-row `sync()`), so the partial-update behavior is identical across all four conditional-activity shapes. Every `details`-accepting request also pairs `RejectsUnknownFields` (top-level) with an `array:key1,key2` rule (nested), and the generic repeatable-row `destroy()` goes through `SectionSyncService::delete()` exactly like the 2B row endpoints, so no write path here bypasses unknown-field rejection or optimistic concurrency.
+- **Review Focus coverage:** wrong-door singleton access, the SOAP Fillable regression, singleton double-creation (schema + app level), `details.*` partial-update/clear-on-exit behavior, unknown top-level and nested `details` keys, repeatable-row deletion bypassing optimistic concurrency, the old-page transition and its audit trail, and six-section navigation regressions each have a named test in the task that owns the relevant code, plus Task 9's manual pass for what only a real browser proves.
+- **Test count:** running totals in this plan are computed cumulatively from the Slice 2A baseline of 131 tests (129 passed / 2 skipped). After all of 2A/2B/2C including Task 10's retirement (removes 7 `CaseDraftNoteSyncTest` tests, adds 2), the full `php artisan test` suite is expected at **261 passed / 2 skipped (263 total)**.

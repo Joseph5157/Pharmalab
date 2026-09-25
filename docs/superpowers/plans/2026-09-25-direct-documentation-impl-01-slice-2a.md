@@ -21,9 +21,9 @@ Four sections write to the single `ClinicalCase` row in this slice and the next 
 - After adding or changing any route in `routes/web.php`, regenerate the Wayfinder TypeScript files by running `npm run build` (the `@laravel/vite-plugin-wayfinder` Vite plugin regenerates `resources/js/actions/**` and `resources/js/routes/**` as part of the build) and commit the regenerated files in the **same commit** as the route change. Never hand-edit anything under `resources/js/actions/` or `resources/js/routes/` — it is generated. Do not commit incidental line-ending/comment churn in unrelated generated files; if `git status` shows generated files you did not intend to touch, run `git checkout -- resources/js/actions resources/js/routes` before committing and only regenerate immediately before the commit that needs it.
 - `lock_version` (and every section-specific lock column added in Task 1) is never mass-fillable on any model. It is only ever bumped via `forceFill()` inside `SyncsWithLockVersion::applySyncedAttributes()` (Task 2). Task 1 fixes an existing Slice 1 regression: `CaseClinicalProfile`'s `#[Fillable([...])]` currently lists `'lock_version'`, which would let a client set it directly through mass assignment — remove it.
 - Every sync-capable model (`ClinicalCase`, `CaseClinicalProfile`, and later Slice 2B/2C models) implements `App\Contracts\Syncable` via the `App\Models\Concerns\SyncsWithLockVersion` trait and is synced only through `App\Services\SectionSyncService`. Do not hand-roll a second copy of the dedup/lock/conflict transaction in a new controller — that duplication is exactly what Task 2 exists to prevent. `Syncable::getLockVersion()` and `applySyncedAttributes()` both take the `section_key` being synced (see Architecture) — a model backing more than one section must override `lockVersionColumn(string $sectionKey): string`; a model backing exactly one section (every model except `ClinicalCase`) inherits the trait's single-column default and never needs to override it.
-- A replayed `client_operation_id` is only ever resolved through an explicit, static `section_key => FQCN` allow-list inside `SectionSyncService` (see Task 2) — never by instantiating or querying a class name read out of the `sync_operations.syncable_type` column (`new $row->syncable_type` / `($row->syncable_type)::query()` are both forbidden). A stored `syncable_type` is compared *against* the allow-list entry for the request's own `section_key`, not used to look the class up.
+- A replayed `client_operation_id` is only ever resolved through `SectionSyncService::modelClassForSection(string $sectionKey): string` (Task 2) — the single accessor for the private `SECTION_MODELS` constant, throwing `InvalidArgumentException` on an unrecognized key — never by instantiating or querying a class name read out of the `sync_operations.syncable_type` column (`new $row->syncable_type` / `($row->syncable_type)::query()` are both forbidden) and never via an inline `self::SECTION_MODELS[$key] ?? $model::class` fallback, which routes around the allow-list instead of being governed by it. `sync()`, `create()` (2B) and `delete()` (2B) all call `modelClassForSection()` to both (a) assert the model instance they were handed actually matches its claimed section, and (b) validate a replayed `SyncOperation`'s stored `syncable_type` — neither check is ever satisfied by a caller-supplied "expected class" argument; `create()`/`delete()` derive it internally exactly as `sync()` does.
 - Partial autosave (Slice 2 requirement): every `Update*Request` used by a `sync()` endpoint gives each field rule set a leading `'sometimes'` entry, so a payload that omits a key is neither validated nor written — the existing `UpdateCaseClinicalProfileRequest::rules()` currently has `'allergy_status' => ['required', ...]` with no `'sometimes'`, which would reject any partial autosave that doesn't include `allergy_status`; Task 5 fixes this named example directly.
-- Every sync/store request rejects unknown top-level fields (field catalogue §5, "Unknown request fields are rejected by the server" — this is a spec requirement, not a hardening choice this plan invents). Task 4 introduces a shared `App\Http\Requests\Concerns\RejectsUnknownFields` trait alongside `HasSyncEnvelope`; every request class this plan and 2B/2C add uses both.
+- Every sync/store request rejects unknown top-level fields (field catalogue §5, "Unknown request fields are rejected by the server" — this is a spec requirement, not a hardening choice this plan invents). Task 4 introduces a shared `App\Http\Requests\Concerns\RejectsUnknownFields` trait alongside `HasSyncEnvelope`. The trait's check lives in a plain method, `rejectUnknownFields(Validator $validator): void` — deliberately **not** named `withValidator()` — because `withValidator()` is a Laravel-called hook a class can only define once; every request class in this plan and in 2B/2C defines its own `withValidator()` and calls `$this->rejectUnknownFields($validator);` as its first statement, whether or not it also needs a second, request-specific check in the same method. A request that defines `withValidator()` without that first-line call has silently lost unknown-field rejection — Review Focus calls this out as a class of bug to watch for in review, not just in the request classes this plan writes. The trait's `rejectUnknownFields()` rejects only **top-level** keys — it deliberately does not descend into array/object values, so a field whose value is itself a restricted-key object (2C's `case_clinical_activities.details` JSON) must restrict its nested keys with Laravel's `array:key1,key2` rule *in addition to* the trait; 2C's Tasks 3–5 do exactly that, and any future nested-JSON request must follow the same pattern.
 - Free-text narrative fields get the de-identification warning (`DeidentificationNotice.vue`, Task 5) wherever they appear anywhere in the editor, not only on the fields this slice happens to touch first — 2B and 2C's plans each apply it to their own narrative fields (medication notes, SOAP Subjective, ADR event, counselling notes) using the same component this task creates.
 - Logging out must clear the new section outbox (`clearSectionOutbox()`, Task 3) in the same place the app already clears the SYNC-SPIKE-01 draft store on logout (`resources/js/components/UserMenuContent.vue`'s `handleLogout()`, which already calls `clearCaseDraftStorage()`). This is not a "nice to have" deferrable to 2C — a shared/institutional device that logs a second student in must not be able to read the first student's unsynced drafts, and Task 3 wires it in the same commit that creates the store.
 - This repository has no JavaScript/TypeScript unit-test runner (only Playwright e2e specs and PHPUnit; confirmed by searching for Vitest/Jest configuration — none exists). Do not add one. Frontend-only tasks are gated by `npm run types:check` (TypeScript compiles) and are functionally verified once a real page in a later task renders them; say so explicitly in the task rather than inventing a test file that doesn't match the project's established testing shape.
@@ -38,6 +38,9 @@ Four sections write to the single `ClinicalCase` row in this slice and the next 
 - **Cross-institution / other-student / post-submission access.** Every new `PUT` endpoint must deny a different student in the same institution, a user from a different institution, and — once the case's status leaves Draft/Returned — even the owning student. Task 7's dedicated authorization test file exercises all three denials against both new controllers, matching the negative-authorization pattern established in Slice 1's `CaseClinicalProfileTest`.
 - **Idempotent replay creating a duplicate write, or resolving to the wrong record.** A retried request carrying the same `client_operation_id` must not double-apply the change or insert a second `SyncOperation` row (Task 2's engine test, Task 4's controller test). A `client_operation_id` reused across two *different* section endpoints — a client bug or a malicious replay — must be rejected outright rather than silently resolving to whichever record the first use created (Task 2's engine test covers this directly against the `sync_operations` unique constraint and the section-key/class allow-list).
 - **Logout leaving a readable draft behind.** `clearSectionOutbox()` must actually run on logout, not just exist as an exported function nobody calls. Task 3 wires it into the same `handleLogout()` the SYNC-SPIKE-01 draft store already uses and Task 8's manual pass verifies IndexedDB is empty afterward.
+- **A request-specific `withValidator()` silently disabling unknown-field rejection.** Any request class in this plan (or 2B/2C) that needs its own `withValidator()` for a second check — an age/unit bound, a BP-pairing rule, a row-existence gate — must call `$this->rejectUnknownFields($validator);` as its first statement. A class that defines `withValidator()` without that call has quietly lost the field catalogue §5 guarantee even though it still `use`s the trait. Every such class's test file includes an unknown-top-level-field 422 assertion specifically so this can't regress unnoticed.
+- **A caller-supplied "expected class" routing around the section allow-list.** `SectionSyncService::create()`/`delete()` (2B) derive the model class for a section from `modelClassForSection($sectionKey)` internally — never from an argument the calling controller passes in. A controller that could pass any class it likes defeats the whole point of the allow-list; Task 2's (2B) tests assert `create()`'s signature has no such parameter and that mismatched model/section combinations are rejected.
+- **An unknown nested key inside a JSON/array field passing through the top-level-only trait check.** `RejectsUnknownFields` rejects only top-level keys; a key nested inside an array-valued field (2C's `details` object) would otherwise be silently accepted and persisted. Every request that accepts such a field must pair the trait with an `array:key1,key2` rule naming exactly the allowed nested keys — 2C's Tasks 3–5 do this and each includes a nested-unknown-field 422 test.
 
 ---
 
@@ -221,7 +224,7 @@ Expected: PASS (4 tests).
 - [ ] **Step 7: Run the full suite to confirm no regression**
 
 Run (PowerShell): `php artisan test`
-Expected: 131 previous tests still pass (129 passed / 2 skipped) plus the 4 new ones — 135 passed / 2 skipped.
+Expected: 129 previous passed (2 skipped unchanged) + 4 new — 133 passed / 2 skipped (135 total).
 
 - [ ] **Step 8: Commit**
 
@@ -504,6 +507,69 @@ class SyncOperationsMigrationTest extends TestCase
 
         $this->assertSame($draftNote->id, SyncOperation::query()->withoutGlobalScopes()->findOrFail($operation->id)->case_draft_note_id);
     }
+
+    public function test_rollback_refuses_once_generalized_sync_operations_rows_exist(): void
+    {
+        // Artisan::call() is expected to let a thrown RuntimeException from
+        // inside Migration::down() propagate as a normal PHP exception (this
+        // is the standard way Laravel test suites assert a migration
+        // failure) — caught explicitly here, rather than via
+        // expectException(), so the post-failure assertions below still run
+        // regardless of exactly how the exception surfaces in this Laravel
+        // version; if $thrown stays null, that itself is a failure worth
+        // seeing directly rather than a silently-passed expectException.
+        // Like the round-trip test above, this exercises real rollback DDL
+        // inside PHPUnit's per-test transaction (safe under SQLite, which
+        // supports transactional DDL); if it proves flaky under a different
+        // driver, isolate this test on a dedicated file-backed SQLite
+        // database via DatabaseTransactions rather than dropping it.
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $draftNote = CaseDraftNote::query()->withoutGlobalScopes()->create([
+            'case_id' => (string) Str::ulid(),
+            'student_id' => $student->id,
+            'institution_id' => $institution->id,
+            'content' => 'Draft content.',
+        ]);
+        SyncOperation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'user_id' => $student->id,
+            'case_draft_note_id' => $draftNote->id,
+            'client_operation_id' => (string) Str::uuid(),
+            'section_key' => 'case_draft_note',
+            'base_lock_version' => 0,
+            'result_status' => 'saved',
+            'server_version' => 1,
+        ]);
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'student_id' => $student->id,
+            'rotation_assignment_id' => null, 'case_number' => 1, 'status' => CaseStatus::Draft,
+        ]);
+        SyncOperation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'user_id' => $student->id,
+            'case_draft_note_id' => null,
+            'syncable_type' => ClinicalCase::class,
+            'syncable_id' => $case->id,
+            'client_operation_id' => (string) Str::uuid(),
+            'section_key' => 'case_context',
+            'base_lock_version' => 0,
+            'result_status' => 'saved',
+            'server_version' => 1,
+        ]);
+
+        $thrown = null;
+        try {
+            Artisan::call('migrate:rollback', ['--step' => 1]);
+        } catch (\Throwable $exception) {
+            $thrown = $exception;
+        }
+
+        $this->assertNotNull($thrown, 'Expected the rollback to refuse once a generalized (non-CaseDraftNote) row exists.');
+        $this->assertStringContainsString('Cannot roll back: generalized sync_operations rows exist', $thrown->getMessage());
+        $this->assertTrue(Schema::hasColumns('sync_operations', ['syncable_type', 'syncable_id']));
+        $this->assertSame(2, SyncOperation::query()->withoutGlobalScopes()->count());
+    }
 }
 ```
 
@@ -525,6 +591,24 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Makes sync_operations polymorphic (syncable_type/syncable_id) so any
+ * Syncable model, not just CaseDraftNote, can use the sync engine.
+ *
+ * down() is a ONE-WAY DOOR once the polymorphic path is in real use: as
+ * soon as any row exists with syncable_type set and case_draft_note_id
+ * NULL (i.e. any Slice 2A+ section has synced at least once), there is no
+ * legacy case_draft_note_id value to restore for that row, so re-imposing
+ * the original NOT NULL constraint is impossible without inventing data.
+ * down() detects this and refuses outright rather than attempting a doomed
+ * ALTER/rebuild that would either fail loudly (PostgreSQL) or silently
+ * corrupt data (a naive SQLite rebuild coercing NULL to some placeholder).
+ * An operator who genuinely needs to revert the whole generalized-sync
+ * feature must first make an explicit data decision — typically deleting
+ * the generalized sync_operations rows and accepting the loss of their
+ * idempotency/audit history — before this migration can roll back; it will
+ * never make that decision silently.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -548,6 +632,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::table('sync_operations')->whereNotNull('syncable_type')->exists()) {
+            throw new \RuntimeException('Cannot roll back: generalized sync_operations rows exist with no case_draft_note_id value. Manual data decision required — see migration docblock.');
+        }
+
         if (DB::connection()->getDriverName() === 'sqlite') {
             $this->rebuildWithoutPolymorphicColumns();
 
@@ -768,12 +856,18 @@ use Illuminate\Support\Facades\DB;
 class SectionSyncService
 {
     /**
-     * The only place a stored sync_operations.syncable_type string is ever
-     * compared against — never used to instantiate a class. A replayed
-     * client_operation_id whose recorded syncable_type doesn't match the
-     * allow-list entry for the *current* request's section_key is rejected
-     * outright. Slice 2B/2C extend this map as each new Syncable model lands;
-     * do not remove entries, only add them.
+     * The single source of truth for "which class backs which section" —
+     * every model/section-key consistency check in this service (sync()
+     * here; create() and delete(), added in Slice 2B) goes through
+     * modelClassForSection() below, which reads this constant and this
+     * constant alone. This is also the only place a stored
+     * sync_operations.syncable_type string is ever compared against, never
+     * used to instantiate a class. There is no fallback to $model::class
+     * anywhere in this service — an unrecognized section key is a
+     * programming error and throws immediately rather than silently
+     * degrading to "whatever class happened to be passed in". Slice 2B/2C
+     * extend this constant as each new Syncable model lands; do not remove
+     * entries, only add them.
      *
      * @var array<string, class-string>
      */
@@ -786,6 +880,22 @@ class SectionSyncService
     ];
 
     public function __construct(private readonly AuditTrail $audit) {}
+
+    /**
+     * The one and only accessor for SECTION_MODELS. Every method in this
+     * service that needs "what class backs this section" — including the
+     * caller-facing consistency check in sync() and, from Slice 2B,
+     * create()/delete() — calls this rather than reading the constant
+     * directly, so there is exactly one place that can throw on an unknown
+     * key and exactly one place that could ever drift from the constant.
+     *
+     * @throws \InvalidArgumentException if $sectionKey is not a recognized section
+     */
+    public function modelClassForSection(string $sectionKey): string
+    {
+        return self::SECTION_MODELS[$sectionKey]
+            ?? throw new \InvalidArgumentException("Unknown section key: {$sectionKey}");
+    }
 
     /**
      * @param  Model&Syncable  $model
@@ -802,7 +912,10 @@ class SectionSyncService
         ?string $resolution,
         bool $confirmed,
     ): array {
-        return DB::transaction(function () use ($model, $user, $sectionKey, $clientOperationId, $baseLockVersion, $attributes, $resolution, $confirmed): array {
+        $expectedClass = $this->modelClassForSection($sectionKey);
+        abort_unless($model::class === $expectedClass, 500, "Model/section mismatch: {$sectionKey} expects {$expectedClass}, got {$model::class}.");
+
+        return DB::transaction(function () use ($model, $user, $sectionKey, $expectedClass, $clientOperationId, $baseLockVersion, $attributes, $resolution, $confirmed): array {
             /** @var Model&Syncable $locked */
             $locked = $model::query()->whereKey($model->getKey())->lockForUpdate()->firstOrFail();
 
@@ -812,11 +925,8 @@ class SectionSyncService
                 ->first();
 
             if ($existing !== null) {
-                $expectedClass = self::SECTION_MODELS[$sectionKey] ?? null;
-
                 abort_unless(
                     $existing->section_key === $sectionKey
-                        && $expectedClass !== null
                         && $existing->syncable_type === $expectedClass
                         && $existing->syncable_id === $locked->getKey(),
                     409,
@@ -863,7 +973,7 @@ class SectionSyncService
         return SyncOperation::query()->create([
             'institution_id' => $model->getInstitutionId(),
             'user_id' => $user->id,
-            'syncable_type' => self::SECTION_MODELS[$sectionKey] ?? $model::class,
+            'syncable_type' => $this->modelClassForSection($sectionKey),
             'syncable_id' => $model->getKey(),
             'client_operation_id' => $clientOperationId,
             'section_key' => $sectionKey,
@@ -886,7 +996,7 @@ class SectionSyncService
 }
 ```
 
-Note on `SECTION_MODELS`: this map is intentionally the single source of truth for "which class backs which section", shared between the replay-safety check above and 2B's `SectionSyncService::create()` (which needs the same allow-list to validate a *creation* replay, since a brand-new row has no earlier `sync()` call to have already proven the mapping). 2B's Task 2 extends this constant with `'vitals' => CaseVital::class`, `'investigations' => CaseInvestigation::class`, `'medications' => CaseMedication::class`; 2C's Tasks 1–5 add `'soap'`, `'clinical_activity_adr'`, `'clinical_activity_counselling'`, `'clinical_activities'`. Do not let this list drift out of sync with the section keys the controllers actually pass — Review Focus in each slice's plan calls this out.
+Note on `SECTION_MODELS`/`modelClassForSection()`: this pair is intentionally the single source of truth for "which class backs which section", read by `sync()` above and, from Slice 2B, by `create()` and `delete()` too (both need the same governing map to validate a *creation* or *deletion* replay/consistency check, since a brand-new or about-to-be-removed row can't lean on an earlier `sync()` call to have already proven the mapping). Neither `create()` nor `delete()` accepts a caller-supplied "expected class" parameter — that was the original design's mistake (a caller could pass anything); both derive it internally via `$this->modelClassForSection($sectionKey)`, exactly as `sync()` does. 2B's Task 2 extends the `SECTION_MODELS` constant with `'vitals' => CaseVital::class`, `'investigations' => CaseInvestigation::class`, `'medications' => CaseMedication::class`; 2C's Tasks 1–5 add `'soap'`, `'clinical_activity_adr'`, `'clinical_activity_counselling'`, `'clinical_activities'`. Do not let this list drift out of sync with the section keys the controllers actually pass — Review Focus in each slice's plan calls this out.
 
 - [ ] **Step 9: Run the tests to verify they pass**
 
@@ -894,12 +1004,12 @@ Run (PowerShell): `php artisan test --filter=SectionSyncServiceTest`
 Expected: PASS (9 tests).
 
 Run (PowerShell): `php artisan test --filter=SyncOperationsMigrationTest`
-Expected: PASS (2 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 135 previous + 11 new — 146 passed / 2 skipped.
+Expected: 133 previous passed + 12 new — 145 passed / 2 skipped (147 total).
 
 - [ ] **Step 11: Static analysis**
 
@@ -925,7 +1035,7 @@ git commit -m "feat: generalize the sync-spike protocol into a section-keyed Syn
 - Modify: `resources/js/components/UserMenuContent.vue` (call `clearSectionOutbox()` on logout)
 
 **Interfaces:**
-- Produces: `StoredSection<T>`, `StoredSectionCopy<T>`, `sectionKey(userId, sectionKey, resourceId): string`, `getSection<T>(key)`, `putSection<T>(section)`, `deleteSection(key)`, `keepSectionCopy<T>(section)`, `listAllSections<T>(): Promise<StoredSection<T>[]>`, `clearSectionOutbox()` (in `outboxStore.ts`); `useSectionSync<T>(options): { payload, state, savedAt, online, conflict, confirmingReplace, deviceCopyKept, edit, resolveWithServer, keepDeviceCopy, replaceServer, retry }` (in `useSectionSync.ts`). Both are consumed for the first time by Task 4 (Case Profile section) and again by Task 5 (History & Diagnosis section) and every later Slice 2B/2C section; `listAllSections` is unused until 2B Task 2 wires it into offline-capable row creation, but is added here so the store's shape doesn't change mid-series. Per the Global Constraints, there is no JS unit-test runner in this repo; Task 4 is where these files are first exercised in a real page and manually verified in a browser.
+- Produces: `StoredSection<T>`, `StoredSectionCopy<T>`, `sectionKey(userId, sectionKey, resourceId): string`, `getSection<T>(key)`, `putSection<T>(section)`, `deleteSection(key)`, `keepSectionCopy<T>(section)`, `listAllSections<T>(): Promise<StoredSection<T>[]>`, `clearSectionOutbox()` (in `outboxStore.ts`); `useSectionSync<T>(options): { payload, state, savedAt, online, baseLockVersion, conflict, confirmingReplace, deviceCopyKept, edit, resolveWithServer, keepDeviceCopy, replaceServer, retry }` (in `useSectionSync.ts`). Both are consumed for the first time by Task 4 (Case Profile section) and again by Task 5 (History & Diagnosis section) and every later Slice 2B/2C section; `listAllSections` is unused until 2B Task 2 wires it into offline-capable row creation, but is added here so the store's shape doesn't change mid-series; `baseLockVersion` is unused until 2B Task 2 wires it into row deletion's optimistic-concurrency check, added for the same reason. Per the Global Constraints, there is no JS unit-test runner in this repo; Task 4 is where these files are first exercised in a real page and manually verified in a browser.
 
 This generalizes `resources/js/lib/caseDraftStore.ts` and the script block of `resources/js/pages/student/CaseDraftNote.vue`, which are both left untouched (the accepted SYNC-SPIKE-01 experiment keeps working exactly as before) except for the one-line addition to `UserMenuContent.vue`'s logout handler.
 
@@ -1257,6 +1367,13 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
         state: computed(() => state.value),
         savedAt,
         online: computed(() => online.value),
+        // Exposed so a repeatable-row component's delete action (added in
+        // Slice 2B) can send the row's current lock version in its DELETE
+        // request body — deleting a row is subject to the same optimistic
+        // concurrency check as editing one, so the caller needs the lock
+        // version this composable is already tracking rather than
+        // duplicating that state itself.
+        baseLockVersion: computed(() => baseLockVersion.value),
         conflict,
         confirmingReplace,
         deviceCopyKept,
@@ -1562,27 +1679,37 @@ trait HasSyncEnvelope
 
 - [ ] **Step 4: Write the `RejectsUnknownFields` trait**
 
+**Revision (second review round):** The first draft named this method `withValidator()`, the exact hook name Laravel calls automatically — which meant any request that also needed its own `withValidator()` for a different check would silently *override* the trait's version and skip unknown-field rejection entirely, undetected until an unknown field slipped through in production. This trait now exposes a plain, differently-named method. **Every** request using this trait defines its own `withValidator()` and calls `$this->rejectUnknownFields($validator);` as its first statement — an explicit, auditable call site in each class, never an implicit hook.
+
 ```php
 <?php
 
 namespace App\Http\Requests\Concerns;
 
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 /**
  * Field catalogue §5 ("Unknown request fields are rejected by the server") is
  * a spec requirement, not an optional hardening choice. Every sync/store
  * request in this plan and Slices 2B/2C uses this trait alongside
- * HasSyncEnvelope. It compares the request's top-level keys against the
- * request's own rules() keys (stripping ".*" wildcard array-item suffixes),
- * so an unrecognized key such as a stray "patient_name" fails validation
- * instead of being silently ignored.
+ * HasSyncEnvelope and calls rejectUnknownFields() explicitly from its own
+ * withValidator() — deliberately NOT named withValidator() itself, so a
+ * request that also needs a withValidator() for some other check (an
+ * age/unit bound, a BP-pairing rule, an "unavailable while rows exist"
+ * check, ...) can never silently skip this one by defining its own hook.
+ *
+ * This method only rejects TOP-LEVEL unknown keys. It does not inspect the
+ * keys inside an array/object-valued field, so a field whose value is
+ * itself a JSON object with a restricted key set (e.g.
+ * case_clinical_activities.details in Slice 2C) must ALSO declare a
+ * Laravel `array:key1,key2,...` rule listing exactly the allowed nested
+ * keys — otherwise an unknown nested key would pass this top-level check
+ * and be persisted silently.
  */
 trait RejectsUnknownFields
 {
-    public function withValidator(Validator $validator): void
+    protected function rejectUnknownFields(Validator $validator): void
     {
         $allowedKeys = collect(array_keys($this->rules()))
             ->map(fn (string $key): string => Str::before($key, '.*'))
@@ -1674,56 +1801,8 @@ class UpdateClinicalCaseContextRequest extends FormRequest
             }
         });
     }
-
-    private function rejectUnknownFields(Validator $validator): void
-    {
-        // Delegates to the trait's implementation; kept as a named call here
-        // because this class also needs its own withValidator() for the
-        // age-bound check above, and a class can only define one
-        // withValidator() method — RejectsUnknownFields is written as a
-        // small helper method (see the trait) rather than relying on trait
-        // auto-invocation whenever a request needs a second withValidator()
-        // concern. See RejectsUnknownFields::withValidator() for the reusable
-        // version other requests in this plan use directly.
-        (function (): void {
-            parent::class;
-        })();
-    }
 }
 ```
-
-Note: `RejectsUnknownFields::withValidator()` is the trait's own hook method. A class using the trait normally does **not** define its own `withValidator()` — it lets the trait's implementation run. `UpdateClinicalCaseContextRequest` is the one exception in this plan because it needs a *second* check (the age/unit bound) that also uses `withValidator()`, and PHP does not let a trait and a class both contribute to the same method name without the class's own method taking over. Rather than the confusing `rejectUnknownFields()` indirection above, write this class's `withValidator()` to call both checks directly:
-
-```php
-    public function withValidator(Validator $validator): void
-    {
-        $allowedKeys = collect(array_keys($this->rules()))
-            ->map(fn (string $key): string => \Illuminate\Support\Str::before($key, '.*'))
-            ->map(fn (string $key): string => explode('.', $key)[0])
-            ->unique()
-            ->all();
-        $unknown = array_diff(array_keys($this->all()), $allowedKeys);
-
-        $validator->after(function (Validator $validator) use ($unknown): void {
-            foreach ($unknown as $key) {
-                $validator->errors()->add($key, "The {$key} field is not recognized.");
-            }
-
-            if (! $this->has('age_value') || $this->input('age_value') === null) {
-                return;
-            }
-
-            $unit = $this->input('age_unit');
-            $max = self::AGE_MAX_BY_UNIT[$unit] ?? null;
-
-            if ($max !== null && (int) $this->input('age_value') > $max) {
-                $validator->errors()->add('age_value', "The age value must not exceed {$max} when the unit is {$unit}.");
-            }
-        });
-    }
-```
-
-Drop the `RejectsUnknownFields` trait's use from this one class's `use` statement's effect (the trait can still be `use`d for its rule-key-extraction helper if refactored into a plain method later, but for now this class simply doesn't need the trait's own `withValidator()` since it inlines the equivalent check) — every other request class in this plan and in 2B/2C that does **not** also need a second `withValidator()` concern uses `use HasSyncEnvelope, RejectsUnknownFields;` exactly as originally described, with no override.
 
 - [ ] **Step 6: Write `CaseContextController`**
 
@@ -1985,7 +2064,7 @@ Expected: no errors.
 - [ ] **Step 12: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 146 previous + 9 new — 155 passed / 2 skipped.
+Expected: 145 previous passed + 9 new — 154 passed / 2 skipped (156 total).
 
 - [ ] **Step 13: Commit**
 
@@ -2218,6 +2297,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCaseClinicalProfileRequest extends FormRequest
 {
@@ -2251,6 +2331,11 @@ class UpdateCaseClinicalProfileRequest extends FormRequest
             'allergy_substance' => ['sometimes', 'nullable', 'required_if:allergy_status,known_allergy', 'string', 'max:1000'],
             'allergy_reaction' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -2623,7 +2708,7 @@ Expected: no errors.
 - [ ] **Step 13: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 155 previous + 9 new — 164 passed / 2 skipped.
+Expected: 154 previous passed + 9 new — 163 passed / 2 skipped (165 total).
 
 - [ ] **Step 14: Commit**
 
@@ -2947,7 +3032,7 @@ Expected: no errors.
 - [ ] **Step 10: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 164 previous + 3 new — 167 passed / 2 skipped.
+Expected: 163 previous passed + 3 new — 166 passed / 2 skipped (168 total).
 
 - [ ] **Step 11: Commit**
 
@@ -3070,7 +3155,7 @@ Expected: PASS (3 tests). If the cross-institution assertions unexpectedly retur
 - [ ] **Step 3: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 167 previous + 3 new — 170 passed / 2 skipped.
+Expected: 166 previous passed + 3 new — 169 passed / 2 skipped (171 total).
 
 - [ ] **Step 4: Static analysis and formatting**
 
@@ -3142,6 +3227,6 @@ Update `PROJECT_STATE.md`'s Slice 2 entry (once all of Slice 2A/2B/2C are comple
 ## Self-Review Notes
 
 - **Spec coverage:** User requirement 1 (explicit none/unavailable states) — Task 1 (schema, including the "no current medicines" explanation field and independent lock columns; UI lands in Slice 2B). Requirement 2 (mobile section-based editor) — Task 6. Requirement 3 (repeatable rows) — out of scope for 2A by design, owned by Slice 2B. Requirement 4 (partial autosave, `allergy_status` named example) — Tasks 4 and 5, with dedicated regression tests, now also proving the allergy-conditional-field-clearing behavior. Requirement 5 (IndexedDB outbox, idempotency, optimistic locking, conflict handling) — Tasks 2 and 3, including cross-section and cross-endpoint replay-safety hardening, proven end-to-end in Tasks 4, 5 and manually in Task 8. Requirement 6 (conditional allergy/ADR fields) — allergy fields in Task 5, including the clear-on-change fix; ADR fields are Slice 2C's Conditional Clinical Activities section. Requirement 7 (de-identification warnings) — Task 5, now applied to every narrative field in this slice, not only HPI. Requirement 8 (student ownership, assigned-faculty visibility, institution isolation tests) — Task 7. Requirement 9 (device verification) — Task 8, with the offline-refresh script corrected to describe actual browser behavior.
-- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test. Task 2's migration round-trip test names a concrete fallback (switch isolation trait) if the chosen approach proves flaky, rather than leaving the risk unaddressed.
+- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test. Task 2's migration round-trip *and* rollback-refusal tests each name a concrete fallback (isolate on a dedicated file-backed SQLite database via `DatabaseTransactions`) if the transactional-DDL approach proves flaky under a non-SQLite driver, rather than leaving the risk unaddressed.
 - **Type consistency:** `SectionSyncService::sync()`'s return shape (`array{status, httpStatus, model}`) is identical across Tasks 2, 4 and 5. `Syncable::getLockVersion(string $sectionKey)`/`applySyncedAttributes(string $sectionKey, ...)` is the same two-argument-plus-section-key shape everywhere it's called in this plan, and 2B/2C's plans are written against this exact signature (not the single-argument version the original draft shipped). `useSectionSync`'s `SyncedSection` base type (`lock_version` + `updated_at`) is used consistently by both `CaseProfileSection.vue` and `HistoryDiagnosisSection.vue`. `HasSyncEnvelope` and `RejectsUnknownFields` are defined once in Task 4 and reused unmodified (or, for the one class that needs a second `withValidator()` concern, inlined equivalently and explained) by every later request class in this series.
-- **Review Focus coverage:** all five items (partial-save field wipe, false conflict between sibling `ClinicalCase` sections, eager profile creation, stale lock overwrite, cross-institution/role/status access, idempotent replay including cross-section/cross-endpoint misuse, logout leaving a readable draft) each have a named test in the task that owns the code — none are asserted only in prose.
+- **Review Focus coverage:** every Review Focus item (partial-save field wipe, false conflict between sibling `ClinicalCase` sections, eager profile creation, stale lock overwrite, cross-institution/role/status access, idempotent replay including cross-section/cross-endpoint misuse, logout leaving a readable draft, a request-specific `withValidator()` silently dropping unknown-field rejection, and a caller-supplied "expected class" routing around the section allow-list) has a named test in the task that owns the code — none are asserted only in prose. The nested-JSON-key item is a 2C concern (this slice has no array/object-valued request fields) and is covered there with `array:key1,key2` rules and dedicated tests.
