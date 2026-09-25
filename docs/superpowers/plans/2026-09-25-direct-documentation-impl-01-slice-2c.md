@@ -2148,7 +2148,7 @@ Expected: PASS (7 tests).
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
 import { LOCAL_ROW_PREFIX } from '@/composables/useRepeatableRowCreate';
 import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
@@ -2163,7 +2163,7 @@ type ActivityPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: ActivityPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, savedAt, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace, adoptServerSnapshot } =
     useSectionSync<ActivityPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2185,6 +2185,9 @@ function updateDetail(key: string, value: unknown) {
 }
 
 const deleteConflict = ref(false);
+// Snapshot adoption changes savedAt before setting the warning; a later
+// successful edit changes it again and dismisses that warning.
+watch(savedAt, () => { deleteConflict.value = false; });
 
 async function remove() {
     const response = await fetch(`/student/cases/${props.caseId}/clinical-activities/${props.initial.id}`, {
@@ -2202,12 +2205,8 @@ async function remove() {
         return;
     }
     if (response.status === 409) {
-        // The row changed on the server since this device last saw it. Refresh
-        // the visible fields from the server's current payload and surface a
-        // visible message rather than silently dropping the conflict; the next
-        // edit re-syncs baseLockVersion so a subsequent remove succeeds.
         const body = (await response.json()) as { activity: ActivityPayload };
-        payload.value = body.activity;
+        await adoptServerSnapshot(body.activity);
         deleteConflict.value = true;
     }
 }
@@ -2950,7 +2949,7 @@ Search the rendered app (or `grep -r "sync-spike" resources/js`) and confirm zer
 
 ```bash
 git add routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/Dashboard.vue resources/js/components/UserMenuContent.vue resources/js/layouts/app/AppSidebarLayout.vue resources/js/lib/legacyCaseDraftCleanup.ts tests/Feature/CaseDraftNoteRetirementTest.php
-git rm app/Http/Controllers/CaseDraftNoteController.php app/Http/Requests/SyncCaseDraftNoteRequest.php app/Policies/CaseDraftNotePolicy.php resources/js/pages/student/CaseDraftNote.vue resources/js/lib/caseDraftStore.ts tests/Feature/Sync/CaseDraftNoteSyncTest.php
+git rm app/Http/Controllers/CaseDraftNoteController.php app/Http/Requests/SyncCaseDraftNoteRequest.php app/Policies/CaseDraftNotePolicy.php resources/js/pages/student/CaseDraftNote.vue resources/js/lib/caseDraftStore.ts tests/Feature/Sync/CaseDraftNoteSyncTest.php tests/Browser/sync_spike.py
 git commit -m "chore: retire the SYNC-SPIKE-01 CaseDraftNote experiment now that the six-section editor covers it"
 ```
 

@@ -1203,6 +1203,9 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
     const deviceCopyKept = ref(false);
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let syncing = false;
+    // Incremented when an authoritative out-of-band snapshot supersedes a
+    // PUT already in flight, so that late response cannot restore stale state.
+    let snapshotGeneration = 0;
 
     function csrfToken(): string {
         return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
@@ -1239,6 +1242,25 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
         debounceTimer = window.setTimeout(() => void sync(), options.debounceMs ?? 700);
     }
 
+    /**
+     * Accept a fresh server representation obtained outside the PUT sync
+     * path (currently DELETE's 409 response). A snapshot replaces any local
+     * draft and its base version, and removes the now-invalid outbox entry.
+     */
+    async function adoptServerSnapshot(server: T) {
+        window.clearTimeout(debounceTimer);
+        snapshotGeneration += 1;
+        payload.value = server;
+        baseLockVersion.value = server.lock_version;
+        savedAt.value = new Date(server.updated_at);
+        operationId.value = null;
+        conflict.value = null;
+        confirmingReplace.value = false;
+        deviceCopyKept.value = false;
+        await deleteSection(storageKey);
+        state.value = 'server';
+    }
+
     async function sync(
         resolution?: 'use_server' | 'keep_local_copy' | 'replace_server',
         confirmed = false,
@@ -1251,6 +1273,7 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
 
         syncing = true;
         state.value = 'saving';
+        const syncGeneration = snapshotGeneration;
         const sentOperation = operationId.value;
         const sentPayload = payload.value;
         const sentBaseVersion = baseLockVersion.value;
@@ -1272,6 +1295,8 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
                     confirmed,
                 }),
             });
+
+            if (syncGeneration !== snapshotGeneration) return;
 
             if (response.status === 409) {
                 const body = (await response.json()) as { section: T };
@@ -1306,9 +1331,17 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
                 window.setTimeout(() => void sync(), 0);
             }
         } catch {
-            state.value = online.value ? 'failed' : 'device';
+            if (syncGeneration === snapshotGeneration) {
+                state.value = online.value ? 'failed' : 'device';
+            }
         } finally {
             syncing = false;
+            // A user may have edited again after snapshot adoption while this
+            // superseded request was still in flight. Resume that new draft,
+            // but never revive the adopted snapshot itself (operationId null).
+            if (syncGeneration !== snapshotGeneration && operationId.value && online.value) {
+                window.setTimeout(() => void sync(), 0);
+            }
         }
     }
 
@@ -1390,6 +1423,7 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
         keepDeviceCopy,
         replaceServer,
         retry,
+        adoptServerSnapshot,
     };
 }
 ```

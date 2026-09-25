@@ -2420,7 +2420,7 @@ export function useRepeatableRowCreate<T extends { id: string }>(options: Repeat
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
 
 type VitalPayload = SyncedSection & {
@@ -2440,7 +2440,7 @@ type VitalPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: VitalPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, savedAt, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace, adoptServerSnapshot } =
     useSectionSync<VitalPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2453,6 +2453,9 @@ const statusIcon = computed(() => ({
     saving: RefreshCw, server: Check, device: CloudOff, unsynced: FileClock, failed: AlertTriangle, conflict: AlertTriangle,
 })[state.value]);
 
+const deleteConflict = ref(false);
+watch(savedAt, () => { deleteConflict.value = false; });
+
 async function remove() {
     const response = await fetch(`/student/cases/${props.caseId}/vitals/${props.initial.id}`, {
         method: 'DELETE',
@@ -2464,18 +2467,23 @@ async function remove() {
         },
         body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
-    if (response.ok) emit('removed', props.initial.id);
-    // A 409 here means the row changed since this device last saw it —
-    // the same conflict this component already surfaces for edits; the
-    // simplest correct behavior for a delete conflict is to leave the row
-    // in place and let its normal conflict panel (driven by useSectionSync)
-    // catch up on the next edit/sync rather than duplicating a second
-    // conflict UI just for deletion.
+    if (response.ok) {
+        emit('removed', props.initial.id);
+        return;
+    }
+    if (response.status === 409) {
+        const body = (await response.json()) as { vital: VitalPayload };
+        await adoptServerSnapshot(body.vital);
+        deleteConflict.value = true;
+    }
 }
 </script>
 
 <template>
     <div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700" :data-test="`vital-row-${initial.id}`">
+        <p v-if="deleteConflict" data-test="vital-delete-conflict" class="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+            This row changed on the server after this device last saw it. The latest version is shown — review it, then remove again.
+        </p>
         <div class="flex items-center justify-between gap-2">
             <label class="flex-1 text-sm">
                 <span class="sr-only">Observation type</span>
@@ -2554,7 +2562,7 @@ async function remove() {
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
 import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
 
@@ -2576,7 +2584,7 @@ type InvestigationPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: InvestigationPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, savedAt, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace, adoptServerSnapshot } =
     useSectionSync<InvestigationPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2589,6 +2597,9 @@ const statusIcon = computed(() => ({
     saving: RefreshCw, server: Check, device: CloudOff, unsynced: FileClock, failed: AlertTriangle, conflict: AlertTriangle,
 })[state.value]);
 
+const deleteConflict = ref(false);
+watch(savedAt, () => { deleteConflict.value = false; });
+
 async function remove() {
     const response = await fetch(`/student/cases/${props.caseId}/investigations/${props.initial.id}`, {
         method: 'DELETE',
@@ -2600,12 +2611,23 @@ async function remove() {
         },
         body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
-    if (response.ok) emit('removed', props.initial.id);
+    if (response.ok) {
+        emit('removed', props.initial.id);
+        return;
+    }
+    if (response.status === 409) {
+        const body = (await response.json()) as { investigation: InvestigationPayload };
+        await adoptServerSnapshot(body.investigation);
+        deleteConflict.value = true;
+    }
 }
 </script>
 
 <template>
     <div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700" :data-test="`investigation-row-${initial.id}`">
+        <p v-if="deleteConflict" data-test="investigation-delete-conflict" class="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+            This row changed on the server after this device last saw it. The latest version is shown — review it, then remove again.
+        </p>
         <div class="flex items-center justify-between gap-2">
             <label class="flex-1 text-sm">
                 <span class="sr-only">Test name</span>
@@ -2890,7 +2912,7 @@ Note: an "Add" tap while offline still shows a "Waiting to sync…" placeholder 
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
 import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
 
@@ -2925,7 +2947,7 @@ const FREQUENCY_OPTIONS: { value: string; label: string }[] = [
 const props = defineProps<{ caseId: string; userId: number; initial: MedicationPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, savedAt, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace, adoptServerSnapshot } =
     useSectionSync<MedicationPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2938,6 +2960,9 @@ const statusIcon = computed(() => ({
     saving: RefreshCw, server: Check, device: CloudOff, unsynced: FileClock, failed: AlertTriangle, conflict: AlertTriangle,
 })[state.value]);
 
+const deleteConflict = ref(false);
+watch(savedAt, () => { deleteConflict.value = false; });
+
 async function remove() {
     const response = await fetch(`/student/cases/${props.caseId}/medications/${props.initial.id}`, {
         method: 'DELETE',
@@ -2949,12 +2974,23 @@ async function remove() {
         },
         body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
-    if (response.ok) emit('removed', props.initial.id);
+    if (response.ok) {
+        emit('removed', props.initial.id);
+        return;
+    }
+    if (response.status === 409) {
+        const body = (await response.json()) as { medication: MedicationPayload };
+        await adoptServerSnapshot(body.medication);
+        deleteConflict.value = true;
+    }
 }
 </script>
 
 <template>
     <div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700" :data-test="`medication-row-${initial.id}`">
+        <p v-if="deleteConflict" data-test="medication-delete-conflict" class="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+            This row changed on the server after this device last saw it. The latest version is shown — review it, then remove again.
+        </p>
         <div class="flex items-center justify-between gap-2">
             <label class="flex-1 text-sm">
                 <span class="sr-only">Generic name</span>
