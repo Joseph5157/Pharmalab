@@ -483,6 +483,12 @@ class SyncOperationsMigrationTest extends TestCase
         // run against a dedicated non-memory SQLite file instead of dropping the
         // coverage — the thing under test (existing rows survive the migration) matters
         // more than which isolation trait proves it.
+        //
+        // The rollback is pinned to THIS migration file via --path, not --step=1.
+        // Once Slice 2B/2C add newer migrations, a bare --step=1 would roll back the
+        // newest migration (e.g. 2C's singleton unique index) instead of
+        // make_sync_operations_polymorphic, silently exercising the wrong file. --path
+        // keeps this test aimed at the exact migration under test forever.
         $institution = Institution::factory()->create();
         $student = User::factory()->student()->create(['institution_id' => $institution->id]);
         $draftNote = CaseDraftNote::query()->withoutGlobalScopes()->create([
@@ -502,8 +508,8 @@ class SyncOperationsMigrationTest extends TestCase
             'server_version' => 1,
         ]);
 
-        Artisan::call('migrate:rollback', ['--step' => 1]);
-        Artisan::call('migrate');
+        Artisan::call('migrate:rollback', ['--path' => 'database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php']);
+        Artisan::call('migrate', ['--path' => 'database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php']);
 
         $this->assertSame($draftNote->id, SyncOperation::query()->withoutGlobalScopes()->findOrFail($operation->id)->case_draft_note_id);
     }
@@ -522,7 +528,9 @@ class SyncOperationsMigrationTest extends TestCase
         // inside PHPUnit's per-test transaction (safe under SQLite, which
         // supports transactional DDL); if it proves flaky under a different
         // driver, isolate this test on a dedicated file-backed SQLite
-        // database via DatabaseTransactions rather than dropping it.
+        // database via DatabaseTransactions rather than dropping it. The
+        // rollback is pinned to THIS migration file via --path (not --step=1,
+        // which would roll back 2B/2C's newer migrations once they exist).
         $institution = Institution::factory()->create();
         $student = User::factory()->student()->create(['institution_id' => $institution->id]);
         $draftNote = CaseDraftNote::query()->withoutGlobalScopes()->create([
@@ -560,7 +568,7 @@ class SyncOperationsMigrationTest extends TestCase
 
         $thrown = null;
         try {
-            Artisan::call('migrate:rollback', ['--step' => 1]);
+            Artisan::call('migrate:rollback', ['--path' => 'database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php']);
         } catch (\Throwable $exception) {
             $thrown = $exception;
         }
@@ -3227,6 +3235,6 @@ Update `PROJECT_STATE.md`'s Slice 2 entry (once all of Slice 2A/2B/2C are comple
 ## Self-Review Notes
 
 - **Spec coverage:** User requirement 1 (explicit none/unavailable states) — Task 1 (schema, including the "no current medicines" explanation field and independent lock columns; UI lands in Slice 2B). Requirement 2 (mobile section-based editor) — Task 6. Requirement 3 (repeatable rows) — out of scope for 2A by design, owned by Slice 2B. Requirement 4 (partial autosave, `allergy_status` named example) — Tasks 4 and 5, with dedicated regression tests, now also proving the allergy-conditional-field-clearing behavior. Requirement 5 (IndexedDB outbox, idempotency, optimistic locking, conflict handling) — Tasks 2 and 3, including cross-section and cross-endpoint replay-safety hardening, proven end-to-end in Tasks 4, 5 and manually in Task 8. Requirement 6 (conditional allergy/ADR fields) — allergy fields in Task 5, including the clear-on-change fix; ADR fields are Slice 2C's Conditional Clinical Activities section. Requirement 7 (de-identification warnings) — Task 5, now applied to every narrative field in this slice, not only HPI. Requirement 8 (student ownership, assigned-faculty visibility, institution isolation tests) — Task 7. Requirement 9 (device verification) — Task 8, with the offline-refresh script corrected to describe actual browser behavior.
-- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test. Task 2's migration round-trip *and* rollback-refusal tests each name a concrete fallback (isolate on a dedicated file-backed SQLite database via `DatabaseTransactions`) if the transactional-DDL approach proves flaky under a non-SQLite driver, rather than leaving the risk unaddressed.
+- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test. Task 2's migration round-trip *and* rollback-refusal tests each name a concrete fallback (isolate on a dedicated file-backed SQLite database via `DatabaseTransactions`) if the transactional-DDL approach proves flaky under a non-SQLite driver, rather than leaving the risk unaddressed. Both tests also pin their `migrate:rollback` to `make_sync_operations_polymorphic.php` via `--path` rather than `--step=1`, so they keep exercising the correct migration after 2B/2C introduce newer ones.
 - **Type consistency:** `SectionSyncService::sync()`'s return shape (`array{status, httpStatus, model}`) is identical across Tasks 2, 4 and 5. `Syncable::getLockVersion(string $sectionKey)`/`applySyncedAttributes(string $sectionKey, ...)` is the same two-argument-plus-section-key shape everywhere it's called in this plan, and 2B/2C's plans are written against this exact signature (not the single-argument version the original draft shipped). `useSectionSync`'s `SyncedSection` base type (`lock_version` + `updated_at`) is used consistently by both `CaseProfileSection.vue` and `HistoryDiagnosisSection.vue`. `HasSyncEnvelope` and `RejectsUnknownFields` are defined once in Task 4 and reused unmodified (or, for the one class that needs a second `withValidator()` concern, inlined equivalently and explained) by every later request class in this series.
 - **Review Focus coverage:** every Review Focus item (partial-save field wipe, false conflict between sibling `ClinicalCase` sections, eager profile creation, stale lock overwrite, cross-institution/role/status access, idempotent replay including cross-section/cross-endpoint misuse, logout leaving a readable draft, a request-specific `withValidator()` silently dropping unknown-field rejection, and a caller-supplied "expected class" routing around the section allow-list) has a named test in the task that owns the code — none are asserted only in prose. The nested-JSON-key item is a 2C concern (this slice has no array/object-valued request fields) and is covered there with `array:key1,key2` rules and dedicated tests.

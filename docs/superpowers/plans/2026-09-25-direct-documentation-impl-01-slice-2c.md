@@ -291,6 +291,7 @@ namespace App\Http\Requests\Student;
 use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateSoapNoteRequest extends FormRequest
 {
@@ -316,6 +317,11 @@ class UpdateSoapNoteRequest extends FormRequest
             'drug_related_problem_categories' => ['sometimes', 'nullable', 'array'],
             'drug_related_problem_categories.*' => ['in:untreated_indication,medicine_without_indication,ineffective_medicine,dose_too_low,dose_too_high,adr,interaction,non_adherence,duplication,administration_problem,monitoring_required,other'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -815,6 +821,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateAdrActivityRequest extends FormRequest
 {
@@ -845,6 +852,11 @@ class UpdateAdrActivityRequest extends FormRequest
             'details.dechallenge' => ['sometimes', 'nullable', 'string', 'max:255'],
             'details.rechallenge' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -1189,6 +1201,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCounsellingActivityRequest extends FormRequest
 {
@@ -1216,6 +1229,11 @@ class UpdateCounsellingActivityRequest extends FormRequest
             'details.lifestyle_follow_up' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'details.understanding_checked' => ['sometimes', 'boolean'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -1514,6 +1532,7 @@ use App\Enums\ClinicalActivityType;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreCaseClinicalActivityRequest extends FormRequest
 {
@@ -1534,6 +1553,11 @@ class StoreCaseClinicalActivityRequest extends FormRequest
             'details' => ['nullable', 'array:problem,recommendation,recipient,communication_method,case_date,outcome,follow_up,parameter,result,observed_on,notes'],
         ];
     }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
+    }
 }
 ```
 
@@ -1549,6 +1573,7 @@ use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateCaseClinicalActivityRequest extends FormRequest
 {
@@ -1589,6 +1614,11 @@ class UpdateCaseClinicalActivityRequest extends FormRequest
             'details.observed_on' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
             'details.notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
     }
 }
 ```
@@ -2118,7 +2148,7 @@ Expected: PASS (7 tests).
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
 import { LOCAL_ROW_PREFIX } from '@/composables/useRepeatableRowCreate';
 import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
@@ -2133,7 +2163,7 @@ type ActivityPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: ActivityPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+const { payload, state, edit, online, baseLockVersion, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
     useSectionSync<ActivityPayload>({
         userId: props.userId,
         resourceId: props.initial.id,
@@ -2154,16 +2184,32 @@ function updateDetail(key: string, value: unknown) {
     edit();
 }
 
+const deleteConflict = ref(false);
+
 async function remove() {
     const response = await fetch(`/student/cases/${props.caseId}/clinical-activities/${props.initial.id}`, {
         method: 'DELETE',
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
+            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
         },
+        body: JSON.stringify({ base_lock_version: baseLockVersion.value }),
     });
-    if (response.ok) emit('removed', props.initial.id);
+    if (response.ok) {
+        emit('removed', props.initial.id);
+        return;
+    }
+    if (response.status === 409) {
+        // The row changed on the server since this device last saw it. Refresh
+        // the visible fields from the server's current payload and surface a
+        // visible message rather than silently dropping the conflict; the next
+        // edit re-syncs baseLockVersion so a subsequent remove succeeds.
+        const body = (await response.json()) as { activity: ActivityPayload };
+        payload.value = body.activity;
+        deleteConflict.value = true;
+    }
 }
 </script>
 
@@ -2175,6 +2221,10 @@ async function remove() {
                 <Trash2 class="size-4" />
             </button>
         </div>
+
+        <p v-if="deleteConflict" data-test="activity-delete-conflict" class="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+            This row changed on the server after this device last saw it. The latest version is shown — review it, then remove again.
+        </p>
 
         <template v-if="initial.activity_type === 'intervention'">
             <label class="mb-2 block text-sm">
@@ -2722,6 +2772,8 @@ This is the point where Slice 2 as a whole (2A + 2B + 2C) is complete. Once this
 
 **Revision (second review round):** The accepted SYNC-SPIKE-01 spike (`CaseDraftNoteController`, `/student/sync-spike`, `CaseDraftNote.vue`, `caseDraftStore.ts`) proved the offline-sync protocol this entire Slice 2 series generalized from it. It was deliberately left untouched through Tasks 1–9 of 2A/2B/2C so the accepted spike kept working while the real engine was built alongside it (Slice 2A's Architecture section says so explicitly). Now that the six-section editor covers everything the spike demonstrated — and more (structured multi-field sections, not one free-text note) — leaving the spike's route, page and controller live indefinitely is unfinished cleanup, not caution. This task retires it. It does **not** touch the `case_draft_notes` table or any historical `sync_operations` row that references it — Slice 2A Task 2's migration already made `sync_operations.case_draft_note_id` nullable and permanently blocks a rollback once generalized rows exist (see that task's `down()` guard); nothing about *this* task changes any stored data, only the UI/route surface that let a student reach the experiment.
 
+**Revision (third review round):** The second revision deliberately orphaned the `pharmalab-case-drafts` IndexedDB database (nothing reads or writes it again) rather than wiping it. That conflicts with the accepted logout-privacy requirement — a shared or institutional device that logs a second student in must not expose the first student's leftover draft-note data. This task now keeps a small *transitional* cleanup function, `indexedDB.deleteDatabase('pharmalab-case-drafts')`, wired into **both** authenticated app startup and logout, so any pre-retirement device-local draft data is actively deleted instead of left behind. Server-side tables (`case_draft_notes`, `sync_operations`) and their rows remain untouched, and the transitional function is explicitly flagged for removal after one release/pilot cleanup period.
+
 **Files:**
 - Modify: `routes/web.php` (remove the three `student.sync-spike*` routes and the `CaseDraftNoteController` import)
 - Delete: `app/Http/Controllers/CaseDraftNoteController.php`
@@ -2729,13 +2781,15 @@ This is the point where Slice 2 as a whole (2A + 2B + 2C) is complete. Once this
 - Delete: `app/Policies/CaseDraftNotePolicy.php` (and its registration, if `AuthServiceProvider` or model-discovery config maps it explicitly — check `app/Providers/AuthServiceProvider.php` for a `CaseDraftNote::class => CaseDraftNotePolicy::class` entry)
 - Delete: `resources/js/pages/student/CaseDraftNote.vue`
 - Delete: `resources/js/lib/caseDraftStore.ts`
+- Create: `resources/js/lib/legacyCaseDraftCleanup.ts` (the transitional `deleteLegacyCaseDraftDatabase()` — see Step 7)
 - Modify: `resources/js/pages/student/Dashboard.vue` (remove the "sync-spike" nav card/link)
-- Modify: `resources/js/components/UserMenuContent.vue` (remove the now-dead `clearCaseDraftStorage()` import and call — `clearSectionOutbox()`, added in Slice 2A Task 3, remains and is now the only store logout clears)
+- Modify: `resources/js/components/UserMenuContent.vue` (replace the now-dead `clearCaseDraftStorage()` call with `deleteLegacyCaseDraftDatabase()` on logout — `clearSectionOutbox()`, added in Slice 2A Task 3, remains)
+- Modify: `resources/js/layouts/app/AppSidebarLayout.vue` (call `deleteLegacyCaseDraftDatabase()` once on authenticated startup)
 - Delete: `tests/Feature/Sync/CaseDraftNoteSyncTest.php` (7 tests covering the spike directly — removed, not migrated, since every guarantee it tested is now covered by `SectionSyncServiceTest` and the per-section sync tests throughout 2A/2B/2C)
 - Delete: `tests/Browser/sync_spike.py` (if present — a Playwright/Python script outside the PHPUnit suite; confirm nothing in CI configuration references it before deleting, and update that configuration in the same commit if it does)
 - Test: `tests/Feature/CaseDraftNoteRetirementTest.php`
 
-**Interfaces:** None produced — this task only removes surface area. No other task in this plan series depends on anything created here.
+**Interfaces:** None produced that other tasks consume — this task removes surface area and adds one self-contained, transitional frontend helper (`deleteLegacyCaseDraftDatabase()`), which no other task depends on and which is itself scheduled for removal after one release/pilot period.
 
 - [ ] **Step 1: Confirm feature parity before removing anything**
 
@@ -2814,19 +2868,57 @@ Delete `resources/js/pages/student/CaseDraftNote.vue` and `resources/js/lib/case
 
 In `resources/js/pages/student/Dashboard.vue`, remove the `<Link href="/student/sync-spike" ...>` card entirely (and its surrounding wrapper if the card was the only content of that wrapper).
 
-- [ ] **Step 7: Remove the dead import from the logout handler**
+- [ ] **Step 7: Add the transitional legacy-draft cleanup (logout + startup)**
 
-In `resources/js/components/UserMenuContent.vue`, remove the `import { clearCaseDraftStorage } from '@/lib/caseDraftStore';` import and the `await clearCaseDraftStorage();` line from `handleLogout()`, leaving:
+Create `resources/js/lib/legacyCaseDraftCleanup.ts`:
 
 ```typescript
+/**
+ * Transitional cleanup for the retired SYNC-SPIKE-01 `CaseDraftNote` experiment.
+ *
+ * Students who used the spike before Slice 2C Task 10 retired it may still have a
+ * device-local `pharmalab-case-drafts` IndexedDB database holding draft-note data.
+ * Nothing reads or writes that database anymore, so it would otherwise sit orphaned
+ * on shared devices — violating the accepted logout-privacy requirement. Deleting
+ * the whole database on authenticated startup and logout actively wipes it.
+ * `indexedDB.deleteDatabase()` is idempotent (a no-op once the database no longer
+ * exists), so it is safe to run on every load.
+ *
+ * REMOVE this module (and its two call sites) after one release/pilot cleanup
+ * period, once pre-retirement devices have had a chance to load the app at least
+ * once. Server-side tables (`case_draft_notes`, `sync_operations`) and their rows
+ * are intentionally untouched — this cleans device-local IndexedDB only.
+ */
+export function deleteLegacyCaseDraftDatabase(): void {
+    void indexedDB.deleteDatabase('pharmalab-case-drafts');
+}
+```
+
+In `resources/js/components/UserMenuContent.vue`, replace the `clearCaseDraftStorage` import and call with this module, leaving:
+
+```typescript
+import { deleteLegacyCaseDraftDatabase } from '@/lib/legacyCaseDraftCleanup';
+
 const handleLogout = async () => {
     await clearSectionOutbox();
+    deleteLegacyCaseDraftDatabase();
     router.flushAll();
     router.post(logout.url());
 };
 ```
 
-Note: this does not retroactively clear any `caseDraftStore` data already sitting in a browser's IndexedDB from before this task shipped — that database is now permanently orphaned (nothing reads or writes it again) rather than actively wiped. This is an acceptable, explicitly-stated scope boundary for a UI/route retirement, not a silent gap: the data was already device-local, non-syncing, and inaccessible through the app the moment `CaseDraftNote.vue`'s route stops resolving.
+In `resources/js/layouts/app/AppSidebarLayout.vue` (the authenticated layout, mounted once per authenticated page load), import the module and run it on startup:
+
+```typescript
+import { onMounted } from 'vue';
+import { deleteLegacyCaseDraftDatabase } from '@/lib/legacyCaseDraftCleanup';
+
+onMounted(() => {
+    deleteLegacyCaseDraftDatabase();
+});
+```
+
+`deleteLegacyCaseDraftDatabase()` is deliberately fire-and-forget (not `await`ed) on startup — the app must not block first paint on an IndexedDB deletion that is a no-op on nearly every device.
 
 - [ ] **Step 8: Delete the spike's own tests**
 
@@ -2857,7 +2949,7 @@ Search the rendered app (or `grep -r "sync-spike" resources/js`) and confirm zer
 - [ ] **Step 13: Commit**
 
 ```bash
-git add routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/Dashboard.vue resources/js/components/UserMenuContent.vue tests/Feature/CaseDraftNoteRetirementTest.php
+git add routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/Dashboard.vue resources/js/components/UserMenuContent.vue resources/js/layouts/app/AppSidebarLayout.vue resources/js/lib/legacyCaseDraftCleanup.ts tests/Feature/CaseDraftNoteRetirementTest.php
 git rm app/Http/Controllers/CaseDraftNoteController.php app/Http/Requests/SyncCaseDraftNoteRequest.php app/Policies/CaseDraftNotePolicy.php resources/js/pages/student/CaseDraftNote.vue resources/js/lib/caseDraftStore.ts tests/Feature/Sync/CaseDraftNoteSyncTest.php
 git commit -m "chore: retire the SYNC-SPIKE-01 CaseDraftNote experiment now that the six-section editor covers it"
 ```
@@ -2868,6 +2960,6 @@ git commit -m "chore: retire the SYNC-SPIKE-01 CaseDraftNote experiment now that
 
 - **Spec coverage:** Requirement 2 (mobile section editor) — completed here; all six sections now live in one `CaseEditor.vue`, and the transition never leaves the app without a working SOAP save path (Task 1 additive, Task 6 atomic retirement). Requirement 3 (repeatable rows) — Intervention and Monitoring follow-up added (Task 5) with the same offline-capable creation Slice 2B built, completing the full set. Requirement 5 (sync engine) — proven against its two remaining consumer shapes (a revisioned singleton with lazy creation for SOAP, and a concurrency-guarded lazy-singleton pattern for ADR/Counselling) without any new locking mechanism, and its idempotency/class-check hardening (Slice 2A/2B) is exercised by every new section key added here. Requirement 6 (conditional allergy and ADR fields) — ADR's Yes/No/Unable-to-assess gate with required-only-on-Yes details and the full accepted field set (Task 3, Task 7); counselling's parallel structure with its full field set (Task 4, Task 7). Requirement 7 (de-identification warnings) — extended to SOAP Subjective/Objective/Assessment/Plan, the ADR event field, intervention recommendation, and monitoring notes. Requirement 8 (authorization tests) — Task 8. Requirement 9 (device verification) — Task 9, covering the full six-section flow end to end including offline row creation, closing out Slice 2.
 - **Placeholder scan:** No task defers real logic. The visual-polish deferrals in Task 9 Step 4 are explicitly named as recorded limitations, not silently skipped work. Task 3's concurrency test explicitly documents why true parallel-request racing isn't reproducible in single-process PHPUnit and names the two tests that together stand in for it, rather than silently omitting the coverage.
-- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A. Every `details` write in this plan goes through the same merge-or-clear helper (`mergeOrClearDetails()` for the two singletons, an inline equivalent for the generic repeatable-row `sync()`), so the partial-update behavior is identical across all four conditional-activity shapes. Every `details`-accepting request also pairs `RejectsUnknownFields` (top-level) with an `array:key1,key2` rule (nested), and the generic repeatable-row `destroy()` goes through `SectionSyncService::delete()` exactly like the 2B row endpoints, so no write path here bypasses unknown-field rejection or optimistic concurrency.
+- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A. Every `details` write in this plan goes through the same merge-or-clear helper (`mergeOrClearDetails()` for the two singletons, an inline equivalent for the generic repeatable-row `sync()`), so the partial-update behavior is identical across all four conditional-activity shapes. Every `details`-accepting request also pairs `RejectsUnknownFields` (top-level) with an `array:key1,key2` rule (nested), and **every** request class in this plan defines its own `withValidator()` that calls `$this->rejectUnknownFields($validator)` as its first statement — verified per class (all five, Tasks 1/3/4/5) rather than assumed from the trait alone, so no request silently loses unknown-field rejection. The generic repeatable-row `destroy()` goes through `SectionSyncService::delete()` exactly like the 2B row endpoints, and `ActivityRow.vue` sends `base_lock_version` in its DELETE body (and surfaces a 409 delete-conflict message) exactly like `VitalRow.vue`/`InvestigationRow.vue`/`MedicationRow.vue`, so no write path here bypasses unknown-field rejection or optimistic concurrency.
 - **Review Focus coverage:** wrong-door singleton access, the SOAP Fillable regression, singleton double-creation (schema + app level), `details.*` partial-update/clear-on-exit behavior, unknown top-level and nested `details` keys, repeatable-row deletion bypassing optimistic concurrency, the old-page transition and its audit trail, and six-section navigation regressions each have a named test in the task that owns the relevant code, plus Task 9's manual pass for what only a real browser proves.
 - **Test count:** running totals in this plan are computed cumulatively from the Slice 2A baseline of 131 tests (129 passed / 2 skipped). After all of 2A/2B/2C including Task 10's retirement (removes 7 `CaseDraftNoteSyncTest` tests, adds 2), the full `php artisan test` suite is expected at **261 passed / 2 skipped (263 total)**.
