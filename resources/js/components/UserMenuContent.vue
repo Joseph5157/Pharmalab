@@ -12,6 +12,7 @@ import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
 import { clearCaseDraftStorage } from '@/lib/caseDraftStore';
+import { clearSectionOutbox } from '@/lib/outboxStore';
 
 type Props = {
     user: User;
@@ -19,6 +20,7 @@ type Props = {
 
 const handleLogout = async () => {
     await clearCaseDraftStorage();
+    await clearSectionOutbox();
     router.flushAll();
     router.post(logout.url());
 };
