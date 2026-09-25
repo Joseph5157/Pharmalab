@@ -116,6 +116,12 @@ class ClinicalCase extends Model
         return $this->belongsTo(User::class, 'deidentification_attested_by');
     }
 
+    /** @return HasOne<CaseClinicalProfile, $this> */
+    public function clinicalProfile(): HasOne
+    {
+        return $this->hasOne(CaseClinicalProfile::class);
+    }
+
     /** @return HasOne<SoapNote, $this> */
     public function currentSoap(): HasOne
     {
