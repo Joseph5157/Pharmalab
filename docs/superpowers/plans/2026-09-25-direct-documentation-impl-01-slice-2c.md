@@ -1,14 +1,18 @@
 # DIRECT-DOCUMENTATION-IMPL-01 — Slice 2C (SOAP Integration, Conditional Clinical Activities, Full Editor) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task (Native execution, chosen for the whole Slice 2 sequence). Steps use checkbox (`- [ ]`) syntax for tracking. **Depends on Slice 2A and Slice 2B being merged first** — this plan reuses every shared piece they built: `Syncable`, `SyncsWithLockVersion`, `SectionSyncService` (including `create()` from 2B), `HasSyncEnvelope`, `outboxStore.ts`, `useSectionSync.ts`, `DeidentificationNotice.vue`, and `CaseEditor.vue`.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task (Native execution, chosen for the whole Slice 2 sequence). Steps use checkbox (`- [ ]`) syntax for tracking. **Depends on Slice 2A and Slice 2B being merged first** — this plan reuses every shared piece they built: `Syncable`, `SyncsWithLockVersion`, `SectionSyncService` (including `create()` from 2B), `HasSyncEnvelope`, `RejectsUnknownFields`, `outboxStore.ts`, `useSectionSync.ts`, `useRepeatableRowCreate.ts` (2B), `DeidentificationNotice.vue`, and `CaseEditor.vue`.
+>
+> **Revision note (post-review):** This plan was reviewed and returned with blocking corrections before any implementation began. This revision fixes: a plan that broke the live SOAP page in Task 1 and only repaired it in Task 6 (now the new endpoint is added additively and the old page is retired atomically in one task), silently dropped SOAP audit events (now preserved), a singleton `firstOrCreate` race for ADR/Counselling with no database-level guard (now a partial unique index plus a row lock), a partial-update bug that overwrote the whole `details` JSON object instead of merging into it, and UI that exposed only a handful of each conditional activity's accepted fields. See each task's **Revision:** note.
 
-**Goal:** Complete the six-section mobile case editor by folding SOAP into the same offline-sync engine as every other section (retiring the old plain-Inertia SOAP page), adding the four Conditional Clinical Activities (Pharmacist intervention, Suspected ADR, Patient counselling, Monitoring follow-up), and running full end-to-end device verification across all six sections together.
+**Goal:** Complete the six-section mobile case editor by folding SOAP into the same offline-sync engine as every other section (without an intermediate broken state), adding the four Conditional Clinical Activities (Pharmacist intervention, Suspected ADR, Patient counselling, Monitoring follow-up) with their full accepted field sets and offline-capable row creation for the repeatable pair, and running full end-to-end device verification across all six sections.
 
-**Architecture:** The field catalogue's four "Conditional Clinical Activities" split into two genuinely different shapes, and the implementation follows that split rather than treating all four uniformly: **Suspected ADR** and **Patient counselling** are each a single case-level answer with conditional detail fields ("The student first answers Suspected ADR: Yes, No or Unable to assess... ADR details are required only for Yes"; "Every case records a status... capture counselling topics [only] when Performed or Planned is selected") — these reuse the exact lazy-singleton pattern Slice 2A built for `CaseClinicalProfile` (`firstOrCreate` inside the first `sync()` call), via two dedicated routes (`.../clinical-activities/adr`, `.../clinical-activities/counselling`). **Pharmacist intervention** and **Monitoring follow-up** are genuinely repeatable ("A separate follow-up result is created only when the student actually follows the case") and reuse Slice 2B's repeatable-row pattern (`store`/`sync`/`destroy` against `App\Models\CaseClinicalActivity`, `SectionSyncService::create()` for idempotent creation). Both flavors share one `CaseClinicalActivityController` and one underlying table (`case_clinical_activities`, already created in Slice 1 with an `activity_type` discriminator), but the generic `{activity}` route explicitly refuses to serve the two singleton types (`abort_unless(in_array($activity->activity_type, [Intervention, Monitoring]))`) so a request can never reach a row through the wrong door. SOAP folds into the same engine as any other section: `SoapNote` (which already carries an unused `lock_version` column from the original walking skeleton, and — like `CaseClinicalProfile` before this slice's fix — currently has `lock_version` mistakenly mass-fillable) becomes `Syncable`, and the standalone `/student/cases/{case}/soap` Inertia page is retired in favor of an in-editor SOAP section, consistent with the "one logical section at a time" mobile editor the field catalogue specifies.
+**Architecture:** The field catalogue's four "Conditional Clinical Activities" split into two genuinely different shapes, and the implementation follows that split rather than treating all four uniformly: **Suspected ADR** and **Patient counselling** are each a single case-level answer with conditional detail fields — these reuse the exact lazy-singleton pattern Slice 2A built for `CaseClinicalProfile`, via two dedicated routes (`.../clinical-activities/adr`, `.../clinical-activities/counselling`), now hardened against concurrent double-creation with a partial unique database index plus a parent-row lock (see Task 3). **Pharmacist intervention** and **Monitoring follow-up** are genuinely repeatable and reuse Slice 2B's repeatable-row pattern in full, including offline-capable creation via `useRepeatableRowCreate`. Both flavors share one `CaseClinicalActivityController` and one underlying table (`case_clinical_activities`, already created in Slice 1 with an `activity_type` discriminator), but the generic `{activity}` route explicitly refuses to serve the two singleton types so a request can never reach a row through the wrong door. SOAP folds into the same engine as any other section: `SoapNote` becomes `Syncable`, and a **new, additive** sync endpoint is introduced in Task 1 alongside the existing Inertia page and its `update()` action (both keep working, unmodified, until Task 6 retires them in the same commit that switches the in-editor SOAP section on) — the app is never left with a broken SOAP page between tasks.
+
+Every `case_clinical_activities.details` JSON write in this slice **merges** the request's present keys into whatever `details` already holds, rather than replacing the column outright — a partial update to one nested key (e.g. just `details.outcome` on an intervention) must not silently erase sibling keys another request already saved. The one exception is a deliberate state exit (ADR status leaving `yes`, or Counselling status leaving `performed`/`planned`): moving out of the state that makes the detail fields visible in the UI also clears the JSON blob those fields no longer show, mirroring the same "hidden conditional data must not silently persist" fix Slice 2A applied to allergy fields.
 
 **Tech Stack:** Same as Slices 2A/2B — Laravel 13, Eloquent, PHPUnit, SQLite (`:memory:`)/PostgreSQL; Inertia.js + Vue 3 + TypeScript, native `fetch` + IndexedDB.
 
-**Spec:** [`docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`](../../implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md) (Slice 2 requirements), field catalogue in [`docs/research/PHARMD_CASE_FORM_CANDIDATE_01.md`](../../research/PHARMD_CASE_FORM_CANDIDATE_01.md) §4.6–4.7, Slice 2A plan at [`2026-09-25-direct-documentation-impl-01-slice-2a.md`](2026-09-25-direct-documentation-impl-01-slice-2a.md), Slice 2B plan at [`2026-09-25-direct-documentation-impl-01-slice-2b.md`](2026-09-25-direct-documentation-impl-01-slice-2b.md).
+**Spec:** [`docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`](../../implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md) (Slice 2 requirements), field catalogue in [`docs/research/PHARMD_CASE_FORM_CANDIDATE_01.md`](../../research/PHARMD_CASE_FORM_CANDIDATE_01.md) §4.6–4.7 and §5, Slice 2A plan at [`2026-09-25-direct-documentation-impl-01-slice-2a.md`](2026-09-25-direct-documentation-impl-01-slice-2a.md), Slice 2B plan at [`2026-09-25-direct-documentation-impl-01-slice-2b.md`](2026-09-25-direct-documentation-impl-01-slice-2b.md).
 
 ## Global Constraints
 
@@ -17,28 +21,36 @@ All constraints from Slices 2A and 2B apply unchanged. In addition:
 - Route registration order matters: `PUT student/cases/{case}/clinical-activities/adr` and `PUT student/cases/{case}/clinical-activities/counselling` **must** be registered before `PUT student/cases/{case}/clinical-activities/{activity}` in `routes/web.php`, or Laravel will attempt to resolve the literal segments `adr`/`counselling` as a `{activity}` ULID route-model-binding and fail with a 404/500 instead of reaching the intended singleton controller method.
 - The generic `{activity}` `sync`/`destroy` actions must refuse to operate on an `adr` or `counselling` row (`abort_unless(in_array($activity->activity_type, [ClinicalActivityType::Intervention, ClinicalActivityType::Monitoring], true), 404)`) even though route ordering already prevents normal traffic from reaching them that way — this is defense in depth against a client that discovers a singleton row's ULID (e.g. from an earlier JSON response) and tries to hit the generic row route directly.
 - `SoapNote`'s `#[Fillable([...])]` currently lists `'lock_version'` (a Slice 1 regression, same shape as the `CaseClinicalProfile` one Slice 2A fixed). Task 1 removes it.
-- Retiring the standalone SOAP page (`resources/js/pages/student/SoapEditor.vue`, the `student.cases.soap` GET route, `SoapController::show`) is an explicit, deliberate part of this slice, not incidental cleanup — the mobile editor's "one section at a time" requirement is not met while a separate full-page SOAP editor still exists outside it. Update every place that links to the old page.
+- The standalone SOAP page (`resources/js/pages/student/SoapEditor.vue`, the `student.cases.soap` GET route, `SoapController::show`/`update`) keeps working, completely unmodified, through Tasks 1–5. Task 1 adds a **new**, separate `PUT student/cases/{case}/soap-sync` endpoint that nothing in the old page calls. Only Task 6 touches the old page/routes, retiring them in the same commit that wires the in-editor SOAP section on and renames the sync endpoint back to the canonical `student/cases/{case}/soap` URI — there is no commit in this plan after which the app has no working way to save a SOAP note.
+- Every `case_clinical_activities.details` write merges into the existing JSON rather than replacing it (see Architecture) — this applies to `syncAdr`, `syncCounselling`, and the generic repeatable-row `sync()` alike.
+- ADR and Counselling singleton rows are protected against concurrent double-creation by both a partial unique database index (`case_clinical_activities_singleton_unique`, scoped to `activity_type IN ('adr', 'counselling')`) and an application-level lock on the parent `ClinicalCase` row before the `firstOrCreate` call, added in Task 3 and reused by Task 4 — do not rely on `firstOrCreate()` alone, which is not race-free under concurrent requests.
+- Every sync/store request added in this slice uses `HasSyncEnvelope` + `RejectsUnknownFields`, per the Global Constraints established in Slice 2A/2B.
 
 ## Review Focus
 
 - **Wrong-door access to a singleton activity row.** A request to `PUT /student/cases/{case}/clinical-activities/{activity}` where `{activity}` is actually the case's ADR or Counselling row must be rejected (404), not silently accepted by the generic row endpoint and left inconsistent with what the singleton endpoint's `firstOrCreate` logic expects. Task 5's tests exercise this directly.
 - **SOAP `lock_version` mass-assignment regression.** Same shape as the `CaseClinicalProfile` bug Slice 2A fixed: `SoapNote`'s Fillable must not include `'lock_version'`, or a client could set an arbitrary starting lock version. Task 1's test asserts a client-supplied `lock_version` in a create payload is ignored.
-- **Conditional field partial-save gaps.** `details.event`/`details.suspected_medicine` (ADR) and any counselling detail fields must not be silently required or silently erased by a partial autosave that only touches one field within an already-`status: 'yes'`/`'performed'` row — same class of bug the `allergy_substance` fix addressed in Slice 2A, now proven against nested `details.*` fields.
-- **Losing the old SOAP page's data path.** Retiring `SoapEditor.vue` must not lose the ability to read/write `subjective`/`objective`/`assessment`/`plan` — Task 1's tests prove the new sync endpoint round-trips all four fields plus the two new drug-related-problem fields, and Task 6 proves `CaseShow.vue` no longer links anywhere dead.
+- **Singleton double-creation under concurrent first-sync requests.** Two near-simultaneous first syncs of ADR (or Counselling) for the same case must not produce two rows. Task 3's tests cover both the schema-level guard (a raw duplicate insert throws) and the application-level guard (two sequential controller calls reuse the same row), with an explicit note on why true parallel concurrency isn't exercised in single-process PHPUnit.
+- **`details.*` partial-update overwriting sibling keys, or leaking stale detail data after a status change.** A one-field update to `details` on an already-populated ADR/Counselling/Intervention/Monitoring row must preserve every previously-saved sibling key; a status change that hides the detail fields in the UI must also clear them server-side. Tasks 3, 4 and 6's tests cover both directions.
+- **Losing the old SOAP page's data path, or a dead link to it.** Task 1's tests prove the new sync endpoint round-trips all SOAP fields (including the new monitoring-plan fields) without touching the old page; Task 6's tests prove the old route is gone and `CaseShow.vue` no longer links anywhere dead, and that the SOAP audit events (`soap_note.created`/`soap_note.updated`) still fire through the new path exactly as the old controller recorded them.
 - **Six-section progress/navigation regressions.** Adding the fifth and sixth section to `CaseEditor.vue`'s `sections` array must not break Previous/Next boundary logic or the nav-pill `aria-current` state for the sections Slices 2A/2B already shipped. Task 7's test and Task 9's manual pass both re-verify all six sections, not just the two new ones.
 
 ---
 
-## Task 1: Fold SOAP into the sync engine
+## Task 1: Add a new, additive SOAP sync endpoint (old page untouched)
+
+**Revision:** The original draft replaced `SoapController::update()` in this task and only reconnected the frontend in Task 6, leaving the live `SoapEditor.vue` page broken (it POSTs via Inertia expecting a redirect; the new controller returns JSON) for every task in between. This task now adds a **separate** route/action (`PUT .../soap-sync` → `SoapController::sync()`) and leaves `show()`/`update()`/the existing `GET .../soap` and `PUT .../soap` routes completely alone. It also preserves the old controller's `soap_note.created`/`soap_note.updated` audit events (dropped in the original draft's replacement) and adds the SOAP Plan's structured monitoring-plan fields the field catalogue requires (§4.6 Plan: "monitoring parameter and interval, or justified not applicable").
 
 **Files:**
-- Modify: `app/Models/SoapNote.php` (remove `'lock_version'` from Fillable, implement `Syncable`)
+- Create: `database/migrations/2026_09_30_000000_add_monitoring_plan_fields_to_soap_notes.php`
+- Modify: `app/Models/SoapNote.php` (remove `'lock_version'` from Fillable, implement `Syncable`, add monitoring-plan fields to Fillable)
 - Create: `app/Http/Requests/Student/UpdateSoapNoteRequest.php`
-- Modify: `app/Http/Controllers/Student/SoapController.php` (replace `update()` with `sync()`)
+- Modify: `app/Http/Controllers/Student/SoapController.php` (add `sync()` alongside the existing `show()`/`update()`, preserving audit events)
+- Modify: `routes/web.php` (add the new route; existing SOAP routes untouched)
 - Test: `tests/Feature/SoapNoteSyncTest.php`
 
 **Interfaces:**
-- Produces: `PUT /student/cases/{case}/soap` (existing route/name kept, behavior replaced) returning `{ "section": {subjective, objective, assessment, plan, drug_related_problem_status, drug_related_problem_categories, lock_version, updated_at} }`. Lazily creates revision 1 of the `SoapNote` on first sync, exactly as `CaseClinicalProfileController` lazily creates the profile (Slice 2A Task 5) — never on page render.
+- Produces: `PUT /student/cases/{case}/soap-sync` (new route, new name `student.cases.soap.sync`) returning `{ "section": {subjective, objective, assessment, plan, drug_related_problem_status, drug_related_problem_categories, monitoring_plan, monitoring_plan_not_applicable_reason, lock_version, updated_at} }`. Lazily creates revision 1 of the `SoapNote` on first sync, exactly as `CaseClinicalProfileController` lazily creates the profile (Slice 2A Task 5) — never on page render. The existing `GET /student/cases/{case}/soap` and `PUT /student/cases/{case}/soap` routes, `SoapController::show()`/`update()`, and `SoapEditor.vue` are all unchanged and still fully functional after this task.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -48,6 +60,7 @@ All constraints from Slices 2A and 2B apply unchanged. In addition:
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
+use App\Models\AuditEvent;
 use App\Models\ClinicalCase;
 use App\Models\Institution;
 use App\Models\SoapNote;
@@ -60,23 +73,72 @@ class SoapNoteSyncTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_first_sync_lazily_creates_the_soap_note_and_persists_all_fields(): void
+    public function test_the_old_soap_page_and_its_update_route_still_work_unmodified(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap", [
+        $this->get("/student/cases/{$case->id}/soap")->assertOk();
+
+        $response = $this->put("/student/cases/{$case->id}/soap", ['subjective' => 'Via the old page.']);
+
+        $response->assertRedirect();
+        $this->assertSame('Via the old page.', $case->fresh()->currentSoap->subjective);
+    }
+
+    public function test_first_sync_lazily_creates_the_soap_note_and_persists_all_fields_including_monitoring_plan(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(),
             'base_lock_version' => 0,
             'subjective' => 'Patient reports headache for 3 days.',
             'drug_related_problem_status' => 'identified',
             'drug_related_problem_categories' => ['dose_too_low', 'monitoring_required'],
+            'monitoring_plan' => 'Blood pressure daily for 3 days.',
         ]);
 
         $response->assertOk();
         $response->assertJsonPath('section.subjective', 'Patient reports headache for 3 days.');
         $this->assertNotNull($case->fresh()->currentSoap);
         $this->assertSame(['dose_too_low', 'monitoring_required'], $case->fresh()->currentSoap->drug_related_problem_categories);
+        $this->assertSame('Blood pressure daily for 3 days.', $case->fresh()->currentSoap->monitoring_plan);
+        $this->assertDatabaseHas('audit_events', [
+            'auditable_type' => SoapNote::class,
+            'event_type' => 'soap_note.created',
+        ]);
+    }
+
+    public function test_a_second_sync_records_an_updated_audit_event_not_another_created_event(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'First.',
+        ])->assertOk();
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1, 'objective' => 'BP 120/80.',
+        ])->assertOk();
+
+        $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.created')->count());
+        $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.updated')->count());
+    }
+
+    public function test_monitoring_plan_not_applicable_reason_can_be_recorded_instead_of_a_plan(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'monitoring_plan_not_applicable_reason' => 'Single-dose administration; no ongoing monitoring indicated.',
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('Single-dose administration; no ongoing monitoring indicated.', $case->fresh()->currentSoap->monitoring_plan_not_applicable_reason);
     }
 
     public function test_a_single_field_edit_does_not_erase_other_saved_fields(): void
@@ -84,12 +146,12 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $this->putJson("/student/cases/{$case->id}/soap", [
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
             'subjective' => 'Headache.', 'objective' => 'BP 140/90.',
         ])->assertOk();
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap", [
+        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
             'assessment' => 'Tension-type headache.',
         ]);
@@ -118,13 +180,27 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $this->putJson("/student/cases/{$case->id}/soap", [
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'First',
         ])->assertOk();
 
-        $this->putJson("/student/cases/{$case->id}/soap", [
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'Conflicting',
         ])->assertStatus(409);
+    }
+
+    public function test_an_unknown_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'subjective' => 'x', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
     }
 
     public function test_a_different_student_cannot_sync_the_soap_note(): void
@@ -133,7 +209,7 @@ class SoapNoteSyncTest extends TestCase
         $otherStudent = User::factory()->student()->create(['institution_id' => $institution->id]);
         $this->actingAs($otherStudent);
 
-        $this->putJson("/student/cases/{$case->id}/soap", [
+        $this->putJson("/student/cases/{$case->id}/soap-sync", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'x',
         ])->assertForbidden();
     }
@@ -156,11 +232,39 @@ class SoapNoteSyncTest extends TestCase
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run (PowerShell): `php artisan test --filter=SoapNoteSyncTest`
-Expected: FAIL — old `SoapController::update` doesn't return `{ "section": ... }` JSON, has no envelope/lock handling.
+Expected: the first test (old page) PASSES already (nothing changed yet); every other test FAILS — route not found / columns missing.
 
-- [ ] **Step 3: Fix `SoapNote`'s Fillable and implement `Syncable`**
+- [ ] **Step 3: Write the monitoring-plan fields migration**
 
-In `app/Models/SoapNote.php`, remove `'lock_version',` from the `#[Fillable([...])]` array. Add imports and apply the trait/interface:
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('soap_notes', function (Blueprint $table): void {
+            $table->text('monitoring_plan')->nullable()->after('plan');
+            $table->text('monitoring_plan_not_applicable_reason')->nullable()->after('monitoring_plan');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('soap_notes', function (Blueprint $table): void {
+            $table->dropColumn(['monitoring_plan', 'monitoring_plan_not_applicable_reason']);
+        });
+    }
+};
+```
+
+- [ ] **Step 4: Fix `SoapNote`'s Fillable and implement `Syncable`**
+
+In `app/Models/SoapNote.php`, remove `'lock_version',` from the `#[Fillable([...])]` array and add `'monitoring_plan', 'monitoring_plan_not_applicable_reason',` after `'plan',`. Add imports and apply the trait/interface:
 
 ```php
 use App\Contracts\Syncable;
@@ -173,7 +277,9 @@ class SoapNote extends Model implements Syncable
     use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 ```
 
-- [ ] **Step 4: Write `UpdateSoapNoteRequest`**
+This model backs exactly one section, so it does not override `lockVersionColumn()`.
+
+- [ ] **Step 5: Write `UpdateSoapNoteRequest`**
 
 ```php
 <?php
@@ -181,11 +287,12 @@ class SoapNote extends Model implements Syncable
 namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSoapNoteRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
 
     public function authorize(): bool
     {
@@ -201,6 +308,8 @@ class UpdateSoapNoteRequest extends FormRequest
             'objective' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'assessment' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'plan' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'monitoring_plan' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'monitoring_plan_not_applicable_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'drug_related_problem_status' => ['sometimes', 'nullable', 'in:none_identified,identified,unable_to_assess'],
             'drug_related_problem_categories' => ['sometimes', 'nullable', 'array'],
             'drug_related_problem_categories.*' => ['in:untreated_indication,medicine_without_indication,ineffective_medicine,dose_too_low,dose_too_high,adr,interaction,non_adherence,duplication,administration_problem,monitoring_required,other'],
@@ -209,37 +318,27 @@ class UpdateSoapNoteRequest extends FormRequest
 }
 ```
 
-- [ ] **Step 5: Replace `SoapController`**
+- [ ] **Step 6: Add `sync()` to `SoapController`, preserving audit events**
 
-Replace the full contents of `app/Http/Controllers/Student/SoapController.php`:
+In `app/Http/Controllers/Student/SoapController.php`, keep `show()` and `update()` exactly as they are today (do not modify them in this task) and add the imports and method below:
 
 ```php
-<?php
-
-namespace App\Http\Controllers\Student;
-
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\UpdateSoapNoteRequest;
-use App\Models\ClinicalCase;
-use App\Models\SoapNote;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+```
 
-class SoapController extends Controller
-{
-    public function sync(UpdateSoapNoteRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
+```php
+    public function sync(UpdateSoapNoteRequest $request, ClinicalCase $case, SectionSyncService $sync, AuditTrail $audit): JsonResponse
     {
-        $soap = $case->currentSoap;
-
-        if ($soap === null) {
-            $soap = SoapNote::query()->create([
-                'institution_id' => $case->institution_id,
-                'clinical_case_id' => $case->id,
-                'revision_number' => 1,
-                'author_id' => $request->user()->id,
-                'last_saved_by' => $request->user()->id,
-            ]);
-        }
+        $wasNew = $case->currentSoap === null;
+        $soap = $case->currentSoap ?? SoapNote::query()->create([
+            'institution_id' => $case->institution_id,
+            'clinical_case_id' => $case->id,
+            'revision_number' => 1,
+            'author_id' => $request->user()->id,
+            'last_saved_by' => $request->user()->id,
+        ]);
 
         $envelope = $request->syncEnvelope();
 
@@ -254,6 +353,19 @@ class SoapController extends Controller
             $envelope['confirmed'],
         );
 
+        // Preserves the audit trail the pre-existing SoapController::update()
+        // recorded (soap_note.created / soap_note.updated) — SectionSyncService
+        // only ever fires a conflict-resolution audit event, so this
+        // controller fires the creation/update events itself rather than
+        // silently dropping them when the endpoint was rebuilt on the shared
+        // sync engine.
+        if (in_array($result['status'], ['saved', 'resolved_replaced'], true)) {
+            $audit->record($request->user(), $result['model'], $wasNew ? 'soap_note.created' : 'soap_note.updated', [
+                'case_id' => $case->id,
+                'revision_number' => $result['model']->revision_number,
+            ]);
+        }
+
         return response()->json(['section' => $this->payload($result['model'])], $result['httpStatus']);
     }
 
@@ -265,63 +377,57 @@ class SoapController extends Controller
             'objective' => $soap->objective,
             'assessment' => $soap->assessment,
             'plan' => $soap->plan,
+            'monitoring_plan' => $soap->monitoring_plan,
+            'monitoring_plan_not_applicable_reason' => $soap->monitoring_plan_not_applicable_reason,
             'drug_related_problem_status' => $soap->drug_related_problem_status,
             'drug_related_problem_categories' => $soap->drug_related_problem_categories,
             'lock_version' => $soap->lock_version,
             'updated_at' => $soap->updated_at->toIso8601String(),
         ];
     }
-}
 ```
 
-- [ ] **Step 6: Update the route**
+`AuditTrail` and `SoapNote` are already imported by the existing controller. `ClinicalCase` too.
 
-In `routes/web.php`, replace the existing SOAP route pair:
+- [ ] **Step 7: Add the new route — existing SOAP routes untouched**
+
+In `routes/web.php`, add this new line immediately after the existing `student.cases.soap.update` route (do **not** modify either existing SOAP route):
 
 ```php
-        Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap'),
-        Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update'),
+        Route::put('student/cases/{case}/soap-sync', [SoapController::class, 'sync'])->name('student.cases.soap.sync');
 ```
 
-with just:
-
-```php
-        Route::put('student/cases/{case}/soap', [SoapController::class, 'sync'])->name('student.cases.soap.update');
-```
-
-(The `GET .../soap` route and `SoapEditor.vue` page are retired in Task 6, once the in-editor SOAP section exists to replace them — do not delete the page yet in this task, only repoint the `PUT` route's behavior, so the app stays functional between tasks. For now, this leaves the old page temporarily unable to save via `useForm`'s Inertia PUT, since the response shape changed from a redirect to JSON — this is expected and is resolved in Task 6.)
-
-- [ ] **Step 7: Regenerate Wayfinder files**
+- [ ] **Step 8: Regenerate Wayfinder files**
 
 Run (PowerShell): `npm run build`
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=SoapNoteSyncTest`
-Expected: PASS (5 tests).
+Expected: PASS (9 tests).
 
-- [ ] **Step 9: Run the full suite**
+- [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: previous Slice 2A+2B tests (187 passed / 2 skipped) plus 5 new ones — 192 passed / 2 skipped. (The old `SoapController` test coverage, if any existed in `ClinicalCaseWorkflowTest`, exercises the model layer directly and is unaffected; if any test directly posts to the old `SoapController::update`'s Inertia-redirect contract, it will now fail — find and update it as part of this step rather than leaving it broken.)
+Expected: 217 previous (Slice 2A+2B total) + 9 new — 226 passed / 2 skipped.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add app/Models/SoapNote.php app/Http/Requests/Student/UpdateSoapNoteRequest.php app/Http/Controllers/Student/SoapController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/SoapNoteSyncTest.php
-git commit -m "feat: fold SOAP into the sync engine and fix its lock_version mass-assignment regression"
+git add database/migrations/2026_09_30_000000_add_monitoring_plan_fields_to_soap_notes.php app/Models/SoapNote.php app/Http/Requests/Student/UpdateSoapNoteRequest.php app/Http/Controllers/Student/SoapController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/SoapNoteSyncTest.php
+git commit -m "feat: add an additive SOAP sync endpoint with monitoring-plan fields, preserving the existing page and its audit events"
 ```
 
 ---
 
 ## Task 2: `lock_version` and `Syncable` for `CaseClinicalActivity`
 
+Identical shape to Slice 2B Task 1, applied to the one remaining repeatable-schema table that didn't get `lock_version` there because it wasn't in scope yet.
+
 **Files:**
-- Create: `database/migrations/2026_09_30_000000_add_lock_version_to_case_clinical_activities.php`
+- Create: `database/migrations/2026_09_30_000001_add_lock_version_to_case_clinical_activities.php`
 - Modify: `app/Models/CaseClinicalActivity.php` (implement `Syncable`)
 - Test: `tests/Feature/CaseClinicalActivityLockVersionTest.php`
-
-Identical shape to Slice 2B Task 1, applied to the one remaining repeatable-schema table that didn't get `lock_version` there because it wasn't in scope yet.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -364,7 +470,7 @@ class CaseClinicalActivityLockVersionTest extends TestCase
         ]);
 
         $this->assertInstanceOf(Syncable::class, $activity);
-        $this->assertSame(0, $activity->getLockVersion());
+        $this->assertSame(0, $activity->getLockVersion('clinical_activities'));
     }
 }
 ```
@@ -403,7 +509,7 @@ return new class extends Migration
 
 - [ ] **Step 4: Update `CaseClinicalActivity`**
 
-Add imports and apply the trait/interface, same shape as every other model in this series:
+Add imports and apply the trait/interface, same shape as every other model in this series (this model does not override `lockVersionColumn()`):
 
 ```php
 use App\Contracts\Syncable;
@@ -424,27 +530,31 @@ Expected: PASS (2 tests).
 - [ ] **Step 6: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 192 previous + 2 new — 194 passed / 2 skipped.
+Expected: 226 previous + 2 new — 228 passed / 2 skipped.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add database/migrations/2026_09_30_000000_add_lock_version_to_case_clinical_activities.php app/Models/CaseClinicalActivity.php tests/Feature/CaseClinicalActivityLockVersionTest.php
+git add database/migrations/2026_09_30_000001_add_lock_version_to_case_clinical_activities.php app/Models/CaseClinicalActivity.php tests/Feature/CaseClinicalActivityLockVersionTest.php
 git commit -m "feat: add lock_version and Syncable to CaseClinicalActivity"
 ```
 
 ---
 
-## Task 3: Suspected ADR (singleton) backend
+## Task 3: Suspected ADR (singleton) backend — concurrency-safe, full field set, `details` merge-not-replace
+
+**Revision:** The original draft's `firstOrCreate()` alone cannot stop two concurrent first-sync requests from both inserting an ADR row for the same case. This task adds a partial unique database index (`case_clinical_activities_singleton_unique`, scoped to `adr`/`counselling` rows only — Intervention/Monitoring stay repeatable) plus a `lockForUpdate()` on the parent case before the `firstOrCreate` call. It also fixes the partial-update-overwrites-the-whole-JSON-object bug (`details` is now merged, not replaced) and clears `details` when `status` leaves `yes`.
 
 **Files:**
+- Create: `database/migrations/2026_09_30_000002_add_singleton_unique_index_to_case_clinical_activities.php`
 - Create: `app/Http/Requests/Student/UpdateAdrActivityRequest.php`
 - Create: `app/Http/Controllers/Student/CaseClinicalActivityController.php`
+- Modify: `app/Services/SectionSyncService.php` (extend `SECTION_MODELS`)
 - Modify: `routes/web.php`
 - Test: `tests/Feature/AdrActivitySyncTest.php`
 
 **Interfaces:**
-- Produces: `PUT /student/cases/{case}/clinical-activities/adr` returning `{ "activity": {status, details, lock_version, updated_at} }`. Lazily creates the ADR row on first sync.
+- Produces: `PUT /student/cases/{case}/clinical-activities/adr` returning `{ "activity": {status, details, lock_version, updated_at} }`. Lazily creates the ADR row on first sync, race-safe.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -454,9 +564,12 @@ git commit -m "feat: add lock_version and Syncable to CaseClinicalActivity"
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
+use App\Enums\ClinicalActivityType;
+use App\Models\CaseClinicalActivity;
 use App\Models\ClinicalCase;
 use App\Models\Institution;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -470,6 +583,46 @@ class AdrActivitySyncTest extends TestCase
         [, , $case] = $this->makeCase();
 
         $this->assertCount(0, $case->fresh()->clinicalActivities);
+    }
+
+    public function test_a_raw_duplicate_singleton_insert_is_rejected_by_the_database(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Adr->value, 'recorded_by' => $student->id,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Adr->value, 'recorded_by' => $student->id,
+        ]);
+    }
+
+    public function test_two_sequential_syncs_reuse_the_same_row_rather_than_creating_a_second_one(): void
+    {
+        // True parallel-request concurrency isn't reproducible in single-process
+        // PHPUnit; this test plus the raw-duplicate-insert test above are the
+        // intended coverage — the first proves the app-level firstOrCreate path
+        // is idempotent under normal sequential use, the second proves the
+        // database itself refuses a duplicate if two requests ever did race
+        // past the application-level lockForUpdate.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $first = $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'no',
+        ]);
+        $second = $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1, 'status' => 'unable_to_assess',
+        ]);
+
+        $first->assertOk();
+        $second->assertOk();
+        $this->assertSame($first->json('activity.id') ?? true, $first->json('activity.id') ?? true);
+        $this->assertCount(1, $case->fresh()->clinicalActivities);
     }
 
     public function test_answering_no_does_not_require_adr_details(): void
@@ -518,7 +671,7 @@ class AdrActivitySyncTest extends TestCase
         $this->assertSame('Rash', $case->fresh()->clinicalActivities->first()->details['event']);
     }
 
-    public function test_a_single_field_edit_after_yes_does_not_re_require_the_others(): void
+    public function test_a_single_detail_field_edit_after_yes_preserves_previously_saved_sibling_keys(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
@@ -534,6 +687,27 @@ class AdrActivitySyncTest extends TestCase
         ]);
 
         $response->assertOk();
+        $fresh = $case->fresh()->clinicalActivities->first();
+        $this->assertSame('Rash', $fresh->details['event']);
+        $this->assertSame('Amoxicillin', $fresh->details['suspected_medicine']);
+        $this->assertSame('Medicine withdrawn.', $fresh->details['action_taken']);
+    }
+
+    public function test_changing_status_away_from_yes_clears_the_hidden_detail_fields(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'yes',
+            'details' => ['event' => 'Rash', 'suspected_medicine' => 'Amoxicillin'],
+        ])->assertOk();
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/adr", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1, 'status' => 'no',
+        ])->assertOk();
+
+        $this->assertNull($case->fresh()->clinicalActivities->first()->details);
     }
 
     public function test_a_different_student_cannot_sync_the_adr_activity(): void
@@ -565,9 +739,43 @@ class AdrActivitySyncTest extends TestCase
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run (PowerShell): `php artisan test --filter=AdrActivitySyncTest`
-Expected: FAIL — route not found.
+Expected: FAIL — route not found; index doesn't exist yet.
 
-- [ ] **Step 3: Write `UpdateAdrActivityRequest`**
+- [ ] **Step 3: Write the singleton partial-unique-index migration**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        DB::statement(
+            "CREATE UNIQUE INDEX case_clinical_activities_singleton_unique ON case_clinical_activities (clinical_case_id, activity_type) WHERE activity_type IN ('adr', 'counselling')"
+        );
+    }
+
+    public function down(): void
+    {
+        DB::statement('DROP INDEX IF EXISTS case_clinical_activities_singleton_unique');
+    }
+};
+```
+
+Note: Laravel's `Blueprint` has no partial-index helper, so this is raw `DB::statement()` — not `Schema::table()->change()`, so it needs no `dbal`. Both PostgreSQL and SQLite support `CREATE UNIQUE INDEX ... WHERE ...`; confirm `ClinicalActivityType::Adr->value` and `::Counselling->value` are exactly `'adr'`/`'counselling'` by checking `app/Enums/ClinicalActivityType.php` before running this migration — if the enum's stored values differ, use those exact strings in the `WHERE` clause instead.
+
+- [ ] **Step 4: Extend `SectionSyncService::SECTION_MODELS`**
+
+In `app/Services/SectionSyncService.php`, add the import `use App\Models\CaseClinicalActivity;` and this entry to `SECTION_MODELS`:
+
+```php
+        'clinical_activity_adr' => CaseClinicalActivity::class,
+```
+
+- [ ] **Step 5: Write `UpdateAdrActivityRequest`**
 
 ```php
 <?php
@@ -575,12 +783,13 @@ Expected: FAIL — route not found.
 namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateAdrActivityRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
 
     public function authorize(): bool
     {
@@ -611,7 +820,7 @@ class UpdateAdrActivityRequest extends FormRequest
 }
 ```
 
-- [ ] **Step 4: Write `CaseClinicalActivityController` (ADR method only — Tasks 4–5 extend this same class)**
+- [ ] **Step 6: Write `CaseClinicalActivityController` (ADR method only — Tasks 4–5 extend this same class)**
 
 ```php
 <?php
@@ -625,17 +834,16 @@ use App\Models\CaseClinicalActivity;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class CaseClinicalActivityController extends Controller
 {
     public function syncAdr(UpdateAdrActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
     {
-        $activity = CaseClinicalActivity::query()->firstOrCreate(
-            ['clinical_case_id' => $case->id, 'activity_type' => ClinicalActivityType::Adr->value],
-            ['institution_id' => $case->institution_id, 'recorded_by' => $request->user()->id],
-        );
+        $activity = $this->findOrCreateSingleton($case, ClinicalActivityType::Adr, $request->user()->id);
 
         $envelope = $request->syncEnvelope();
+        $data = $this->mergeOrClearDetails($activity, $request->sectionData(), leavesConditionalState: fn (array $data): bool => array_key_exists('status', $data) && $data['status'] !== 'yes');
 
         $result = $sync->sync(
             $activity,
@@ -643,12 +851,60 @@ class CaseClinicalActivityController extends Controller
             'clinical_activity_adr',
             $envelope['client_operation_id'],
             $envelope['base_lock_version'],
-            $request->sectionData(),
+            $data,
             $envelope['resolution'],
             $envelope['confirmed'],
         );
 
         return response()->json(['activity' => $this->payload($result['model'])], $result['httpStatus']);
+    }
+
+    /**
+     * Guards against two near-simultaneous first-sync requests both creating
+     * a singleton row: locks the parent case first (serializing concurrent
+     * requests for the same case, the same technique SectionSyncService::sync()
+     * uses), then firstOrCreate() inside that lock. The partial unique index
+     * from this task's migration is the second, database-level line of
+     * defense if this lock is ever bypassed by a future code path.
+     */
+    protected function findOrCreateSingleton(ClinicalCase $case, ClinicalActivityType $type, int $userId): CaseClinicalActivity
+    {
+        return DB::transaction(function () use ($case, $type, $userId): CaseClinicalActivity {
+            ClinicalCase::query()->whereKey($case->id)->lockForUpdate()->first();
+
+            return CaseClinicalActivity::query()->firstOrCreate(
+                ['clinical_case_id' => $case->id, 'activity_type' => $type->value],
+                ['institution_id' => $case->institution_id, 'recorded_by' => $userId],
+            );
+        });
+    }
+
+    /**
+     * `details` is a JSON column — a request that only sends one nested key
+     * must merge into the existing object, not replace it wholesale (that
+     * was Slice 2 review finding #7: "Partial updates to activity `details`
+     * must merge bounded keys"). The one exception is a genuine state exit
+     * (e.g. ADR status leaving "yes"): once the UI stops showing the detail
+     * fields, the stale data behind them must not silently persist either —
+     * mirrors the allergy-field-clearing fix in Slice 2A Task 5.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  \Closure(array<string, mixed>): bool  $leavesConditionalState
+     * @return array<string, mixed>
+     */
+    protected function mergeOrClearDetails(CaseClinicalActivity $activity, array $data, \Closure $leavesConditionalState): array
+    {
+        if ($leavesConditionalState($data)) {
+            $data['details'] = null;
+
+            return $data;
+        }
+
+        if (array_key_exists('details', $data)) {
+            $data['details'] = [...($activity->details ?? []), ...$data['details']];
+        }
+
+        return $data;
     }
 
     /** @return array<string, mixed> */
@@ -666,7 +922,7 @@ class CaseClinicalActivityController extends Controller
 }
 ```
 
-- [ ] **Step 5: Add the route**
+- [ ] **Step 7: Add the route**
 
 In `routes/web.php`, add inside the `role:student` group, immediately after the Medication Chart routes. **This must come before Task 5's `{activity}` route** (see Global Constraints):
 
@@ -676,34 +932,37 @@ In `routes/web.php`, add inside the `role:student` group, immediately after the 
 
 Add the import: `use App\Http\Controllers\Student\CaseClinicalActivityController;`
 
-- [ ] **Step 6: Regenerate Wayfinder files**
+- [ ] **Step 8: Regenerate Wayfinder files**
 
 Run (PowerShell): `npm run build`
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=AdrActivitySyncTest`
-Expected: PASS (6 tests).
+Expected: PASS (9 tests).
 
-- [ ] **Step 8: Run the full suite**
+- [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 194 previous + 6 new — 200 passed / 2 skipped.
+Expected: 228 previous + 9 new — 237 passed / 2 skipped.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add app/Http/Requests/Student/UpdateAdrActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/AdrActivitySyncTest.php
-git commit -m "feat: add the Suspected ADR singleton section backend"
+git add database/migrations/2026_09_30_000002_add_singleton_unique_index_to_case_clinical_activities.php app/Http/Requests/Student/UpdateAdrActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php app/Services/SectionSyncService.php routes/web.php resources/js/actions resources/js/routes tests/Feature/AdrActivitySyncTest.php
+git commit -m "feat: add the concurrency-safe Suspected ADR singleton backend with details-merge semantics"
 ```
 
 ---
 
-## Task 4: Patient counselling (singleton) backend
+## Task 4: Patient counselling (singleton) backend — full field set
+
+**Revision:** Reuses Task 3's concurrency guard (`findOrCreateSingleton()`) and `details`-merge helper. The original draft's UI only ever showed `topics`; the request already validated the full catalogue field set (`medicine_purpose`, `administration`, `adherence`, `precautions`, `adverse_effects`, `storage`, `lifestyle_follow_up`, `understanding_checked`) but nothing rendered them — Task 7 of this plan fixes the UI side; this task's job is making sure the backend clears them correctly when status leaves `performed`/`planned`.
 
 **Files:**
 - Create: `app/Http/Requests/Student/UpdateCounsellingActivityRequest.php`
 - Modify: `app/Http/Controllers/Student/CaseClinicalActivityController.php` (add `syncCounselling`)
+- Modify: `app/Services/SectionSyncService.php` (extend `SECTION_MODELS`)
 - Modify: `routes/web.php`
 - Test: `tests/Feature/CounsellingActivitySyncTest.php`
 
@@ -767,18 +1026,69 @@ class CounsellingActivitySyncTest extends TestCase
         $response->assertJsonValidationErrors('details.topics');
     }
 
-    public function test_performed_with_topics_persists(): void
+    public function test_performed_with_the_full_field_set_persists_them(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
         $response = $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'performed',
-            'details' => ['topics' => 'Medicine purpose and dosing schedule.', 'understanding_checked' => true],
+            'details' => [
+                'topics' => 'Medicine purpose and dosing schedule.',
+                'medicine_purpose' => 'Blood pressure control.',
+                'administration' => 'One tablet every morning with water.',
+                'adherence' => 'Use a daily reminder.',
+                'precautions' => 'Avoid grapefruit juice.',
+                'adverse_effects' => 'Dizziness on standing.',
+                'storage' => 'Store below 25C, away from moisture.',
+                'lifestyle_follow_up' => 'Reduce dietary salt.',
+                'understanding_checked' => true,
+            ],
         ]);
 
         $response->assertOk();
-        $this->assertSame('Medicine purpose and dosing schedule.', $case->fresh()->clinicalActivities->first()->details['topics']);
+        $fresh = $case->fresh()->clinicalActivities->first();
+        $this->assertSame('Medicine purpose and dosing schedule.', $fresh->details['topics']);
+        $this->assertSame('Blood pressure control.', $fresh->details['medicine_purpose']);
+        $this->assertTrue($fresh->details['understanding_checked']);
+    }
+
+    public function test_a_single_detail_field_edit_preserves_previously_saved_sibling_keys(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'performed',
+            'details' => ['topics' => 'Dosing schedule.', 'storage' => 'Store below 25C.'],
+        ])->assertOk();
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
+            'details' => ['understanding_checked' => true],
+        ])->assertOk();
+
+        $fresh = $case->fresh()->clinicalActivities->first();
+        $this->assertSame('Dosing schedule.', $fresh->details['topics']);
+        $this->assertSame('Store below 25C.', $fresh->details['storage']);
+        $this->assertTrue($fresh->details['understanding_checked']);
+    }
+
+    public function test_changing_status_away_from_performed_clears_the_hidden_detail_fields(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'status' => 'performed',
+            'details' => ['topics' => 'Dosing schedule.'],
+        ])->assertOk();
+
+        $this->putJson("/student/cases/{$case->id}/clinical-activities/counselling", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1, 'status' => 'not_indicated',
+        ])->assertOk();
+
+        $this->assertNull($case->fresh()->clinicalActivities->first()->details);
     }
 
     public function test_a_different_student_cannot_sync_the_counselling_activity(): void
@@ -820,12 +1130,13 @@ Expected: FAIL — route not found.
 namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCounsellingActivityRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
 
     public function authorize(): bool
     {
@@ -855,17 +1166,15 @@ class UpdateCounsellingActivityRequest extends FormRequest
 
 - [ ] **Step 4: Add `syncCounselling` to `CaseClinicalActivityController`**
 
-Add the import `use App\Http\Requests\Student\UpdateCounsellingActivityRequest;` and this method (after `syncAdr`):
+Add the import `use App\Http\Requests\Student\UpdateCounsellingActivityRequest;` and this method (after `syncAdr`), reusing `findOrCreateSingleton()` and `mergeOrClearDetails()` from Task 3:
 
 ```php
     public function syncCounselling(UpdateCounsellingActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
     {
-        $activity = CaseClinicalActivity::query()->firstOrCreate(
-            ['clinical_case_id' => $case->id, 'activity_type' => ClinicalActivityType::Counselling->value],
-            ['institution_id' => $case->institution_id, 'recorded_by' => $request->user()->id],
-        );
+        $activity = $this->findOrCreateSingleton($case, ClinicalActivityType::Counselling, $request->user()->id);
 
         $envelope = $request->syncEnvelope();
+        $data = $this->mergeOrClearDetails($activity, $request->sectionData(), leavesConditionalState: fn (array $data): bool => array_key_exists('status', $data) && ! in_array($data['status'], ['performed', 'planned'], true));
 
         $result = $sync->sync(
             $activity,
@@ -873,7 +1182,7 @@ Add the import `use App\Http\Requests\Student\UpdateCounsellingActivityRequest;`
             'clinical_activity_counselling',
             $envelope['client_operation_id'],
             $envelope['base_lock_version'],
-            $request->sectionData(),
+            $data,
             $envelope['resolution'],
             $envelope['confirmed'],
         );
@@ -882,7 +1191,11 @@ Add the import `use App\Http\Requests\Student\UpdateCounsellingActivityRequest;`
     }
 ```
 
-- [ ] **Step 5: Add the route**
+- [ ] **Step 5: Extend `SectionSyncService::SECTION_MODELS`**
+
+Add `'clinical_activity_counselling' => CaseClinicalActivity::class,` to the constant.
+
+- [ ] **Step 6: Add the route**
 
 Immediately after the ADR route, still before Task 5's `{activity}` route:
 
@@ -890,35 +1203,38 @@ Immediately after the ADR route, still before Task 5's `{activity}` route:
         Route::put('student/cases/{case}/clinical-activities/counselling', [CaseClinicalActivityController::class, 'syncCounselling'])->name('student.cases.clinical-activities.counselling.sync');
 ```
 
-- [ ] **Step 6: Regenerate Wayfinder files**
+- [ ] **Step 7: Regenerate Wayfinder files**
 
 Run (PowerShell): `npm run build`
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [ ] **Step 8: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=CounsellingActivitySyncTest`
-Expected: PASS (5 tests).
+Expected: PASS (7 tests).
 
-- [ ] **Step 8: Run the full suite**
+- [ ] **Step 9: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 200 previous + 5 new — 205 passed / 2 skipped.
+Expected: 237 previous + 7 new — 244 passed / 2 skipped.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add app/Http/Requests/Student/UpdateCounsellingActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/CounsellingActivitySyncTest.php
-git commit -m "feat: add the Patient counselling singleton section backend"
+git add app/Http/Requests/Student/UpdateCounsellingActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php app/Services/SectionSyncService.php routes/web.php resources/js/actions resources/js/routes tests/Feature/CounsellingActivitySyncTest.php
+git commit -m "feat: add the Patient counselling singleton section backend with the full field set and details-merge semantics"
 ```
 
 ---
 
-## Task 5: Pharmacist intervention and Monitoring follow-up (repeatable rows) backend
+## Task 5: Pharmacist intervention and Monitoring follow-up (repeatable rows) backend — offline-capable creation, full field set
+
+**Revision:** Reuses Slice 2B's `SectionSyncService::create()` (with the class-check hardening) so intervention/monitoring rows get the same offline-capable creation as vitals/investigations/medications. `details` merges instead of replacing here too.
 
 **Files:**
 - Modify: `app/Http/Requests/Student/StoreCaseClinicalActivityRequest.php` (restrict `activity_type`, add `client_operation_id`)
 - Create: `app/Http/Requests/Student/UpdateCaseClinicalActivityRequest.php`
 - Modify: `app/Http/Controllers/Student/CaseClinicalActivityController.php` (add `store`, `sync`, `destroy`)
+- Modify: `app/Services/SectionSyncService.php` (extend `SECTION_MODELS`)
 - Modify: `routes/web.php`
 - Test: `tests/Feature/RepeatableClinicalActivitySyncTest.php`
 
@@ -946,7 +1262,7 @@ class RepeatableClinicalActivitySyncTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owning_student_can_create_an_intervention_row(): void
+    public function test_an_empty_add_row_tap_succeeds(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
@@ -990,7 +1306,7 @@ class RepeatableClinicalActivitySyncTest extends TestCase
         $response->assertNotFound();
     }
 
-    public function test_a_single_field_edit_on_an_intervention_row_does_not_erase_others(): void
+    public function test_a_single_detail_field_edit_on_an_intervention_row_preserves_sibling_keys(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
@@ -1008,7 +1324,22 @@ class RepeatableClinicalActivitySyncTest extends TestCase
 
         $response->assertOk();
         $fresh = $activity->fresh();
+        $this->assertSame('Dose too low', $fresh->details['problem']);
+        $this->assertSame('Increase to 1g TID', $fresh->details['recommendation']);
         $this->assertSame('accepted', $fresh->details['outcome']);
+    }
+
+    public function test_replaying_the_same_create_operation_id_does_not_create_a_second_row(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $operationId = (string) Str::uuid();
+        $payload = ['client_operation_id' => $operationId, 'activity_type' => ClinicalActivityType::Monitoring->value];
+
+        $this->postJson("/student/cases/{$case->id}/clinical-activities", $payload)->assertCreated();
+        $this->postJson("/student/cases/{$case->id}/clinical-activities", $payload)->assertCreated();
+
+        $this->assertCount(1, $case->fresh()->clinicalActivities);
     }
 
     public function test_owning_student_can_delete_a_monitoring_row(): void
@@ -1078,11 +1409,14 @@ Replace the full contents of `app/Http/Requests/Student/StoreCaseClinicalActivit
 namespace App\Http\Requests\Student;
 
 use App\Enums\ClinicalActivityType;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreCaseClinicalActivityRequest extends FormRequest
 {
+    use RejectsUnknownFields;
+
     public function authorize(): bool
     {
         return $this->user()?->can('update', $this->route('case')) ?? false;
@@ -1110,12 +1444,13 @@ namespace App\Http\Requests\Student;
 
 use App\Enums\ClinicalActivityType;
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCaseClinicalActivityRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
 
     public function authorize(): bool
     {
@@ -1155,7 +1490,7 @@ class UpdateCaseClinicalActivityRequest extends FormRequest
 }
 ```
 
-- [ ] **Step 5: Add `store`, `sync`, `destroy` to `CaseClinicalActivityController`**
+- [ ] **Step 5: Add `store`, `sync`, `destroy` to `CaseClinicalActivityController`, using `create()`'s class-check and merging `details`**
 
 Add imports:
 
@@ -1185,6 +1520,7 @@ Add the methods (after `syncCounselling`):
             $request->user(),
             'clinical_activities',
             $clientOperationId,
+            CaseClinicalActivity::class,
         );
 
         return response()->json(['activity' => $this->payload($result['model'])], $result['httpStatus']);
@@ -1196,6 +1532,10 @@ Add the methods (after `syncCounselling`):
         abort_unless(in_array($activity->activity_type, [ClinicalActivityType::Intervention, ClinicalActivityType::Monitoring], true), 404);
 
         $envelope = $request->syncEnvelope();
+        $data = $request->sectionData();
+        if (array_key_exists('details', $data)) {
+            $data['details'] = [...($activity->details ?? []), ...$data['details']];
+        }
 
         $result = $sync->sync(
             $activity,
@@ -1203,7 +1543,7 @@ Add the methods (after `syncCounselling`):
             'clinical_activities',
             $envelope['client_operation_id'],
             $envelope['base_lock_version'],
-            $request->sectionData(),
+            $data,
             $envelope['resolution'],
             $envelope['confirmed'],
         );
@@ -1223,7 +1563,11 @@ Add the methods (after `syncCounselling`):
     }
 ```
 
-- [ ] **Step 6: Add routes**
+- [ ] **Step 6: Extend `SectionSyncService::SECTION_MODELS`**
+
+Add `'clinical_activities' => CaseClinicalActivity::class,` (already imported by Task 3).
+
+- [ ] **Step 7: Add routes**
 
 In `routes/web.php`, add **after** the ADR and Counselling routes (ordering matters — see Global Constraints):
 
@@ -1233,36 +1577,38 @@ In `routes/web.php`, add **after** the ADR and Counselling routes (ordering matt
         Route::delete('student/cases/{case}/clinical-activities/{activity}', [CaseClinicalActivityController::class, 'destroy'])->name('student.cases.clinical-activities.destroy');
 ```
 
-- [ ] **Step 7: Regenerate Wayfinder files**
+- [ ] **Step 8: Regenerate Wayfinder files**
 
 Run (PowerShell): `npm run build`
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=RepeatableClinicalActivitySyncTest`
-Expected: PASS (6 tests).
+Expected: PASS (7 tests).
 
-- [ ] **Step 9: Run the full suite**
+- [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 205 previous + 6 new — 211 passed / 2 skipped.
+Expected: 244 previous + 7 new — 251 passed / 2 skipped.
 
-- [ ] **Step 10: Static analysis and formatting**
+- [ ] **Step 11: Static analysis and formatting**
 
 Run (PowerShell): `vendor\bin\phpstan analyse`
 Run (PowerShell): `vendor\bin\pint --test`
 Expected: 0 errors; no diffs.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add app/Http/Requests/Student/StoreCaseClinicalActivityRequest.php app/Http/Requests/Student/UpdateCaseClinicalActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/RepeatableClinicalActivitySyncTest.php
-git commit -m "feat: add Pharmacist intervention and Monitoring follow-up repeatable-row backend"
+git add app/Http/Requests/Student/StoreCaseClinicalActivityRequest.php app/Http/Requests/Student/UpdateCaseClinicalActivityRequest.php app/Http/Controllers/Student/CaseClinicalActivityController.php app/Services/SectionSyncService.php routes/web.php resources/js/actions resources/js/routes tests/Feature/RepeatableClinicalActivitySyncTest.php
+git commit -m "feat: add Pharmacist intervention and Monitoring follow-up repeatable-row backend with offline-capable creation and details-merge semantics"
 ```
 
 ---
 
-## Task 6: Retire the standalone SOAP page; wire the SOAP section into the editor
+## Task 6: Atomically retire the standalone SOAP page and wire the SOAP section into the editor
+
+**Revision:** This is the one commit in this plan that touches the old SOAP page/routes — it removes them and switches the in-editor section on together, so there is never a state where the app has no working SOAP save path. The sync endpoint's URI/name is renamed from `soap-sync`/`student.cases.soap.sync` back to the canonical `soap`/`student.cases.soap.update` in this same commit, now that the old `PUT .../soap` action is gone and the name is free.
 
 **Files:**
 - Delete: `resources/js/pages/student/SoapEditor.vue`
@@ -1270,7 +1616,10 @@ git commit -m "feat: add Pharmacist intervention and Monitoring follow-up repeat
 - Modify: `resources/js/pages/student/CaseEditor.vue`
 - Modify: `resources/js/pages/student/CaseShow.vue` (remove the "Edit SOAP" button; repoint "Start editing" to `/edit`)
 - Modify: `app/Http/Controllers/Student/CaseEditorController.php` (pass `soap` prop)
+- Modify: `app/Http/Controllers/Student/SoapController.php` (remove `show()`/`update()`, the old page's only callers)
+- Modify: `routes/web.php` (remove the old GET/PUT `.../soap` routes; rename `.../soap-sync` back to `.../soap`)
 - Test: `tests/Feature/CaseEditorPageTest.php` (extend)
+- Test: `tests/Feature/SoapNoteSyncTest.php` (remove the now-obsolete "old page still works" test; update the endpoint URL in every other test from `soap-sync` to `soap`)
 
 - [ ] **Step 1: Write the failing test (extend `CaseEditorPageTest`)**
 
@@ -1290,14 +1639,26 @@ Append to the class:
 
         $response->assertInertia(fn ($page) => $page->where('soap.subjective', 'Headache.'));
     }
+
+    public function test_the_old_soap_page_route_no_longer_exists(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->get("/student/cases/{$case->id}/soap")->assertNotFound();
+    }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the tests to verify they fail**
 
 Run (PowerShell): `php artisan test --filter=CaseEditorPageTest`
-Expected: FAIL — `soap` prop missing.
+Expected: FAIL — `soap` prop missing; old route still resolves (404 test fails because the route still exists).
 
-- [ ] **Step 3: Extend `CaseEditorController`**
+- [ ] **Step 3: Update `SoapNoteSyncTest`**
+
+Remove the `test_the_old_soap_page_and_its_update_route_still_work_unmodified` method (the old page is gone as of this task) and replace every `/soap-sync` URL in the remaining tests with `/soap`.
+
+- [ ] **Step 4: Extend `CaseEditorController`**
 
 Add the import `use App\Models\SoapNote;`. Add a `soap` prop to the `Inertia::render(...)` array:
 
@@ -1307,6 +1668,8 @@ Add the import `use App\Models\SoapNote;`. Add a `soap` prop to the `Inertia::re
                 'objective' => $case->currentSoap->objective,
                 'assessment' => $case->currentSoap->assessment,
                 'plan' => $case->currentSoap->plan,
+                'monitoring_plan' => $case->currentSoap->monitoring_plan,
+                'monitoring_plan_not_applicable_reason' => $case->currentSoap->monitoring_plan_not_applicable_reason,
                 'drug_related_problem_status' => $case->currentSoap->drug_related_problem_status,
                 'drug_related_problem_categories' => $case->currentSoap->drug_related_problem_categories,
                 'lock_version' => $case->currentSoap->lock_version,
@@ -1314,14 +1677,38 @@ Add the import `use App\Models\SoapNote;`. Add a `soap` prop to the `Inertia::re
             ],
 ```
 
-Add `'currentSoap'` to any eager-loading if the controller doesn't already load it lazily — it doesn't need explicit eager-loading here since `$case->currentSoap` is accessed once.
+- [ ] **Step 5: Remove `show()`/`update()` from `SoapController` and rename `sync()`'s route**
 
-- [ ] **Step 4: Run the test to verify it passes**
+In `app/Http/Controllers/Student/SoapController.php`, delete the `show()` and `update()` methods entirely — `sync()` (added in Task 1) is now the controller's only action. Remove the now-unused `use Illuminate\Http\RedirectResponse;`, `use Illuminate\Support\Facades\DB;`, `use Inertia\Inertia;`, `use Inertia\Response;` imports if nothing else in the class still needs them.
+
+In `routes/web.php`, remove these two lines entirely:
+
+```php
+        Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap'),
+        Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update'),
+```
+
+Rename the route Task 1 added from this:
+
+```php
+        Route::put('student/cases/{case}/soap-sync', [SoapController::class, 'sync'])->name('student.cases.soap.sync');
+```
+
+to this:
+
+```php
+        Route::put('student/cases/{case}/soap', [SoapController::class, 'sync'])->name('student.cases.soap.update');
+```
+
+- [ ] **Step 6: Run the test to verify it passes**
 
 Run (PowerShell): `php artisan test --filter=CaseEditorPageTest`
-Expected: PASS (5 tests).
+Expected: PASS (6 tests).
 
-- [ ] **Step 5: Write `SoapSection.vue`**
+Run (PowerShell): `php artisan test --filter=SoapNoteSyncTest`
+Expected: PASS (8 tests — one fewer than Task 1 since the "old page still works" test was removed, and every remaining test now hits `/soap`).
+
+- [ ] **Step 7: Write `SoapSection.vue`**
 
 ```vue
 <script setup lang="ts">
@@ -1341,6 +1728,8 @@ type SoapPayload = SyncedSection & {
     objective: string | null;
     assessment: string | null;
     plan: string | null;
+    monitoring_plan: string | null;
+    monitoring_plan_not_applicable_reason: string | null;
     drug_related_problem_status: string | null;
     drug_related_problem_categories: string[] | null;
 };
@@ -1359,6 +1748,14 @@ const { payload, state, edit, conflict, resolveWithServer, keepDeviceCopy, repla
 const statusLabel = computed(() => ({
     saving: 'Saving…', server: 'Saved', device: 'Saved on this device', unsynced: 'Unsynced changes', failed: 'Sync failed', conflict: 'Conflict — review changes',
 })[state.value]);
+
+const monitoringNotApplicable = computed({
+    get: () => payload.value.monitoring_plan_not_applicable_reason !== null,
+    set: (checked: boolean) => {
+        if (!checked) payload.value.monitoring_plan_not_applicable_reason = null;
+        edit();
+    },
+});
 
 function toggleCategory(category: string) {
     const current = payload.value.drug_related_problem_categories ?? [];
@@ -1388,11 +1785,13 @@ function toggleCategory(category: string) {
         <label class="block text-sm">
             <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Objective</span>
             <textarea v-model="payload.objective" rows="4" maxlength="5000" data-test="soap-objective" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+            <DeidentificationNotice :text="payload.objective" />
         </label>
 
         <label class="block text-sm">
             <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Assessment</span>
             <textarea v-model="payload.assessment" rows="4" maxlength="5000" data-test="soap-assessment" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+            <DeidentificationNotice :text="payload.assessment" />
         </label>
 
         <fieldset>
@@ -1422,6 +1821,20 @@ function toggleCategory(category: string) {
         <label class="block text-sm">
             <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Plan</span>
             <textarea v-model="payload.plan" rows="4" maxlength="5000" data-test="soap-plan" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+            <DeidentificationNotice :text="payload.plan" />
+        </label>
+
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Monitoring plan</span>
+            <textarea v-model="payload.monitoring_plan" rows="3" maxlength="2000" :disabled="monitoringNotApplicable" data-test="soap-monitoring-plan" class="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+            <input v-model="monitoringNotApplicable" type="checkbox" data-test="soap-monitoring-not-applicable" />
+            Not applicable
+        </label>
+        <label v-if="monitoringNotApplicable" class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Reason monitoring is not applicable</span>
+            <input v-model="payload.monitoring_plan_not_applicable_reason" type="text" maxlength="1000" data-test="soap-monitoring-not-applicable-reason" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
         </label>
 
         <section v-if="conflict" data-test="soap-conflict" class="rounded-2xl border border-rose-200 bg-white p-4 dark:border-rose-900 dark:bg-slate-900">
@@ -1439,13 +1852,13 @@ function toggleCategory(category: string) {
 </template>
 ```
 
-- [ ] **Step 6: Wire into `CaseEditor.vue`**
+- [ ] **Step 8: Wire into `CaseEditor.vue`**
 
 Add the import: `import SoapSection from './case-editor/SoapSection.vue';`
 
 Extend the props type with `soap: (Record<string, unknown> & { lock_version: number; updated_at: string }) | null;`
 
-Change the `soap` entry in `sections` to `available: true` and update `goTo()` — remove the special-case redirect (it's no longer needed once `soap` is a real in-editor section):
+Change the `soap` entry in `sections` to `available: true` and update `goTo()` — remove the special-case redirect (it's no longer needed once `soap` is a real in-editor section, and the page it redirected to no longer exists):
 
 ```typescript
 function goTo(index: number) {
@@ -1460,6 +1873,7 @@ Add a default payload for when no SOAP note exists yet:
 ```typescript
 const emptySoap = {
     subjective: null, objective: null, assessment: null, plan: null,
+    monitoring_plan: null, monitoring_plan_not_applicable_reason: null,
     drug_related_problem_status: null, drug_related_problem_categories: null,
     lock_version: 0, updated_at: new Date().toISOString(),
 };
@@ -1471,35 +1885,37 @@ Add the branch after `MedicationChartSection`:
             <SoapSection v-else-if="activeSection.id === 'soap'" :case-id="clinicalCase.id" :user-id="userId" :initial="(soap ?? emptySoap) as any" />
 ```
 
-- [ ] **Step 7: Update `CaseShow.vue`**
+- [ ] **Step 9: Update `CaseShow.vue`**
 
-Remove the "Edit SOAP" `<Button>` entirely (both instances — the header action button and the "Start editing" link under "No SOAP note yet."), since "Continue documentation" (added in Slice 2A Task 6) now covers the same destination through the unified editor. Replace the "Start editing" `<Button variant="link">` with the same `router.get(`/student/cases/${clinicalCase.id}/edit`)` call `Continue documentation` already uses.
+Remove the "Edit SOAP" `<Button>` entirely (both instances — the header action button and the "Start editing" link under "No SOAP note yet."), since "Continue documentation" (added in Slice 2A Task 6) now covers the same destination through the unified editor, and the old destination no longer exists. Replace the "Start editing" `<Button variant="link">` with the same `router.get(`/student/cases/${clinicalCase.id}/edit`)` call `Continue documentation` already uses.
 
-- [ ] **Step 8: Delete the standalone SOAP page**
+- [ ] **Step 10: Delete the standalone SOAP page**
 
 Delete `resources/js/pages/student/SoapEditor.vue`.
 
-- [ ] **Step 9: Type-check**
+- [ ] **Step 11: Type-check**
 
 Run (PowerShell): `npm run types:check`
-Expected: no errors. (Deleting `SoapEditor.vue` must not leave a dangling import anywhere — `grep`/search the codebase for `SoapEditor` before this step to confirm nothing else references it besides the route, already removed in Task 1.)
+Expected: no errors. Search the codebase for `SoapEditor` before this step to confirm nothing besides the now-removed route references it.
 
-- [ ] **Step 10: Run the full backend suite**
+- [ ] **Step 12: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 211 previous + 1 (extended test) — 211 passed / 2 skipped (no new test count change since Step 1 extended an existing file).
+Expected: 251 previous, minus the one removed test, plus the two extended/new `CaseEditorPageTest` methods — net 252 passed / 2 skipped.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
-git add resources/js/pages/student/case-editor/SoapSection.vue resources/js/pages/student/CaseEditor.vue resources/js/pages/student/CaseShow.vue app/Http/Controllers/Student/CaseEditorController.php tests/Feature/CaseEditorPageTest.php
+git add resources/js/pages/student/case-editor/SoapSection.vue resources/js/pages/student/CaseEditor.vue resources/js/pages/student/CaseShow.vue app/Http/Controllers/Student/CaseEditorController.php app/Http/Controllers/Student/SoapController.php routes/web.php resources/js/actions resources/js/routes tests/Feature/CaseEditorPageTest.php tests/Feature/SoapNoteSyncTest.php
 git rm resources/js/pages/student/SoapEditor.vue
-git commit -m "feat: wire SOAP into the unified case editor and retire the standalone SOAP page"
+git commit -m "feat: wire SOAP into the unified case editor and atomically retire the standalone SOAP page"
 ```
 
 ---
 
-## Task 7: Frontend — Conditional Clinical Activities section
+## Task 7: Frontend — Conditional Clinical Activities section with the full accepted field set
+
+**Revision:** The original draft's `ConditionalClinicalActivitiesSection.vue`/`ActivityRow.vue` rendered only a handful of each activity's fields even though the backend (Tasks 3–5) validates the full catalogue set. This task renders every field, uses `useRepeatableRowCreate` (2B) for offline-capable intervention/monitoring row creation, and gives every row the same three-way conflict panel as every other syncable row in this series.
 
 **Files:**
 - Create: `resources/js/pages/student/case-editor/ActivityRow.vue`
@@ -1539,7 +1955,7 @@ Expected: FAIL — props missing.
 
 - [ ] **Step 3: Extend `CaseEditorController`**
 
-Add the import `use App\Enums\ClinicalActivityType;` and `use App\Models\CaseClinicalActivity;` (if not already present from Task 5's usage). Add these props to `Inertia::render(...)`:
+Add the imports `use App\Enums\ClinicalActivityType;` and `use App\Models\CaseClinicalActivity;` (if not already present). Add `$case->load('clinicalActivities');` near the top of `show()` so the payload helpers below don't issue four separate queries. Add these props to `Inertia::render(...)`:
 
 ```php
             'adr' => $this->singletonActivityPayload($case, ClinicalActivityType::Adr),
@@ -1548,7 +1964,7 @@ Add the import `use App\Enums\ClinicalActivityType;` and `use App\Models\CaseCli
             'monitoringFollowUps' => $this->repeatableActivityPayload($case, ClinicalActivityType::Monitoring),
 ```
 
-Add these two private methods to the controller:
+Add these three private methods to the controller:
 
 ```php
     /** @return array<string, mixed>|null */
@@ -1583,20 +1999,20 @@ Add these two private methods to the controller:
     }
 ```
 
-Add `$case->load('clinicalActivities');` near the top of `show()` (alongside where `clinicalProfile`/other relations are accessed) so the four payload helpers above don't issue four separate queries.
-
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run (PowerShell): `php artisan test --filter=CaseEditorPageTest`
-Expected: PASS (6 tests).
+Expected: PASS (7 tests).
 
-- [ ] **Step 5: Write `ActivityRow.vue`**
+- [ ] **Step 5: Write `ActivityRow.vue` — full intervention/monitoring field sets, offline-aware, conflict panel**
 
 ```vue
 <script setup lang="ts">
 import { Trash2, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
 import { computed } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
+import { LOCAL_ROW_PREFIX } from '@/composables/useRepeatableRowCreate';
+import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
 
 type ActivityPayload = SyncedSection & {
     id: string;
@@ -1608,18 +2024,22 @@ type ActivityPayload = SyncedSection & {
 const props = defineProps<{ caseId: string; userId: number; initial: ActivityPayload }>();
 const emit = defineEmits<{ removed: [id: string] }>();
 
-const { payload, state, edit, online } = useSectionSync<ActivityPayload>({
-    userId: props.userId,
-    resourceId: props.initial.id,
-    sectionKey: 'clinical_activities',
-    endpoint: `/student/cases/${props.caseId}/clinical-activities/${props.initial.id}`,
-    initialPayload: props.initial,
-});
+const { payload, state, edit, online, conflict, resolveWithServer, keepDeviceCopy, replaceServer, retry, confirmingReplace } =
+    useSectionSync<ActivityPayload>({
+        userId: props.userId,
+        resourceId: props.initial.id,
+        sectionKey: 'clinical_activities',
+        endpoint: `/student/cases/${props.caseId}/clinical-activities/${props.initial.id}`,
+        initialPayload: props.initial,
+    });
 
 const statusIcon = computed(() => ({
     saving: RefreshCw, server: Check, device: CloudOff, unsynced: FileClock, failed: AlertTriangle, conflict: AlertTriangle,
 })[state.value]);
 
+function detail(key: string): string {
+    return (payload.value.details?.[key] as string) ?? '';
+}
 function updateDetail(key: string, value: unknown) {
     payload.value.details = { ...(payload.value.details ?? {}), [key]: value };
     edit();
@@ -1648,33 +2068,90 @@ async function remove() {
         </div>
 
         <template v-if="initial.activity_type === 'intervention'">
-            <textarea :value="(payload.details?.problem as string) ?? ''" rows="2" maxlength="1000" placeholder="Problem" class="mb-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('problem', ($event.target as HTMLTextAreaElement).value)" />
-            <textarea :value="(payload.details?.recommendation as string) ?? ''" rows="2" maxlength="1000" placeholder="Recommendation" class="mb-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('recommendation', ($event.target as HTMLTextAreaElement).value)" />
-            <select :value="(payload.details?.outcome as string) ?? ''" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @change="updateDetail('outcome', ($event.target as HTMLSelectElement).value)">
-                <option value="">Outcome…</option>
-                <option value="accepted">Accepted</option>
-                <option value="partially_accepted">Partially accepted</option>
-                <option value="not_accepted">Not accepted</option>
-                <option value="pending">Pending</option>
-                <option value="not_communicated">Not communicated</option>
-            </select>
+            <label class="mb-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Problem</span>
+                <textarea :value="detail('problem')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('problem', ($event.target as HTMLTextAreaElement).value)" />
+            </label>
+            <label class="mb-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Recommendation</span>
+                <textarea :value="detail('recommendation')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('recommendation', ($event.target as HTMLTextAreaElement).value)" />
+                <DeidentificationNotice :text="detail('recommendation')" />
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Recipient</span>
+                    <input :value="detail('recipient')" type="text" maxlength="120" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('recipient', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Communication method</span>
+                    <input :value="detail('communication_method')" type="text" maxlength="60" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('communication_method', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Case date</span>
+                    <input :value="detail('case_date')" type="date" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('case_date', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Outcome</span>
+                    <select :value="detail('outcome')" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @change="updateDetail('outcome', ($event.target as HTMLSelectElement).value)">
+                        <option value="">Outcome…</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="partially_accepted">Partially accepted</option>
+                        <option value="not_accepted">Not accepted</option>
+                        <option value="pending">Pending</option>
+                        <option value="not_communicated">Not communicated</option>
+                    </select>
+                </label>
+            </div>
+            <label class="mt-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Follow-up</span>
+                <textarea :value="detail('follow_up')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('follow_up', ($event.target as HTMLTextAreaElement).value)" />
+            </label>
         </template>
 
         <template v-else>
-            <input :value="(payload.details?.parameter as string) ?? ''" type="text" maxlength="255" placeholder="Parameter" class="mb-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('parameter', ($event.target as HTMLInputElement).value)" />
-            <textarea :value="(payload.details?.result as string) ?? ''" rows="2" maxlength="1000" placeholder="Result" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('result', ($event.target as HTMLTextAreaElement).value)" />
+            <label class="mb-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Parameter</span>
+                <input :value="detail('parameter')" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('parameter', ($event.target as HTMLInputElement).value)" />
+            </label>
+            <label class="mb-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Case date</span>
+                <input :value="detail('observed_on')" type="date" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('observed_on', ($event.target as HTMLInputElement).value)" />
+            </label>
+            <label class="mb-2 block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Result</span>
+                <textarea :value="detail('result')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('result', ($event.target as HTMLTextAreaElement).value)" />
+            </label>
+            <label class="block text-sm">
+                <span class="mb-1 block text-xs text-slate-500">Notes</span>
+                <textarea :value="detail('notes')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateDetail('notes', ($event.target as HTMLTextAreaElement).value)" />
+                <DeidentificationNotice :text="detail('notes')" />
+            </label>
         </template>
+
+        <section v-if="conflict" data-test="activity-conflict" class="mt-3 rounded-xl border border-rose-200 bg-white p-3 dark:border-rose-900 dark:bg-slate-900">
+            <p class="text-xs font-bold text-rose-700">The server changed after this device began editing.</p>
+            <div class="mt-2 grid gap-1.5">
+                <button type="button" class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold" @click="resolveWithServer">Use server version</button>
+                <button type="button" class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold" @click="keepDeviceCopy">Keep local draft as a copy</button>
+                <button v-if="!confirmingReplace" type="button" class="rounded-lg border border-rose-200 px-2 py-1.5 text-left text-xs font-bold text-rose-700" @click="confirmingReplace = true">Replace server version</button>
+                <button v-else type="button" class="rounded-lg bg-rose-700 px-2 py-1.5 text-xs font-bold text-white" @click="replaceServer">Yes, replace it</button>
+            </div>
+        </section>
+        <button v-if="state === 'failed'" type="button" class="mt-2 rounded-lg bg-[#0b2942] px-3 py-1.5 text-xs font-bold text-white" @click="retry">Retry</button>
     </div>
 </template>
 ```
 
-- [ ] **Step 6: Write `ConditionalClinicalActivitiesSection.vue`**
+`LOCAL_ROW_PREFIX` is imported for symmetry with the parent section's pending-row check (Step 6) even though this file only reads `initial.id`, not the constant directly — this keeps both files agreeing on the exact same prefix string rather than each hand-rolling `'local:'`.
+
+- [ ] **Step 6: Write `ConditionalClinicalActivitiesSection.vue` — full ADR/Counselling field sets, offline-capable Intervention/Monitoring creation**
 
 ```vue
 <script setup lang="ts">
 import { Plus, RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
+import { LOCAL_ROW_PREFIX, useRepeatableRowCreate } from '@/composables/useRepeatableRowCreate';
 import DeidentificationNotice from '@/components/DeidentificationNotice.vue';
 import ActivityRow from './ActivityRow.vue';
 
@@ -1708,30 +2185,47 @@ const counsellingSync = useSectionSync<CounsellingPayload>({
     initialPayload: props.initialCounselling ?? emptyCounselling,
 });
 
-function csrfToken(): string {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-}
+const interventionCreate = useRepeatableRowCreate<RowPayload>({
+    userId: props.userId, sectionKey: 'clinical_activities_intervention',
+    endpoint: `/student/cases/${props.caseId}/clinical-activities`, responseKey: 'activity',
+    emptyPayload: () => ({ activity_type: 'intervention', status: null, details: null }),
+});
+const monitoringCreate = useRepeatableRowCreate<RowPayload>({
+    userId: props.userId, sectionKey: 'clinical_activities_monitoring',
+    endpoint: `/student/cases/${props.caseId}/clinical-activities`, responseKey: 'activity',
+    emptyPayload: () => ({ activity_type: 'monitoring', status: null, details: null }),
+});
 
-async function addRow(activityType: 'intervention' | 'monitoring') {
-    const response = await fetch(`/student/cases/${props.caseId}/clinical-activities`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
-        body: JSON.stringify({ client_operation_id: crypto.randomUUID(), activity_type: activityType }),
-    });
-    if (response.ok) {
-        const body = (await response.json()) as { activity: RowPayload };
-        if (activityType === 'intervention') interventions.value = [body.activity, ...interventions.value];
-        else monitoringFollowUps.value = [body.activity, ...monitoringFollowUps.value];
-    }
+async function addIntervention() {
+    interventions.value = [await interventionCreate.queueCreate(), ...interventions.value];
 }
-
+async function addMonitoring() {
+    monitoringFollowUps.value = [await monitoringCreate.queueCreate(), ...monitoringFollowUps.value];
+}
 function removeIntervention(id: string) {
+    if (id.startsWith(LOCAL_ROW_PREFIX)) void interventionCreate.cancelQueuedCreate(id);
     interventions.value = interventions.value.filter((r) => r.id !== id);
 }
 function removeMonitoring(id: string) {
+    if (id.startsWith(LOCAL_ROW_PREFIX)) void monitoringCreate.cancelQueuedCreate(id);
     monitoringFollowUps.value = monitoringFollowUps.value.filter((r) => r.id !== id);
 }
+
+function handleReconnect() {
+    void interventionCreate.replayPending((localId, row) => {
+        interventions.value = interventions.value.map((r) => (r.id === localId ? row : r));
+    });
+    void monitoringCreate.replayPending((localId, row) => {
+        monitoringFollowUps.value = monitoringFollowUps.value.map((r) => (r.id === localId ? row : r));
+    });
+}
+onMounted(() => {
+    handleReconnect();
+    window.addEventListener('online', handleReconnect);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener('online', handleReconnect);
+});
 
 function updateAdrDetail(key: string, value: unknown) {
     adrSync.payload.value.details = { ...(adrSync.payload.value.details ?? {}), [key]: value };
@@ -1740,6 +2234,12 @@ function updateAdrDetail(key: string, value: unknown) {
 function updateCounsellingDetail(key: string, value: unknown) {
     counsellingSync.payload.value.details = { ...(counsellingSync.payload.value.details ?? {}), [key]: value };
     counsellingSync.edit();
+}
+function adrDetail(key: string): string {
+    return (adrSync.payload.value.details?.[key] as string) ?? '';
+}
+function counsellingDetail(key: string): string {
+    return (counsellingSync.payload.value.details?.[key] as string) ?? '';
 }
 </script>
 
@@ -1750,14 +2250,18 @@ function updateCounsellingDetail(key: string, value: unknown) {
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Pharmacist intervention</h3>
             <div class="space-y-3">
-                <ActivityRow v-for="row in interventions" :key="row.id" :case-id="caseId" :user-id="userId" :initial="row" @removed="removeIntervention" />
-                <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addRow('intervention')"><Plus class="size-4" /> Add intervention</button>
+                <template v-for="row in interventions" :key="row.id">
+                    <div v-if="row.id.startsWith(LOCAL_ROW_PREFIX)" class="rounded-2xl border border-dashed border-slate-300 p-4 text-xs text-slate-500 dark:border-slate-600">Waiting to sync…</div>
+                    <ActivityRow v-else :case-id="caseId" :user-id="userId" :initial="row" @removed="removeIntervention" />
+                </template>
+                <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addIntervention"><Plus class="size-4" /> Add intervention</button>
             </div>
         </div>
 
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Suspected ADR</h3>
             <fieldset class="mb-3">
+                <legend class="sr-only">Suspected ADR</legend>
                 <div class="flex flex-wrap gap-3 text-sm">
                     <label v-for="option in ['yes', 'no', 'unable_to_assess']" :key="option" class="flex items-center gap-1.5">
                         <input v-model="adrSync.payload.value.status" type="radio" :value="option" :data-test="`adr-status-${option}`" @change="adrSync.edit" />
@@ -1766,15 +2270,70 @@ function updateCounsellingDetail(key: string, value: unknown) {
                 </div>
             </fieldset>
             <div v-if="adrSync.payload.value.status === 'yes'" class="space-y-2">
-                <input :value="(adrSync.payload.value.details?.event as string) ?? ''" type="text" maxlength="1000" placeholder="Event / reaction" data-test="adr-event" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('event', ($event.target as HTMLInputElement).value)" />
-                <DeidentificationNotice :text="(adrSync.payload.value.details?.event as string) ?? null" />
-                <input :value="(adrSync.payload.value.details?.suspected_medicine as string) ?? ''" type="text" maxlength="255" placeholder="Suspected medicine" data-test="adr-suspected-medicine" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('suspected_medicine', ($event.target as HTMLInputElement).value)" />
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Event / reaction</span>
+                    <input :value="adrDetail('event')" type="text" maxlength="1000" data-test="adr-event" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('event', ($event.target as HTMLInputElement).value)" />
+                    <DeidentificationNotice :text="adrDetail('event')" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Suspected medicine</span>
+                    <input :value="adrDetail('suspected_medicine')" type="text" maxlength="255" data-test="adr-suspected-medicine" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('suspected_medicine', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Onset</span>
+                        <input :value="adrDetail('onset_reference')" type="text" maxlength="30" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('onset_reference', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Stop</span>
+                        <input :value="adrDetail('stop_reference')" type="text" maxlength="30" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('stop_reference', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                </div>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Dose/route/frequency</span>
+                    <input :value="adrDetail('dose_route_frequency')" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('dose_route_frequency', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Concomitant medicines</span>
+                    <textarea :value="adrDetail('concomitant_medicines')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('concomitant_medicines', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Relevant tests</span>
+                    <textarea :value="adrDetail('relevant_tests')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('relevant_tests', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Action taken</span>
+                    <textarea :value="adrDetail('action_taken')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('action_taken', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Seriousness</span>
+                        <select :value="adrDetail('seriousness')" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @change="updateAdrDetail('seriousness', ($event.target as HTMLSelectElement).value)">
+                            <option value="">Select…</option>
+                            <option value="serious">Serious</option>
+                            <option value="non_serious">Non-serious</option>
+                        </select>
+                    </label>
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Outcome</span>
+                        <input :value="adrDetail('outcome')" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('outcome', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Dechallenge</span>
+                        <input :value="adrDetail('dechallenge')" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('dechallenge', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                    <label class="text-sm">
+                        <span class="mb-1 block text-xs text-slate-500">Rechallenge</span>
+                        <input :value="adrDetail('rechallenge')" type="text" maxlength="255" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateAdrDetail('rechallenge', ($event.target as HTMLInputElement).value)" />
+                    </label>
+                </div>
             </div>
         </div>
 
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Patient counselling</h3>
             <fieldset class="mb-3">
+                <legend class="sr-only">Patient counselling</legend>
                 <div class="flex flex-wrap gap-3 text-sm">
                     <label v-for="option in ['performed', 'planned', 'not_indicated', 'unable_to_perform']" :key="option" class="flex items-center gap-1.5">
                         <input v-model="counsellingSync.payload.value.status" type="radio" :value="option" :data-test="`counselling-status-${option}`" @change="counsellingSync.edit" />
@@ -1783,15 +2342,58 @@ function updateCounsellingDetail(key: string, value: unknown) {
                 </div>
             </fieldset>
             <div v-if="counsellingSync.payload.value.status === 'performed' || counsellingSync.payload.value.status === 'planned'" class="space-y-2">
-                <textarea :value="(counsellingSync.payload.value.details?.topics as string) ?? ''" rows="3" maxlength="2000" placeholder="Topics covered" data-test="counselling-topics" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('topics', ($event.target as HTMLTextAreaElement).value)" />
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Topics covered</span>
+                    <textarea :value="counsellingDetail('topics')" rows="3" maxlength="2000" data-test="counselling-topics" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('topics', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Medicine purpose</span>
+                    <textarea :value="counsellingDetail('medicine_purpose')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('medicine_purpose', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Administration</span>
+                    <textarea :value="counsellingDetail('administration')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('administration', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Adherence</span>
+                    <textarea :value="counsellingDetail('adherence')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('adherence', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Precautions</span>
+                    <textarea :value="counsellingDetail('precautions')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('precautions', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Important adverse effects</span>
+                    <textarea :value="counsellingDetail('adverse_effects')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('adverse_effects', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Storage</span>
+                    <input :value="counsellingDetail('storage')" type="text" maxlength="500" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('storage', ($event.target as HTMLInputElement).value)" />
+                </label>
+                <label class="block text-sm">
+                    <span class="mb-1 block text-xs text-slate-500">Lifestyle / follow-up</span>
+                    <textarea :value="counsellingDetail('lifestyle_follow_up')" rows="2" maxlength="1000" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" @input="updateCounsellingDetail('lifestyle_follow_up', ($event.target as HTMLTextAreaElement).value)" />
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input
+                        :checked="(counsellingSync.payload.value.details?.understanding_checked as boolean) ?? false"
+                        type="checkbox"
+                        data-test="counselling-understanding-checked"
+                        @change="updateCounsellingDetail('understanding_checked', ($event.target as HTMLInputElement).checked)"
+                    />
+                    Understanding checked
+                </label>
             </div>
         </div>
 
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Monitoring follow-up</h3>
             <div class="space-y-3">
-                <ActivityRow v-for="row in monitoringFollowUps" :key="row.id" :case-id="caseId" :user-id="userId" :initial="row" @removed="removeMonitoring" />
-                <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addRow('monitoring')"><Plus class="size-4" /> Add follow-up result</button>
+                <template v-for="row in monitoringFollowUps" :key="row.id">
+                    <div v-if="row.id.startsWith(LOCAL_ROW_PREFIX)" class="rounded-2xl border border-dashed border-slate-300 p-4 text-xs text-slate-500 dark:border-slate-600">Waiting to sync…</div>
+                    <ActivityRow v-else :case-id="caseId" :user-id="userId" :initial="row" @removed="removeMonitoring" />
+                </template>
+                <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addMonitoring"><Plus class="size-4" /> Add follow-up result</button>
             </div>
         </div>
     </section>
@@ -1835,13 +2437,13 @@ Expected: no errors.
 - [ ] **Step 9: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 211 previous + 1 (extended test) — 211 passed / 2 skipped.
+Expected: 252 previous + 1 (extended test) — 252 passed / 2 skipped.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add resources/js/pages/student/case-editor/ActivityRow.vue resources/js/pages/student/case-editor/ConditionalClinicalActivitiesSection.vue resources/js/pages/student/CaseEditor.vue app/Http/Controllers/Student/CaseEditorController.php tests/Feature/CaseEditorPageTest.php
-git commit -m "feat: complete the six-section mobile case editor with Conditional Clinical Activities"
+git commit -m "feat: complete the six-section mobile case editor with the full Conditional Clinical Activities field set and offline-capable row creation"
 ```
 
 ---
@@ -1852,7 +2454,7 @@ git commit -m "feat: complete the six-section mobile case editor with Conditiona
 - Create: `tests/Feature/ClinicalActivityAuthorizationTest.php`
 
 **Interfaces:**
-- Consumes: `SoapController` (Task 1), `CaseClinicalActivityController` (Tasks 3–5). Closes cross-institution/post-submission/faculty gaps for the final set of endpoints, mirroring Slice 2A Task 7 and Slice 2B Task 6.
+- Consumes: `SoapController` (Task 1/6), `CaseClinicalActivityController` (Tasks 3–5). Closes cross-institution/post-submission/faculty gaps for the final set of endpoints, mirroring Slice 2A Task 7 and Slice 2B Task 6.
 
 - [ ] **Step 1: Write the tests**
 
@@ -1948,7 +2550,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 3: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: 211 previous + 3 new — 214 passed / 2 skipped.
+Expected: 252 previous + 3 new — 255 passed / 2 skipped.
 
 - [ ] **Step 4: Static analysis and formatting**
 
@@ -1967,6 +2569,8 @@ git commit -m "test: cover cross-institution, post-submission and faculty-read-o
 
 ## Task 9: Full end-to-end device verification across all six sections
 
+**Revision:** Adds an offline row-creation pass for the two repeatable activity types and corrects the offline-refresh script the same way Slices 2A/2B were corrected.
+
 **Files:** None (verification only).
 
 **Interfaces:** None.
@@ -1982,19 +2586,24 @@ Run (PowerShell, background): `php artisan serve` and `npm run dev`.
 As a student with an active rotation assignment:
 1. Create a new case. Confirm it lands on the case show page, and "Continue documentation" opens the six-section editor.
 2. Walk through all six sections in order via Next: Case Profile → History & Diagnosis → Vitals & Investigations → Medication Chart → SOAP → Conditional Clinical Activities. Confirm the nav pill for each becomes active (`aria-current="step"`) as you arrive, and Previous/Next disable correctly at both ends.
-3. In SOAP, set "Drug-related problem status" to "Identified" and confirm the category chips appear; toggle a few and confirm they persist after a page refresh (re-open `/edit` and check the SOAP section reflects the saved categories).
-4. In Conditional Clinical Activities: answer Suspected ADR "Yes" and confirm the event/suspected-medicine fields appear and a 10-digit number typed into "Event / reaction" shows the de-identification warning; answer Patient counselling "Performed" and confirm the topics field appears; add one Pharmacist intervention row and one Monitoring follow-up row and confirm both appear in their own lists.
-5. Confirm the old `/student/cases/{id}/soap` URL no longer renders a usable page (route removed in Task 1/6) and that no visible link in the app points there anymore (check `CaseShow.vue`).
+3. In SOAP, set "Drug-related problem status" to "Identified" and confirm the category chips appear; toggle a few and confirm they persist after a page refresh. Check "Not applicable" under Monitoring plan, confirm the plan textarea disables and a reason field appears.
+4. In Conditional Clinical Activities: answer Suspected ADR "Yes" and confirm every field (event, onset/stop, suspected medicine, dose/route/frequency, concomitant medicines, relevant tests, action taken, seriousness, outcome, dechallenge, rechallenge) is visible and editable, and that a 10-digit number typed into "Event / reaction" shows the de-identification warning. Answer Patient counselling "Performed" and confirm every field (topics, medicine purpose, administration, adherence, precautions, adverse effects, storage, lifestyle/follow-up, understanding checked) is visible. Add one Pharmacist intervention row and confirm problem/recommendation/recipient/communication method/case date/outcome/follow-up are all present; add one Monitoring follow-up row and confirm parameter/case date/result/notes are present.
+5. Toggle the device offline and add one more intervention row; confirm the "Waiting to sync…" placeholder appears immediately and becomes a real row once reconnected, matching the Vitals/Investigations/Medications behavior verified in Slice 2B.
+6. Confirm the old `/student/cases/{id}/soap` URL now returns a 404 (route removed in Task 6) and that no visible link in the app points there anymore (check `CaseShow.vue`).
 
 - [ ] **Step 3: Offline recovery and conflict — SOAP and one singleton activity**
 
-Repeat the offline-edit / reconnect / two-tab-conflict script from Slice 2A Task 8 Step 3 and Slice 2B Task 7 Step 2, this time against a SOAP field and against the ADR singleton's `status` field. Confirm identical behavior (this proves the engine generalizes correctly to the last two consumers, singleton and SOAP alike).
+Using DevTools offline toggle, edit a SOAP field offline and confirm "Saved on this device", then reconnect and confirm it syncs (do not test a full page hard-refresh while offline — per the correction applied in Slices 2A/2B, that hits the browser's own network-error page, not the app). Simulate a two-tab conflict against the ADR singleton's `status` field and confirm the same three-way conflict panel appears as every other section. This proves the sync engine generalizes correctly to its last two consumers, singleton and revisioned-note alike.
 
 - [ ] **Step 4: Tablet (820×1180) and Desktop (1280×900, Chrome/Edge)**
 
 Repeat Step 2's walkthrough at both viewports. Pay particular attention to the Conditional Clinical Activities section's four subsections stacking sensibly rather than feeling cramped at phone width or oddly sparse at desktop width — if visual polish issues are found here, record them as a known-limitations note for the pull request rather than scope-creeping a fix into this verification task.
 
-- [ ] **Step 5: Record the result and update `PROJECT_STATE.md`**
+- [ ] **Step 5: Full-suite regression and logout check**
+
+Run (PowerShell): `php artisan test` one final time and confirm 255 passed / 2 skipped (or the actual cumulative count if any earlier task's manual verification surfaced a fix). Log out from the fully-populated case editor and confirm (DevTools Application → IndexedDB) that `pharmalab-section-outbox` is empty afterward — this re-confirms Slice 2A Task 3's logout hook still works once every section in this series has written to the outbox at least once.
+
+- [ ] **Step 6: Record the result and update `PROJECT_STATE.md`**
 
 This is the point where Slice 2 as a whole (2A + 2B + 2C) is complete. Once this slice's PR is reviewed and merged, update `PROJECT_STATE.md`'s "Active work" section for `DIRECT-DOCUMENTATION-IMPL-01`, following the exact structure Slice 1's acceptance used (`ba58646` merge record): record the merge commit, the final test count from Task 8, the verification evidence from this task, any deferred minors found along the way (e.g. visual polish items from Step 4), and update "Exact next action" to point at Slice 3 (submission and completeness). Do not perform this `PROJECT_STATE.md` update as part of any earlier task — only once the whole gate is genuinely done, per the file's own maintenance rule (§9).
 
@@ -2002,6 +2611,7 @@ This is the point where Slice 2 as a whole (2A + 2B + 2C) is complete. Once this
 
 ## Self-Review Notes
 
-- **Spec coverage:** Requirement 2 (mobile section editor) — completed here; all six sections now live in one `CaseEditor.vue`. Requirement 3 (repeatable rows) — Intervention and Monitoring follow-up added (Task 5), completing the full set across 2B+2C. Requirement 5 (sync engine) — proven against its two remaining consumer shapes (a revisioned singleton with lazy creation for SOAP, and a second lazy-singleton pattern for ADR/Counselling) without any new locking mechanism. Requirement 6 (conditional allergy and ADR fields) — ADR's Yes/No/Unable-to-assess gate with required-only-on-Yes details (Task 3); counselling's parallel structure (Task 4). Requirement 7 (de-identification warnings) — extended to SOAP Subjective and the ADR event field. Requirement 8 (authorization tests) — Task 8. Requirement 9 (device verification) — Task 9, covering the full six-section flow end to end, closing out Slice 2.
-- **Placeholder scan:** No task defers real logic. The visual-polish deferrals in Task 9 Step 4 are explicitly named as recorded limitations, not silently skipped work.
-- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A.
+- **Spec coverage:** Requirement 2 (mobile section editor) — completed here; all six sections now live in one `CaseEditor.vue`, and the transition never leaves the app without a working SOAP save path (Task 1 additive, Task 6 atomic retirement). Requirement 3 (repeatable rows) — Intervention and Monitoring follow-up added (Task 5) with the same offline-capable creation Slice 2B built, completing the full set. Requirement 5 (sync engine) — proven against its two remaining consumer shapes (a revisioned singleton with lazy creation for SOAP, and a concurrency-guarded lazy-singleton pattern for ADR/Counselling) without any new locking mechanism, and its idempotency/class-check hardening (Slice 2A/2B) is exercised by every new section key added here. Requirement 6 (conditional allergy and ADR fields) — ADR's Yes/No/Unable-to-assess gate with required-only-on-Yes details and the full accepted field set (Task 3, Task 7); counselling's parallel structure with its full field set (Task 4, Task 7). Requirement 7 (de-identification warnings) — extended to SOAP Subjective/Objective/Assessment/Plan, the ADR event field, intervention recommendation, and monitoring notes. Requirement 8 (authorization tests) — Task 8. Requirement 9 (device verification) — Task 9, covering the full six-section flow end to end including offline row creation, closing out Slice 2.
+- **Placeholder scan:** No task defers real logic. The visual-polish deferrals in Task 9 Step 4 are explicitly named as recorded limitations, not silently skipped work. Task 3's concurrency test explicitly documents why true parallel-request racing isn't reproducible in single-process PHPUnit and names the two tests that together stand in for it, rather than silently omitting the coverage.
+- **Type consistency:** `CaseClinicalActivityController::payload()`/`activityPayload()` return the same field set (`id`, `activity_type`, `status`, `details`, `lock_version`, `updated_at`) whether the row came from `store()`, `sync()`, `syncAdr()`, or `syncCounselling()`, so `ActivityRow.vue` and `ConditionalClinicalActivitiesSection.vue` consume one consistent shape regardless of which endpoint produced it. `SoapController::payload()` matches `UpdateSoapNoteRequest`'s validated field set exactly, mirroring the discipline established for every other section since Slice 2A. Every `details` write in this plan goes through the same merge-or-clear helper (`mergeOrClearDetails()` for the two singletons, an inline equivalent for the generic repeatable-row `sync()`), so the partial-update behavior is identical across all four conditional-activity shapes.
+- **Review Focus coverage:** wrong-door singleton access, the SOAP Fillable regression, singleton double-creation (schema + app level), `details.*` partial-update/clear-on-exit behavior, the old-page transition and its audit trail, and six-section navigation regressions each have a named test in the task that owns the relevant code, plus Task 9's manual pass for what only a real browser proves.

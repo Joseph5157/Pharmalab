@@ -1,38 +1,49 @@
 # DIRECT-DOCUMENTATION-IMPL-01 — Slice 2A (Sync Infrastructure, Case Profile, History & Diagnosis) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task (Native execution was chosen for the whole Slice 2 sequence). Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Revision note (post-review):** This plan was reviewed and returned with blocking corrections before any implementation began. This revision fixes: a data-loss bug in the `sync_operations` migration, a false-conflict bug from sharing one `lock_version` across four independent sections, an idempotency hole that let a replayed operation ID resolve to a class the caller never asked for, a missing logout hook for the new IndexedDB store, and several clinical fields/controls the field catalogue requires that the original draft never rendered. See each task's **Revision:** note for what changed and why.
 
 **Goal:** Generalize the accepted SYNC-SPIKE-01 offline-sync protocol (IndexedDB outbox, idempotent `client_operation_id`, server `lock_version`, optimistic-concurrency conflict resolution) from the single experimental `CaseDraftNote` into a reusable engine, then use it to ship the first two real sections of the mobile case editor — Case Profile and History & Diagnosis — with partial (field-level) autosave and the explicit vitals/investigations/medication-chart "unavailable" schema fields that Slice 1 deferred to this slice.
 
-**Architecture:** This is the first of three sequential sub-plans for Slice 2 (2A → 2B → 2C), chosen over one monolithic plan because the full mobile editor spans 6 sections, 4 repeatable resource types and a generalized sync engine — too large to review or gate as a single unit. 2A builds the shared backend engine (`App\Contracts\Syncable` + `SyncsWithLockVersion` trait + `SectionSyncService`, generalizing `CaseDraftNoteController`'s transaction/dedup/conflict logic) and the shared frontend engine (`outboxStore.ts` + `useSectionSync.ts`, generalizing `caseDraftStore.ts` + the script block of `CaseDraftNote.vue`), proves both against `ClinicalCase` and `CaseClinicalProfile` (both already carry an unused `lock_version` column from earlier slices), and ships a real two-section mobile editor shell (`CaseEditor.vue`). 2B will reuse this engine for the three repeatable-row sections (Vitals, Investigations, Medication Chart). 2C will reuse it again for SOAP and Conditional Clinical Activities, and add end-to-end device verification across all six sections. The existing `CaseDraftNote` experiment, its controller, and `caseDraftStore.ts` are left untouched — Slice 2 adds parallel, generalized infrastructure rather than modifying the accepted spike.
+**Architecture:** This is the first of three sequential sub-plans for Slice 2 (2A → 2B → 2C), chosen over one monolithic plan because the full mobile editor spans 6 sections, 4 repeatable resource types and a generalized sync engine — too large to review or gate as a single unit. 2A builds the shared backend engine (`App\Contracts\Syncable` + `SyncsWithLockVersion` trait + `SectionSyncService`, generalizing `CaseDraftNoteController`'s transaction/dedup/conflict logic) and the shared frontend engine (`outboxStore.ts` + `useSectionSync.ts`, generalizing `caseDraftStore.ts` + the script block of `CaseDraftNote.vue`), proves both against `ClinicalCase` and `CaseClinicalProfile`, and ships a real two-section mobile editor shell (`CaseEditor.vue`). 2B reuses this engine for the three repeatable-row sections (Vitals, Investigations, Medication Chart) and adds offline-capable row *creation*. 2C reuses it again for SOAP and Conditional Clinical Activities, and adds end-to-end device verification across all six sections. The existing `CaseDraftNote` experiment, its controller, and `caseDraftStore.ts` are left untouched — Slice 2 adds parallel, generalized infrastructure rather than modifying the accepted spike; only the shared logout hook (Task 3) touches code the spike already uses, and only additively (it clears a *second*, independent store alongside the existing one).
+
+Four sections write to the single `ClinicalCase` row in this slice and the next (Case Profile in 2A; the three "unavailable" availability toggles in 2B). Sharing one `lock_version` across all four would mean editing Case Profile and toggling "vitals unavailable" in the same visit produces a false 409 for whichever request lands second, even though the two edits touch disjoint columns. `Syncable::getLockVersion()`/`applySyncedAttributes()` therefore take the `section_key` being synced and resolve it to one of four independent lock columns via a `lockVersionColumn(string $sectionKey): string` hook — one column (`lock_version`) for Case Profile, one new column apiece for the three 2B toggles (added to `clinical_cases` in Task 1, ahead of when 2B needs them, so Task 2's contract change and Task 1's schema change land together). Every other `Syncable` model in this series (`CaseClinicalProfile` here; `CaseVital`/`CaseInvestigation`/`CaseMedication`/`SoapNote`/`CaseClinicalActivity` in 2B/2C) is its own row, so the default `lockVersionColumn()` implementation (always `'lock_version'`) is correct for all of them unchanged.
 
 **Tech Stack:** Laravel 13 (PHP 8.4), Eloquent, PHPUnit, SQLite (`:memory:`) for the test suite, PostgreSQL in production; Inertia.js + Vue 3 + TypeScript on the frontend, native `fetch` + IndexedDB for the offline sync path (matching the accepted SYNC-SPIKE-01 pattern — not an Inertia form).
 
-**Spec:** [`docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`](../../implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md) (Slice 2 requirements), field catalogue in [`docs/research/PHARMD_CASE_FORM_CANDIDATE_01.md`](../../research/PHARMD_CASE_FORM_CANDIDATE_01.md) §4.1–4.2, decisions in [`docs/decisions/2026-09-25_PHASE1_CLINICAL_DOCUMENTATION_DECISIONS.md`](../../decisions/2026-09-25_PHASE1_CLINICAL_DOCUMENTATION_DECISIONS.md), accepted sync protocol in [`docs/SYNC_SPIKE_01_FINDINGS.md`](../../SYNC_SPIKE_01_FINDINGS.md), Slice 1 plan and ledger in [`docs/superpowers/plans/2026-09-25-direct-documentation-impl-01-slice-1.md`](2026-09-25-direct-documentation-impl-01-slice-1.md).
+**Spec:** [`docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md`](../../implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md) (Slice 2 requirements), field catalogue in [`docs/research/PHARMD_CASE_FORM_CANDIDATE_01.md`](../../research/PHARMD_CASE_FORM_CANDIDATE_01.md) §4.1–4.2 and §5, decisions in [`docs/decisions/2026-09-25_PHASE1_CLINICAL_DOCUMENTATION_DECISIONS.md`](../../decisions/2026-09-25_PHASE1_CLINICAL_DOCUMENTATION_DECISIONS.md), accepted sync protocol in [`docs/SYNC_SPIKE_01_FINDINGS.md`](../../SYNC_SPIKE_01_FINDINGS.md), Slice 1 plan and ledger in [`docs/superpowers/plans/2026-09-25-direct-documentation-impl-01-slice-1.md`](2026-09-25-direct-documentation-impl-01-slice-1.md).
 
 ## Global Constraints
 
 - Run every `php`, `composer`, `npm`, `vendor/bin/phpunit` command through the **PowerShell** tool, not Bash — `php` is only on PATH via PowerShell (Laravel Herd) in this environment.
-- `doctrine/dbal` is **not installed** in this project (confirmed: absent from `vendor/doctrine`). Never use `Schema::table(...)->change()`. Where an existing column must become nullable or a constraint must be replaced (Task 2's `sync_operations.case_draft_note_id`), drop the column/constraint and re-add it in separate `Schema::table()` calls within the same migration.
+- `doctrine/dbal` is **not installed** in this project (confirmed: absent from `vendor/doctrine`). Never use `Schema::table(...)->change()`. Where an existing column's constraint must change without `dbal`, use raw `DB::statement()` (fine for a metadata-only change such as PostgreSQL's `ALTER COLUMN ... DROP NOT NULL`) or, where the driver cannot alter the constraint in place at all (SQLite), rebuild the table: create a new table with the target schema, `INSERT INTO ... SELECT ...` every existing row across, drop the old table, rename the new one. **Never drop a column that holds production data as a way to change its constraint** — Task 2's migration is the concrete example this constraint exists to prevent a regression of.
 - After adding or changing any route in `routes/web.php`, regenerate the Wayfinder TypeScript files by running `npm run build` (the `@laravel/vite-plugin-wayfinder` Vite plugin regenerates `resources/js/actions/**` and `resources/js/routes/**` as part of the build) and commit the regenerated files in the **same commit** as the route change. Never hand-edit anything under `resources/js/actions/` or `resources/js/routes/` — it is generated. Do not commit incidental line-ending/comment churn in unrelated generated files; if `git status` shows generated files you did not intend to touch, run `git checkout -- resources/js/actions resources/js/routes` before committing and only regenerate immediately before the commit that needs it.
-- `lock_version` is never mass-fillable on any model. It is only ever bumped via `forceFill()` inside `SyncsWithLockVersion::applySyncedAttributes()` (Task 2). Task 1 fixes an existing Slice 1 regression: `CaseClinicalProfile`'s `#[Fillable([...])]` currently lists `'lock_version'`, which would let a client set it directly through mass assignment — remove it.
-- Every sync-capable model (`ClinicalCase`, `CaseClinicalProfile`, and later Slice 2B/2C models) implements `App\Contracts\Syncable` via the `App\Models\Concerns\SyncsWithLockVersion` trait and is synced only through `App\Services\SectionSyncService`. Do not hand-roll a second copy of the dedup/lock/conflict transaction in a new controller — that duplication is exactly what Task 2 exists to prevent.
-- Optional child records are created only inside the **first deliberate `sync()` call**, never on a `GET`/`show` request. This is the Slice 1 "no eager child rows" rule (`docs/superpowers/plans/2026-09-25-direct-documentation-impl-01-slice-1.md` Review Focus item 4) and it must not regress here: rendering the case editor page must never insert a `CaseClinicalProfile` row.
+- `lock_version` (and every section-specific lock column added in Task 1) is never mass-fillable on any model. It is only ever bumped via `forceFill()` inside `SyncsWithLockVersion::applySyncedAttributes()` (Task 2). Task 1 fixes an existing Slice 1 regression: `CaseClinicalProfile`'s `#[Fillable([...])]` currently lists `'lock_version'`, which would let a client set it directly through mass assignment — remove it.
+- Every sync-capable model (`ClinicalCase`, `CaseClinicalProfile`, and later Slice 2B/2C models) implements `App\Contracts\Syncable` via the `App\Models\Concerns\SyncsWithLockVersion` trait and is synced only through `App\Services\SectionSyncService`. Do not hand-roll a second copy of the dedup/lock/conflict transaction in a new controller — that duplication is exactly what Task 2 exists to prevent. `Syncable::getLockVersion()` and `applySyncedAttributes()` both take the `section_key` being synced (see Architecture) — a model backing more than one section must override `lockVersionColumn(string $sectionKey): string`; a model backing exactly one section (every model except `ClinicalCase`) inherits the trait's single-column default and never needs to override it.
+- A replayed `client_operation_id` is only ever resolved through an explicit, static `section_key => FQCN` allow-list inside `SectionSyncService` (see Task 2) — never by instantiating or querying a class name read out of the `sync_operations.syncable_type` column (`new $row->syncable_type` / `($row->syncable_type)::query()` are both forbidden). A stored `syncable_type` is compared *against* the allow-list entry for the request's own `section_key`, not used to look the class up.
 - Partial autosave (Slice 2 requirement): every `Update*Request` used by a `sync()` endpoint gives each field rule set a leading `'sometimes'` entry, so a payload that omits a key is neither validated nor written — the existing `UpdateCaseClinicalProfileRequest::rules()` currently has `'allergy_status' => ['required', ...]` with no `'sometimes'`, which would reject any partial autosave that doesn't include `allergy_status`; Task 5 fixes this named example directly.
+- Every sync/store request rejects unknown top-level fields (field catalogue §5, "Unknown request fields are rejected by the server" — this is a spec requirement, not a hardening choice this plan invents). Task 4 introduces a shared `App\Http\Requests\Concerns\RejectsUnknownFields` trait alongside `HasSyncEnvelope`; every request class this plan and 2B/2C add uses both.
+- Free-text narrative fields get the de-identification warning (`DeidentificationNotice.vue`, Task 5) wherever they appear anywhere in the editor, not only on the fields this slice happens to touch first — 2B and 2C's plans each apply it to their own narrative fields (medication notes, SOAP Subjective, ADR event, counselling notes) using the same component this task creates.
+- Logging out must clear the new section outbox (`clearSectionOutbox()`, Task 3) in the same place the app already clears the SYNC-SPIKE-01 draft store on logout (`resources/js/components/UserMenuContent.vue`'s `handleLogout()`, which already calls `clearCaseDraftStorage()`). This is not a "nice to have" deferrable to 2C — a shared/institutional device that logs a second student in must not be able to read the first student's unsynced drafts, and Task 3 wires it in the same commit that creates the store.
 - This repository has no JavaScript/TypeScript unit-test runner (only Playwright e2e specs and PHPUnit; confirmed by searching for Vitest/Jest configuration — none exists). Do not add one. Frontend-only tasks are gated by `npm run types:check` (TypeScript compiles) and are functionally verified once a real page in a later task renders them; say so explicitly in the task rather than inventing a test file that doesn't match the project's established testing shape.
-- Baseline before this plan: `main` at commit `151e1a1` (one commit past the accepted `65c5b7e` Slice 1 merge, itself just a docs formatting commit). `php artisan test` passes 131 tests, 129 passed, 2 skipped, 453 assertions. Every task's "run full suite" step expects these to still pass plus the task's new tests.
+- Baseline before this plan: `main` at commit `151e1a1` (one commit past the accepted `65c5b7e` Slice 1 merge, itself just a docs formatting commit). `php artisan test` passes 131 tests, 129 passed, 2 skipped, 453 assertions. Every task's "run full suite" step expects these to still pass plus the task's new tests; running totals in this plan are computed cumulatively from that baseline and were re-checked against the actual test methods each task adds during this revision.
 
 ## Review Focus
 
 - **Partial-save field wipe.** A sync request that supplies only one field (e.g. a payload containing just `past_medical_history`) must not fail validation because `allergy_status` is absent, and must not null out `allergy_status` or any other previously-saved field on the row. Tasks 4 and 5's controller tests each post a single-field payload after an initial full save and assert every other stored field is unchanged.
+- **False conflict between Case Profile and a sibling `ClinicalCase`-backed section.** Because 2B's three availability toggles share the `clinical_cases` row with Case Profile, syncing Case Profile must never bump a lock column a concurrent availability-toggle sync depends on, and vice versa. Task 2's engine test proves two different `section_key`s against the same `ClinicalCase` row advance independent lock columns and never 409 each other.
 - **Eager profile creation regression.** Opening the case editor (`GET /student/cases/{case}/edit`) must never create a `CaseClinicalProfile` row — only a deliberate `sync()` call may. Task 5's test asserts `$case->fresh()->clinicalProfile` is still `null` after rendering the editor page, and Task 6's editor-shell test repeats the same assertion at the page level.
-- **Stale `lock_version` silently overwriting a newer save.** Any `sync()` call whose `base_lock_version` does not match the row's current `lock_version` must return HTTP 409 with the current server state and must not mutate the row. Task 2's engine test and Tasks 4/5's HTTP-level tests each assert this by sending a stale version after an intervening save.
+- **Stale `lock_version` silently overwriting a newer save.** Any `sync()` call whose `base_lock_version` does not match the row's current lock column value must return HTTP 409 with the current server state and must not mutate the row. Task 2's engine test and Tasks 4/5's HTTP-level tests each assert this by sending a stale version after an intervening save.
 - **Cross-institution / other-student / post-submission access.** Every new `PUT` endpoint must deny a different student in the same institution, a user from a different institution, and — once the case's status leaves Draft/Returned — even the owning student. Task 7's dedicated authorization test file exercises all three denials against both new controllers, matching the negative-authorization pattern established in Slice 1's `CaseClinicalProfileTest`.
-- **Idempotent replay creating a duplicate write.** A retried request carrying the same `client_operation_id` (the exact scenario an offline device produces when it reconnects and resends) must not double-apply the change or insert a second `SyncOperation` row. Task 2's engine test and Task 4's controller test both replay an operation ID and assert `lock_version` only advanced once and exactly one `SyncOperation` row exists for that ID.
+- **Idempotent replay creating a duplicate write, or resolving to the wrong record.** A retried request carrying the same `client_operation_id` must not double-apply the change or insert a second `SyncOperation` row (Task 2's engine test, Task 4's controller test). A `client_operation_id` reused across two *different* section endpoints — a client bug or a malicious replay — must be rejected outright rather than silently resolving to whichever record the first use created (Task 2's engine test covers this directly against the `sync_operations` unique constraint and the section-key/class allow-list).
+- **Logout leaving a readable draft behind.** `clearSectionOutbox()` must actually run on logout, not just exist as an exported function nobody calls. Task 3 wires it into the same `handleLogout()` the SYNC-SPIKE-01 draft store already uses and Task 8's manual pass verifies IndexedDB is empty afterward.
 
 ---
 
-## Task 1: Explicit-absence schema fields and the Slice 1 `lock_version` Fillable fix
+## Task 1: Explicit-absence schema fields, independent section-lock columns, and the Slice 1 `lock_version` Fillable fix
+
+**Revision:** Originally this task added only the five vitals/investigations/medication-chart status fields. It now also adds the three independent lock columns the availability toggles need (see Architecture) — adding them here, ahead of when 2B's controllers consume them, keeps the schema change and the `Syncable` contract change (Task 2) landing together instead of forcing 2B to reopen this migration. It also adds an optional explanation field for "no current medicines" (field catalogue §4.2 "Medication history... or explicit no previous/current medicines documented" — the original draft added the boolean toggle in 2B but never gave the student anywhere to say *why*, which the review flagged as a gap against the same pattern already used for vitals/investigations).
 
 **Files:**
 - Create: `database/migrations/2026_09_28_000000_add_pharmd_slice2_section_availability_fields.php`
@@ -41,7 +52,7 @@
 - Test: `tests/Feature/PharmdCaseSectionAvailabilityFieldsTest.php`
 
 **Interfaces:**
-- Produces: new nullable columns on `clinical_cases` — `vitals_status` (string, values `'recorded'|'unavailable'`), `vitals_unavailable_reason` (text), `investigations_status` (string, values `'recorded'|'unavailable'`), `investigations_unavailable_reason` (text), `medication_chart_status` (string, values `'documented'|'none_documented'`). These are schema-only in this task; Slice 2B's Vitals/Investigations/Medication controllers own reading and validating them.
+- Produces: new nullable columns on `clinical_cases` — `vitals_status` (string, values `'recorded'|'unavailable'`), `vitals_unavailable_reason` (text), `investigations_status` (string, values `'recorded'|'unavailable'`), `investigations_unavailable_reason` (text), `medication_chart_status` (string, values `'documented'|'none_documented'`), `medication_chart_none_reason` (text, optional explanation for `none_documented`), `vitals_availability_lock_version` (unsigned big integer, default 0), `investigations_availability_lock_version` (unsigned big integer, default 0), `medication_chart_availability_lock_version` (unsigned big integer, default 0). These are schema-only in this task; Slice 2B's Vitals/Investigations/Medication controllers own reading and validating the status/reason fields, and Task 2 of this slice is what makes the three new lock columns reachable through `Syncable`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -68,7 +79,16 @@ class PharmdCaseSectionAvailabilityFieldsTest extends TestCase
         $this->assertTrue(Schema::hasColumns('clinical_cases', [
             'vitals_status', 'vitals_unavailable_reason',
             'investigations_status', 'investigations_unavailable_reason',
-            'medication_chart_status',
+            'medication_chart_status', 'medication_chart_none_reason',
+        ]));
+    }
+
+    public function test_clinical_cases_has_independent_lock_columns_for_the_three_availability_toggles(): void
+    {
+        $this->assertTrue(Schema::hasColumns('clinical_cases', [
+            'vitals_availability_lock_version',
+            'investigations_availability_lock_version',
+            'medication_chart_availability_lock_version',
         ]));
     }
 
@@ -86,6 +106,7 @@ class PharmdCaseSectionAvailabilityFieldsTest extends TestCase
             'vitals_unavailable_reason' => 'Patient not examined at bedside during ward round.',
             'investigations_status' => 'recorded',
             'medication_chart_status' => 'none_documented',
+            'medication_chart_none_reason' => 'No home or chart medicines reported by caregiver.',
         ]);
 
         $fresh = $case->fresh();
@@ -94,6 +115,10 @@ class PharmdCaseSectionAvailabilityFieldsTest extends TestCase
         $this->assertSame('recorded', $fresh->investigations_status);
         $this->assertNull($fresh->investigations_unavailable_reason);
         $this->assertSame('none_documented', $fresh->medication_chart_status);
+        $this->assertSame('No home or chart medicines reported by caregiver.', $fresh->medication_chart_none_reason);
+        $this->assertSame(0, $fresh->vitals_availability_lock_version);
+        $this->assertSame(0, $fresh->investigations_availability_lock_version);
+        $this->assertSame(0, $fresh->medication_chart_availability_lock_version);
     }
 
     public function test_lock_version_is_not_mass_assignable_on_case_clinical_profile(): void
@@ -124,7 +149,7 @@ class PharmdCaseSectionAvailabilityFieldsTest extends TestCase
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run (PowerShell): `php artisan test --filter=PharmdCaseSectionAvailabilityFieldsTest`
-Expected: FAIL — unknown columns `vitals_status` etc.; third test currently passes for the wrong reason (column is still mass-assignable) — confirm by temporarily noting `lock_version` remains fillable, then proceed to fix it in Step 4.
+Expected: FAIL — unknown columns; third test currently passes for the wrong reason (column is still mass-assignable) — confirmed by Step 4's fix.
 
 - [ ] **Step 3: Write the migration**
 
@@ -145,6 +170,10 @@ return new class extends Migration
             $table->string('investigations_status', 20)->nullable()->after('vitals_unavailable_reason');
             $table->text('investigations_unavailable_reason')->nullable()->after('investigations_status');
             $table->string('medication_chart_status', 20)->nullable()->after('investigations_unavailable_reason');
+            $table->text('medication_chart_none_reason')->nullable()->after('medication_chart_status');
+            $table->unsignedBigInteger('vitals_availability_lock_version')->default(0)->after('lock_version');
+            $table->unsignedBigInteger('investigations_availability_lock_version')->default(0)->after('vitals_availability_lock_version');
+            $table->unsignedBigInteger('medication_chart_availability_lock_version')->default(0)->after('investigations_availability_lock_version');
         });
     }
 
@@ -157,6 +186,10 @@ return new class extends Migration
                 'investigations_status',
                 'investigations_unavailable_reason',
                 'medication_chart_status',
+                'medication_chart_none_reason',
+                'vitals_availability_lock_version',
+                'investigations_availability_lock_version',
+                'medication_chart_availability_lock_version',
             ]);
         });
     }
@@ -165,7 +198,7 @@ return new class extends Migration
 
 - [ ] **Step 4: Extend `ClinicalCase`'s Fillable list**
 
-In `app/Models/ClinicalCase.php`, add the five new keys to the `#[Fillable([...])]` array, after `'deidentification_attested_by',`:
+In `app/Models/ClinicalCase.php`, add the six new mass-assignable keys to the `#[Fillable([...])]` array, after `'deidentification_attested_by',` (the three lock columns are deliberately **not** added here — they are bumped only via `forceFill()` in `SyncsWithLockVersion`, per the Global Constraints):
 
 ```php
     'vitals_status',
@@ -173,6 +206,7 @@ In `app/Models/ClinicalCase.php`, add the five new keys to the `#[Fillable([...]
     'investigations_status',
     'investigations_unavailable_reason',
     'medication_chart_status',
+    'medication_chart_none_reason',
 ```
 
 - [ ] **Step 5: Fix `CaseClinicalProfile`'s Fillable list**
@@ -182,38 +216,41 @@ In `app/Models/CaseClinicalProfile.php`, remove `'lock_version',` from the `#[Fi
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run (PowerShell): `php artisan test --filter=PharmdCaseSectionAvailabilityFieldsTest`
-Expected: PASS (3 tests).
+Expected: PASS (4 tests).
 
 - [ ] **Step 7: Run the full suite to confirm no regression**
 
 Run (PowerShell): `php artisan test`
-Expected: 131 previous tests still pass (129 passed / 2 skipped) plus the 3 new ones — 134 passed / 2 skipped.
+Expected: 131 previous tests still pass (129 passed / 2 skipped) plus the 4 new ones — 135 passed / 2 skipped.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add database/migrations/2026_09_28_000000_add_pharmd_slice2_section_availability_fields.php app/Models/ClinicalCase.php app/Models/CaseClinicalProfile.php tests/Feature/PharmdCaseSectionAvailabilityFieldsTest.php
-git commit -m "feat: add explicit vitals/investigations/medication-chart absence fields and fix CaseClinicalProfile lock_version mass assignment"
+git commit -m "feat: add explicit section-availability fields, independent lock columns, and fix CaseClinicalProfile lock_version mass assignment"
 ```
 
 ---
 
-## Task 2: Generalize the sync engine — `Syncable` contract, polymorphic `SyncOperation`, `SectionSyncService`
+## Task 2: Generalize the sync engine — `Syncable` contract, polymorphic `SyncOperation` (data-preserving migration), `SectionSyncService`
+
+**Revision:** Two blocking fixes land here. First, the original `sync_operations` migration dropped `case_draft_note_id` and re-added it to relax its `NOT NULL` constraint — on a database that already has rows (i.e. anywhere past local development), that destroys every existing sync-operation's association with its `CaseDraftNote`. The corrected migration never drops the column: PostgreSQL gets a metadata-only `ALTER COLUMN ... DROP NOT NULL`; SQLite, which cannot alter a column constraint in place at all, gets a table rebuild that copies every row across before the old table is dropped. Second, `Syncable::getLockVersion()`/`applySyncedAttributes()` now take the `section_key` being synced (see the plan's Architecture section) so `ClinicalCase` can route four different sections to four different lock columns without a false conflict between them.
 
 **Files:**
 - Create: `database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php`
 - Create: `app/Contracts/Syncable.php`
 - Create: `app/Models/Concerns/SyncsWithLockVersion.php`
 - Modify: `app/Models/SyncOperation.php` (add `syncable_type`/`syncable_id` to fillable, add `syncable()` morph relation)
-- Modify: `app/Models/ClinicalCase.php` (implement `Syncable` via the new trait)
+- Modify: `app/Models/ClinicalCase.php` (implement `Syncable` via the new trait, override `lockVersionColumn()`)
 - Create: `app/Services/SectionSyncService.php`
 - Test: `tests/Feature/SectionSyncServiceTest.php`
+- Test: `tests/Feature/SyncOperationsMigrationTest.php`
 
 **Interfaces:**
 - Consumes: `App\Models\ClinicalCase` (as the first real `Syncable` under test), `App\Models\SyncOperation`, `App\Services\AuditTrail::record()`.
-- Produces: `App\Contracts\Syncable` (`getLockVersion(): int`, `getInstitutionId(): string`, `applySyncedAttributes(array $attributes, int $newLockVersion): void`), `App\Models\Concerns\SyncsWithLockVersion` (generic trait implementing all three), `App\Services\SectionSyncService::sync(Model&Syncable $model, User $user, string $sectionKey, string $clientOperationId, int $baseLockVersion, array $attributes, ?string $resolution, bool $confirmed): array{status: string, httpStatus: int, model: Model&Syncable}`. Consumed by Tasks 4 and 5 (Case Profile, History & Diagnosis) and by every Slice 2B/2C section controller.
+- Produces: `App\Contracts\Syncable` (`getLockVersion(string $sectionKey): int`, `getInstitutionId(): string`, `applySyncedAttributes(string $sectionKey, array $attributes, int $newLockVersion): void`), `App\Models\Concerns\SyncsWithLockVersion` (implements all three against a single `lock_version` column by default, via a `protected function lockVersionColumn(string $sectionKey): string` hook models can override), `App\Services\SectionSyncService::sync(Model&Syncable $model, User $user, string $sectionKey, string $clientOperationId, int $baseLockVersion, array $attributes, ?string $resolution, bool $confirmed): array{status: string, httpStatus: int, model: Model&Syncable}`, and a private `SECTION_MODELS` allow-list (`array<string, class-string>`) that `sync()`'s replay path and 2B's `create()` method both check a stored `syncable_type` against. Consumed by Tasks 4 and 5 (Case Profile, History & Diagnosis) and by every Slice 2B/2C section controller.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
 ```php
 <?php
@@ -221,6 +258,7 @@ git commit -m "feat: add explicit vitals/investigations/medication-chart absence
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
+use App\Models\CaseClinicalProfile;
 use App\Models\ClinicalCase;
 use App\Models\Institution;
 use App\Models\SyncOperation;
@@ -261,6 +299,36 @@ class SectionSyncServiceTest extends TestCase
         $this->assertSame('saved', $result['status']);
         $this->assertSame(1, $case->fresh()->lock_version);
         $this->assertSame(1, SyncOperation::query()->where('client_operation_id', $operationId)->count());
+    }
+
+    public function test_reusing_an_operation_id_against_a_different_section_key_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $service = app(SectionSyncService::class);
+        $operationId = (string) Str::uuid();
+
+        $service->sync($case, $student, 'case_context', $operationId, 0, ['case_category' => 'A'], null, false);
+
+        $this->expectException(HttpException::class);
+
+        $service->sync($case, $student, 'vitals_availability', $operationId, 0, ['vitals_status' => 'unavailable'], null, false);
+    }
+
+    public function test_reusing_an_operation_id_against_a_different_syncable_row_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $profile = CaseClinicalProfile::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'allergy_status' => 'unknown', 'last_saved_by' => $student->id,
+        ]);
+        $service = app(SectionSyncService::class);
+        $operationId = (string) Str::uuid();
+
+        $service->sync($case, $student, 'case_context', $operationId, 0, ['case_category' => 'A'], null, false);
+
+        $this->expectException(HttpException::class);
+
+        $service->sync($profile, $student, 'clinical_profile', $operationId, 0, ['allergy_status' => 'no_known_allergy'], null, false);
     }
 
     public function test_a_stale_base_lock_version_is_reported_as_a_conflict_without_mutating_the_row(): void
@@ -320,6 +388,23 @@ class SectionSyncServiceTest extends TestCase
         ]);
     }
 
+    public function test_two_different_sections_on_the_same_clinical_case_row_do_not_false_conflict(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $service = app(SectionSyncService::class);
+
+        $caseContext = $service->sync($case, $student, 'case_context', (string) Str::uuid(), 0, ['case_category' => 'DTP'], null, false);
+        $vitalsAvailability = $service->sync($case, $student, 'vitals_availability', (string) Str::uuid(), 0, ['vitals_status' => 'unavailable', 'vitals_unavailable_reason' => 'Not examined.'], null, false);
+
+        $this->assertSame('saved', $caseContext['status']);
+        $this->assertSame('saved', $vitalsAvailability['status']);
+        $fresh = $case->fresh();
+        $this->assertSame(1, $fresh->lock_version);
+        $this->assertSame(1, $fresh->vitals_availability_lock_version);
+        $this->assertSame('DTP', $fresh->case_category);
+        $this->assertSame('unavailable', $fresh->vitals_status);
+    }
+
     /** @return array{Institution, User, ClinicalCase} */
     private function makeCase(): array
     {
@@ -338,34 +423,123 @@ class SectionSyncServiceTest extends TestCase
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+```php
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\CaseStatus;
+use App\Models\CaseDraftNote;
+use App\Models\ClinicalCase;
+use App\Models\Institution;
+use App\Models\SyncOperation;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+class SyncOperationsMigrationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_case_draft_note_id_is_nullable_and_the_polymorphic_columns_exist(): void
+    {
+        $this->assertTrue(Schema::hasColumns('sync_operations', ['syncable_type', 'syncable_id']));
+
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'student_id' => $student->id,
+            'rotation_assignment_id' => null, 'case_number' => 1, 'status' => CaseStatus::Draft,
+        ]);
+
+        $operation = SyncOperation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'user_id' => $student->id,
+            'case_draft_note_id' => null,
+            'syncable_type' => ClinicalCase::class,
+            'syncable_id' => $case->id,
+            'client_operation_id' => (string) Str::uuid(),
+            'section_key' => 'case_context',
+            'base_lock_version' => 0,
+            'result_status' => 'saved',
+            'server_version' => 1,
+        ]);
+
+        $this->assertNull($operation->fresh()->case_draft_note_id);
+    }
+
+    public function test_migration_round_trip_preserves_existing_case_draft_note_associations(): void
+    {
+        // This test exercises real rollback/re-migrate DDL inside PHPUnit's per-test
+        // transaction. SQLite supports transactional DDL so this is safe under
+        // RefreshDatabase; if it proves flaky under a different test database driver,
+        // switch this one test to Illuminate\Foundation\Testing\DatabaseTransactions
+        // run against a dedicated non-memory SQLite file instead of dropping the
+        // coverage — the thing under test (existing rows survive the migration) matters
+        // more than which isolation trait proves it.
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $draftNote = CaseDraftNote::query()->withoutGlobalScopes()->create([
+            'case_id' => (string) Str::ulid(),
+            'student_id' => $student->id,
+            'institution_id' => $institution->id,
+            'content' => 'Draft content.',
+        ]);
+        $operation = SyncOperation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'user_id' => $student->id,
+            'case_draft_note_id' => $draftNote->id,
+            'client_operation_id' => (string) Str::uuid(),
+            'section_key' => 'case_draft_note',
+            'base_lock_version' => 0,
+            'result_status' => 'saved',
+            'server_version' => 1,
+        ]);
+
+        Artisan::call('migrate:rollback', ['--step' => 1]);
+        Artisan::call('migrate');
+
+        $this->assertSame($draftNote->id, SyncOperation::query()->withoutGlobalScopes()->findOrFail($operation->id)->case_draft_note_id);
+    }
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
 
 Run (PowerShell): `php artisan test --filter=SectionSyncServiceTest`
 Expected: FAIL — `App\Services\SectionSyncService` not found.
 
-- [ ] **Step 3: Write the `sync_operations` polymorphism migration**
+Run (PowerShell): `php artisan test --filter=SyncOperationsMigrationTest`
+Expected: FAIL — `syncable_type`/`syncable_id` columns don't exist; `case_draft_note_id` is still `NOT NULL`.
+
+- [ ] **Step 3: Write the data-preserving `sync_operations` polymorphism migration**
 
 ```php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('sync_operations', function (Blueprint $table): void {
-            $table->dropForeign(['case_draft_note_id']);
-        });
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->rebuildWithPolymorphicColumns();
+
+            return;
+        }
+
+        // PostgreSQL: dropping NOT NULL is a metadata-only change — no existing
+        // row's case_draft_note_id value is read, copied or touched.
+        DB::statement('ALTER TABLE sync_operations ALTER COLUMN case_draft_note_id DROP NOT NULL');
 
         Schema::table('sync_operations', function (Blueprint $table): void {
-            $table->dropColumn('case_draft_note_id');
-        });
-
-        Schema::table('sync_operations', function (Blueprint $table): void {
-            $table->foreignUlid('case_draft_note_id')->nullable()->after('user_id')->constrained()->restrictOnDelete();
             $table->string('syncable_type', 150)->nullable()->after('case_draft_note_id');
             $table->ulid('syncable_id')->nullable()->after('syncable_type');
             $table->index(['syncable_type', 'syncable_id']);
@@ -374,16 +548,82 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->rebuildWithoutPolymorphicColumns();
+
+            return;
+        }
+
         Schema::table('sync_operations', function (Blueprint $table): void {
             $table->dropIndex(['syncable_type', 'syncable_id']);
             $table->dropColumn(['syncable_type', 'syncable_id']);
-            $table->dropForeign(['case_draft_note_id']);
-            $table->dropColumn('case_draft_note_id');
         });
 
-        Schema::table('sync_operations', function (Blueprint $table): void {
-            $table->foreignUlid('case_draft_note_id')->after('user_id')->constrained()->restrictOnDelete();
+        DB::statement('ALTER TABLE sync_operations ALTER COLUMN case_draft_note_id SET NOT NULL');
+    }
+
+    /**
+     * SQLite cannot alter a column's NOT NULL constraint in place. Rebuild the
+     * table with the target schema and copy every existing row across before
+     * dropping the old table — this is the safe SQLite migration shape; it must
+     * never be simplified to a dropColumn()+addColumn() pair, which would lose
+     * every row's case_draft_note_id value instead of just relaxing it.
+     */
+    private function rebuildWithPolymorphicColumns(): void
+    {
+        Schema::create('sync_operations_rebuild', function (Blueprint $table): void {
+            $table->ulid('id')->primary();
+            $table->foreignUlid('institution_id')->constrained()->restrictOnDelete();
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignUlid('case_draft_note_id')->nullable()->constrained('case_draft_notes')->restrictOnDelete();
+            $table->string('syncable_type', 150)->nullable();
+            $table->ulid('syncable_id')->nullable();
+            $table->uuid('client_operation_id');
+            $table->string('section_key', 80)->default('case_draft_note');
+            $table->unsignedBigInteger('base_lock_version');
+            $table->string('result_status', 40);
+            $table->unsignedBigInteger('server_version');
+            $table->timestamps();
+
+            $table->unique(['user_id', 'client_operation_id']);
+            $table->index(['institution_id', 'case_draft_note_id']);
+            $table->index(['syncable_type', 'syncable_id']);
         });
+
+        DB::statement(
+            'INSERT INTO sync_operations_rebuild (id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at) '
+            .'SELECT id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at FROM sync_operations'
+        );
+
+        Schema::drop('sync_operations');
+        Schema::rename('sync_operations_rebuild', 'sync_operations');
+    }
+
+    private function rebuildWithoutPolymorphicColumns(): void
+    {
+        Schema::create('sync_operations_rebuild', function (Blueprint $table): void {
+            $table->ulid('id')->primary();
+            $table->foreignUlid('institution_id')->constrained()->restrictOnDelete();
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignUlid('case_draft_note_id')->constrained('case_draft_notes')->restrictOnDelete();
+            $table->uuid('client_operation_id');
+            $table->string('section_key', 80)->default('case_draft_note');
+            $table->unsignedBigInteger('base_lock_version');
+            $table->string('result_status', 40);
+            $table->unsignedBigInteger('server_version');
+            $table->timestamps();
+
+            $table->unique(['user_id', 'client_operation_id']);
+            $table->index(['institution_id', 'case_draft_note_id']);
+        });
+
+        DB::statement(
+            'INSERT INTO sync_operations_rebuild (id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at) '
+            .'SELECT id, institution_id, user_id, case_draft_note_id, client_operation_id, section_key, base_lock_version, result_status, server_version, created_at, updated_at FROM sync_operations'
+        );
+
+        Schema::drop('sync_operations');
+        Schema::rename('sync_operations_rebuild', 'sync_operations');
     }
 };
 ```
@@ -397,12 +637,12 @@ namespace App\Contracts;
 
 interface Syncable
 {
-    public function getLockVersion(): int;
+    public function getLockVersion(string $sectionKey): int;
 
     public function getInstitutionId(): string;
 
     /** @param array<string, mixed> $attributes */
-    public function applySyncedAttributes(array $attributes, int $newLockVersion): void;
+    public function applySyncedAttributes(string $sectionKey, array $attributes, int $newLockVersion): void;
 }
 ```
 
@@ -415,9 +655,9 @@ namespace App\Models\Concerns;
 
 trait SyncsWithLockVersion
 {
-    public function getLockVersion(): int
+    public function getLockVersion(string $sectionKey): int
     {
-        return (int) $this->lock_version;
+        return (int) $this->getAttribute($this->lockVersionColumn($sectionKey));
     }
 
     public function getInstitutionId(): string
@@ -426,16 +666,28 @@ trait SyncsWithLockVersion
     }
 
     /** @param array<string, mixed> $attributes */
-    public function applySyncedAttributes(array $attributes, int $newLockVersion): void
+    public function applySyncedAttributes(string $sectionKey, array $attributes, int $newLockVersion): void
     {
-        $this->forceFill([...$attributes, 'lock_version' => $newLockVersion])->save();
+        $this->forceFill([...$attributes, $this->lockVersionColumn($sectionKey) => $newLockVersion])->save();
+    }
+
+    /**
+     * Every model except ClinicalCase backs exactly one section and keeps this
+     * default. ClinicalCase backs four (see this plan's Architecture section)
+     * and overrides this to route each section_key to its own lock column so
+     * that syncing one section can never false-conflict with a concurrent sync
+     * of another.
+     */
+    protected function lockVersionColumn(string $sectionKey): string
+    {
+        return 'lock_version';
     }
 }
 ```
 
-- [ ] **Step 6: Make `ClinicalCase` implement `Syncable`**
+- [ ] **Step 6: Make `ClinicalCase` implement `Syncable` with per-section lock columns**
 
-In `app/Models/ClinicalCase.php`, add imports and apply the trait/interface:
+In `app/Models/ClinicalCase.php`, add imports:
 
 ```php
 use App\Contracts\Syncable;
@@ -448,6 +700,20 @@ Change the class declaration and trait usage:
 class ClinicalCase extends Model implements Syncable
 {
     use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
+```
+
+Add the override (any private method placement is fine; place it near the other relation/accessor methods):
+
+```php
+    protected function lockVersionColumn(string $sectionKey): string
+    {
+        return match ($sectionKey) {
+            'vitals_availability' => 'vitals_availability_lock_version',
+            'investigations_availability' => 'investigations_availability_lock_version',
+            'medication_chart_availability' => 'medication_chart_availability_lock_version',
+            default => 'lock_version',
+        };
+    }
 ```
 
 - [ ] **Step 7: Update `SyncOperation`**
@@ -492,6 +758,8 @@ class SyncOperation extends Model
 namespace App\Services;
 
 use App\Contracts\Syncable;
+use App\Models\CaseClinicalProfile;
+use App\Models\ClinicalCase;
 use App\Models\SyncOperation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -499,6 +767,24 @@ use Illuminate\Support\Facades\DB;
 
 class SectionSyncService
 {
+    /**
+     * The only place a stored sync_operations.syncable_type string is ever
+     * compared against — never used to instantiate a class. A replayed
+     * client_operation_id whose recorded syncable_type doesn't match the
+     * allow-list entry for the *current* request's section_key is rejected
+     * outright. Slice 2B/2C extend this map as each new Syncable model lands;
+     * do not remove entries, only add them.
+     *
+     * @var array<string, class-string>
+     */
+    private const SECTION_MODELS = [
+        'case_context' => ClinicalCase::class,
+        'vitals_availability' => ClinicalCase::class,
+        'investigations_availability' => ClinicalCase::class,
+        'medication_chart_availability' => ClinicalCase::class,
+        'clinical_profile' => CaseClinicalProfile::class,
+    ];
+
     public function __construct(private readonly AuditTrail $audit) {}
 
     /**
@@ -526,10 +812,15 @@ class SectionSyncService
                 ->first();
 
             if ($existing !== null) {
+                $expectedClass = self::SECTION_MODELS[$sectionKey] ?? null;
+
                 abort_unless(
-                    $existing->syncable_type === $locked::class && $existing->syncable_id === $locked->getKey(),
+                    $existing->section_key === $sectionKey
+                        && $expectedClass !== null
+                        && $existing->syncable_type === $expectedClass
+                        && $existing->syncable_id === $locked->getKey(),
                     409,
-                    'Operation ID already belongs to another record.',
+                    'Operation ID already used for a different action.',
                 );
 
                 return ['status' => $existing->result_status, 'httpStatus' => $existing->result_status === 'conflict' ? 409 : 200, 'model' => $locked];
@@ -543,7 +834,7 @@ class SectionSyncService
                 return ['status' => $status, 'httpStatus' => 200, 'model' => $locked];
             }
 
-            if ($baseLockVersion !== $locked->getLockVersion()) {
+            if ($baseLockVersion !== $locked->getLockVersion($sectionKey)) {
                 $this->recordOperation($user, $locked, $sectionKey, $clientOperationId, $baseLockVersion, 'conflict');
 
                 return ['status' => 'conflict', 'httpStatus' => 409, 'model' => $locked];
@@ -553,7 +844,7 @@ class SectionSyncService
                 abort(422, 'Replacing the server version requires explicit confirmation.');
             }
 
-            $locked->applySyncedAttributes($attributes, $locked->getLockVersion() + 1);
+            $locked->applySyncedAttributes($sectionKey, $attributes, $locked->getLockVersion($sectionKey) + 1);
 
             $status = $resolution === 'replace_server' ? 'resolved_replaced' : 'saved';
             $this->recordOperation($user, $locked, $sectionKey, $clientOperationId, $baseLockVersion, $status);
@@ -572,13 +863,13 @@ class SectionSyncService
         return SyncOperation::query()->create([
             'institution_id' => $model->getInstitutionId(),
             'user_id' => $user->id,
-            'syncable_type' => $model::class,
+            'syncable_type' => self::SECTION_MODELS[$sectionKey] ?? $model::class,
             'syncable_id' => $model->getKey(),
             'client_operation_id' => $clientOperationId,
             'section_key' => $sectionKey,
             'base_lock_version' => $baseLockVersion,
             'result_status' => $status,
-            'server_version' => $model->getLockVersion(),
+            'server_version' => $model->getLockVersion($sectionKey),
         ]);
     }
 
@@ -589,46 +880,54 @@ class SectionSyncService
             'section_key' => $sectionKey,
             'resolution' => $resolution,
             'base_lock_version' => $baseLockVersion,
-            'server_lock_version' => $model->getLockVersion(),
+            'server_lock_version' => $model->getLockVersion($sectionKey),
         ]);
     }
 }
 ```
 
-- [ ] **Step 9: Run the test to verify it passes**
+Note on `SECTION_MODELS`: this map is intentionally the single source of truth for "which class backs which section", shared between the replay-safety check above and 2B's `SectionSyncService::create()` (which needs the same allow-list to validate a *creation* replay, since a brand-new row has no earlier `sync()` call to have already proven the mapping). 2B's Task 2 extends this constant with `'vitals' => CaseVital::class`, `'investigations' => CaseInvestigation::class`, `'medications' => CaseMedication::class`; 2C's Tasks 1–5 add `'soap'`, `'clinical_activity_adr'`, `'clinical_activity_counselling'`, `'clinical_activities'`. Do not let this list drift out of sync with the section keys the controllers actually pass — Review Focus in each slice's plan calls this out.
+
+- [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=SectionSyncServiceTest`
-Expected: PASS (6 tests).
+Expected: PASS (9 tests).
+
+Run (PowerShell): `php artisan test --filter=SyncOperationsMigrationTest`
+Expected: PASS (2 tests).
 
 - [ ] **Step 10: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: all previous + 6 new tests pass (140 passed / 2 skipped).
+Expected: 135 previous + 11 new — 146 passed / 2 skipped.
 
 - [ ] **Step 11: Static analysis**
 
 Run (PowerShell): `vendor\bin\phpstan analyse`
-Expected: 0 errors. (`Model&Syncable` intersection types require accurate `@property`/`@method` docblocks already present on `ClinicalCase`; if PHPStan flags the intersection type, add `@phpstan-require-implements Syncable` is unnecessary here since the type is enforced at the parameter boundary — fix any real type error rather than suppressing it.)
+Expected: 0 errors. Fix any real type error the `Model&Syncable` intersection type surfaces rather than suppressing it.
 
 - [ ] **Step 12: Commit**
 
 ```bash
-git add database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php app/Contracts/Syncable.php app/Models/Concerns/SyncsWithLockVersion.php app/Models/SyncOperation.php app/Models/ClinicalCase.php app/Services/SectionSyncService.php tests/Feature/SectionSyncServiceTest.php
-git commit -m "feat: generalize the sync-spike protocol into a reusable Syncable contract and SectionSyncService"
+git add database/migrations/2026_09_28_000001_make_sync_operations_polymorphic.php app/Contracts/Syncable.php app/Models/Concerns/SyncsWithLockVersion.php app/Models/SyncOperation.php app/Models/ClinicalCase.php app/Services/SectionSyncService.php tests/Feature/SectionSyncServiceTest.php tests/Feature/SyncOperationsMigrationTest.php
+git commit -m "feat: generalize the sync-spike protocol into a section-keyed Syncable contract and SectionSyncService, preserving existing sync_operations data"
 ```
 
 ---
 
-## Task 3: Frontend outbox engine — `outboxStore.ts` and `useSectionSync.ts`
+## Task 3: Frontend outbox engine — `outboxStore.ts`, `useSectionSync.ts`, and the logout hook
+
+**Revision:** The original draft built `clearSectionOutbox()` but never called it from anywhere, leaving the same class of privacy gap the accepted spike already closed for `CaseDraftNote`. This task now wires it into `UserMenuContent.vue`'s existing `handleLogout()` in the same commit that creates the store, alongside `clearCaseDraftStorage()`.
 
 **Files:**
 - Create: `resources/js/lib/outboxStore.ts`
 - Create: `resources/js/composables/useSectionSync.ts`
+- Modify: `resources/js/components/UserMenuContent.vue` (call `clearSectionOutbox()` on logout)
 
 **Interfaces:**
-- Produces: `StoredSection<T>`, `StoredSectionCopy<T>`, `sectionKey(userId, sectionKey, resourceId): string`, `getSection<T>(key)`, `putSection<T>(section)`, `deleteSection(key)`, `keepSectionCopy<T>(section)`, `clearSectionOutbox()` (in `outboxStore.ts`); `useSectionSync<T>(options): { payload, state, savedAt, online, conflict, confirmingReplace, deviceCopyKept, edit, resolveWithServer, keepDeviceCopy, replaceServer, retry }` (in `useSectionSync.ts`). Both are consumed for the first time by Task 4 (Case Profile section) and again by Task 5 (History & Diagnosis section) and every later Slice 2B/2C section. This task's files have no consumer yet and are not independently testable — per the Global Constraints, there is no JS unit-test runner in this repo; Task 4 is where these files are first exercised in a real page and manually verified in a browser.
+- Produces: `StoredSection<T>`, `StoredSectionCopy<T>`, `sectionKey(userId, sectionKey, resourceId): string`, `getSection<T>(key)`, `putSection<T>(section)`, `deleteSection(key)`, `keepSectionCopy<T>(section)`, `listAllSections<T>(): Promise<StoredSection<T>[]>`, `clearSectionOutbox()` (in `outboxStore.ts`); `useSectionSync<T>(options): { payload, state, savedAt, online, conflict, confirmingReplace, deviceCopyKept, edit, resolveWithServer, keepDeviceCopy, replaceServer, retry }` (in `useSectionSync.ts`). Both are consumed for the first time by Task 4 (Case Profile section) and again by Task 5 (History & Diagnosis section) and every later Slice 2B/2C section; `listAllSections` is unused until 2B Task 2 wires it into offline-capable row creation, but is added here so the store's shape doesn't change mid-series. Per the Global Constraints, there is no JS unit-test runner in this repo; Task 4 is where these files are first exercised in a real page and manually verified in a browser.
 
-This generalizes `resources/js/lib/caseDraftStore.ts` and the script block of `resources/js/pages/student/CaseDraftNote.vue`, which are both left untouched (the accepted SYNC-SPIKE-01 experiment keeps working exactly as before).
+This generalizes `resources/js/lib/caseDraftStore.ts` and the script block of `resources/js/pages/student/CaseDraftNote.vue`, which are both left untouched (the accepted SYNC-SPIKE-01 experiment keeps working exactly as before) except for the one-line addition to `UserMenuContent.vue`'s logout handler.
 
 - [ ] **Step 1: Write `outboxStore.ts`**
 
@@ -716,6 +1015,18 @@ export async function keepSectionCopy<T>(section: StoredSection<T>) {
         db.transaction('copies', 'readwrite').objectStore('copies').put(copy),
     );
     return copy;
+}
+
+/**
+ * Used by Slice 2B's offline-capable row creation to find every queued "add
+ * row" draft for the current user after reconnecting, since those drafts are
+ * keyed by a client-generated local id the caller doesn't already know.
+ */
+export async function listAllSections<T>(): Promise<StoredSection<T>[]> {
+    const db = await database();
+    return requestResult<StoredSection<T>[]>(
+        db.transaction('sections').objectStore('sections').getAll(),
+    );
 }
 
 export async function clearSectionOutbox() {
@@ -958,24 +1269,46 @@ export function useSectionSync<T extends SyncedSection>(options: SectionSyncOpti
 }
 ```
 
-- [ ] **Step 3: Type-check**
+- [ ] **Step 3: Wire `clearSectionOutbox()` into logout**
+
+In `resources/js/components/UserMenuContent.vue`, add the import next to the existing `clearCaseDraftStorage` import:
+
+```typescript
+import { clearSectionOutbox } from '@/lib/outboxStore';
+```
+
+Update `handleLogout` to clear both stores before the request fires:
+
+```typescript
+const handleLogout = async () => {
+    await clearCaseDraftStorage();
+    await clearSectionOutbox();
+    router.flushAll();
+    router.post(logout.url());
+};
+```
+
+- [ ] **Step 4: Type-check**
 
 Run (PowerShell): `npm run types:check`
-Expected: no errors. (`@/lib/...` and `@/composables/...` aliases already resolve per the existing `tsconfig.json`/Vite alias used by `caseDraftStore.ts` imports elsewhere — confirm by checking that `resources/js/pages/student/CaseDraftNote.vue` already imports via `@/lib/caseDraftStore`.)
+Expected: no errors. (`@/lib/...` and `@/composables/...` aliases already resolve per the existing `tsconfig.json`/Vite alias used by `caseDraftStore.ts` imports elsewhere.)
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add resources/js/lib/outboxStore.ts resources/js/composables/useSectionSync.ts
-git commit -m "feat: add a generalized IndexedDB outbox and section-sync composable"
+git add resources/js/lib/outboxStore.ts resources/js/composables/useSectionSync.ts resources/js/components/UserMenuContent.vue
+git commit -m "feat: add a generalized IndexedDB outbox and section-sync composable, and clear it on logout"
 ```
 
 ---
 
-## Task 4: Case Profile section — request, controller, route, Vue component
+## Task 4: Case Profile section — request, controller, route, Vue component (with generated Case ID, derived rotation/site/ward, and unit-dependent age validation)
+
+**Revision:** The original draft's `CaseProfileSection.vue` never displayed the field catalogue's mandatory "Educational Case ID" or "Rotation, site and ward/unit" fields (§4.1 — both already exist as data on `ClinicalCase`/`RotationAssignment`, they were simply never surfaced), and validated `age_value` against a flat `max:150` regardless of `age_unit`, which is wrong for an age recorded in days or months. This revision adds a read-only case-identity block to the payload/component and replaces the flat age bound with a closure rule keyed on `age_unit`.
 
 **Files:**
 - Create: `app/Http/Requests/Concerns/HasSyncEnvelope.php`
+- Create: `app/Http/Requests/Concerns/RejectsUnknownFields.php`
 - Create: `app/Http/Requests/Student/UpdateClinicalCaseContextRequest.php`
 - Create: `app/Http/Controllers/Student/CaseContextController.php`
 - Modify: `routes/web.php` (add the `sync` route)
@@ -984,7 +1317,7 @@ git commit -m "feat: add a generalized IndexedDB outbox and section-sync composa
 
 **Interfaces:**
 - Consumes: `App\Services\SectionSyncService::sync()` (Task 2), `useSectionSync` + `outboxStore` (Task 3).
-- Produces: `HasSyncEnvelope::syncEnvelopeRules(): array`, `HasSyncEnvelope::syncEnvelope(): array{client_operation_id: string, base_lock_version: int, resolution: string|null, confirmed: bool}`, `HasSyncEnvelope::sectionData(): array` (validated data minus the four envelope keys) — reused by Task 5 and every later section request. `PUT /student/cases/{case}/context` returning `{ "section": { ...case-context fields, lock_version, updated_at } }`. `CaseProfileSection.vue` — a `<script setup>` component taking `caseId: string`, `userId: number`, `initial: CaseContextPayload` as props, consumed by Task 6's `CaseEditor.vue`.
+- Produces: `HasSyncEnvelope::syncEnvelopeRules(): array`, `HasSyncEnvelope::syncEnvelope(): array{client_operation_id: string, base_lock_version: int, resolution: string|null, confirmed: bool}`, `HasSyncEnvelope::sectionData(): array` (validated data minus the four envelope keys) — reused by every request class this plan and 2B/2C add. `RejectsUnknownFields::withValidator(Validator $validator): void` — a `FormRequest` hook (Laravel calls `withValidator()` automatically if the request class defines it) that fails validation if the payload contains a top-level key not present in `rules()` (after stripping `.*` wildcard suffixes) — reused the same way, and directly implements field catalogue §5's "Unknown request fields are rejected by the server". `PUT /student/cases/{case}/context` returning `{ "section": { ...case-context fields, case_display: {...read-only}, lock_version, updated_at } }`. `CaseProfileSection.vue` — a `<script setup>` component taking `caseId: string`, `userId: number`, `initial: CaseContextPayload` as props, consumed by Task 6's `CaseEditor.vue`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1026,6 +1359,21 @@ class CaseContextSyncTest extends TestCase
         $this->assertSame('case sheet', $case->fresh()->information_source);
     }
 
+    public function test_the_response_includes_the_generated_case_id_and_derived_rotation_site_and_ward(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/context", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'care_setting' => 'inpatient',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('section.case_display.case_number', $case->case_number);
+    }
+
     public function test_a_single_field_payload_does_not_touch_other_saved_fields(): void
     {
         [, $student, $case] = $this->makeCase();
@@ -1049,6 +1397,53 @@ class CaseContextSyncTest extends TestCase
         $this->assertSame('inpatient', $fresh->care_setting);
         $this->assertSame('case sheet', $fresh->information_source);
         $this->assertSame('70.00', $fresh->weight_kg);
+    }
+
+    public function test_age_in_days_rejects_a_value_over_364(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/context", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'age_value' => 400, 'age_unit' => 'days',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('age_value');
+    }
+
+    public function test_age_in_years_accepts_a_value_over_150_days_bound_but_rejects_over_120(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/context", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'age_value' => 118, 'age_unit' => 'years',
+        ])->assertOk();
+
+        $response = $this->putJson("/student/cases/{$case->id}/context", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
+            'age_value' => 130, 'age_unit' => 'years',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('age_value');
+    }
+
+    public function test_an_unknown_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/context", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'care_setting' => 'inpatient', 'patient_name' => 'Should be rejected',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_name');
     }
 
     public function test_a_stale_base_lock_version_returns_a_409_conflict(): void
@@ -1165,7 +1560,53 @@ trait HasSyncEnvelope
 }
 ```
 
-- [ ] **Step 4: Write `UpdateClinicalCaseContextRequest`**
+- [ ] **Step 4: Write the `RejectsUnknownFields` trait**
+
+```php
+<?php
+
+namespace App\Http\Requests\Concerns;
+
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+
+/**
+ * Field catalogue §5 ("Unknown request fields are rejected by the server") is
+ * a spec requirement, not an optional hardening choice. Every sync/store
+ * request in this plan and Slices 2B/2C uses this trait alongside
+ * HasSyncEnvelope. It compares the request's top-level keys against the
+ * request's own rules() keys (stripping ".*" wildcard array-item suffixes),
+ * so an unrecognized key such as a stray "patient_name" fails validation
+ * instead of being silently ignored.
+ */
+trait RejectsUnknownFields
+{
+    public function withValidator(Validator $validator): void
+    {
+        $allowedKeys = collect(array_keys($this->rules()))
+            ->map(fn (string $key): string => Str::before($key, '.*'))
+            ->map(fn (string $key): string => explode('.', $key)[0])
+            ->unique()
+            ->all();
+
+        $providedKeys = array_keys($this->all());
+        $unknown = array_diff($providedKeys, $allowedKeys);
+
+        if ($unknown === []) {
+            return;
+        }
+
+        $validator->after(function (Validator $validator) use ($unknown): void {
+            foreach ($unknown as $key) {
+                $validator->errors()->add($key, "The {$key} field is not recognized.");
+            }
+        });
+    }
+}
+```
+
+- [ ] **Step 5: Write `UpdateClinicalCaseContextRequest`**
 
 ```php
 <?php
@@ -1173,12 +1614,16 @@ trait HasSyncEnvelope
 namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateClinicalCaseContextRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
+
+    private const AGE_MAX_BY_UNIT = ['days' => 364, 'months' => 59, 'years' => 120];
 
     public function authorize(): bool
     {
@@ -1192,8 +1637,8 @@ class UpdateClinicalCaseContextRequest extends FormRequest
             ...$this->syncEnvelopeRules(),
             'encounter_date' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
             'case_category' => ['sometimes', 'nullable', 'string', 'max:80'],
-            'age_value' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:150'],
-            'age_unit' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'age_value' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'age_unit' => ['sometimes', 'nullable', Rule::in(['days', 'months', 'years'])],
             'sex' => ['sometimes', 'nullable', Rule::in(['male', 'female', 'intersex', 'unknown'])],
             'care_setting' => ['sometimes', 'nullable', Rule::in(['inpatient', 'outpatient', 'emergency', 'other'])],
             'hospital_day_at_first_review' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:999'],
@@ -1203,10 +1648,84 @@ class UpdateClinicalCaseContextRequest extends FormRequest
             'pregnancy_lactation_status' => ['sometimes', 'nullable', 'string', 'max:30'],
         ];
     }
+
+    /**
+     * Age has no single universal maximum — 364 in days, 59 in months (the
+     * common paediatric convention of expressing under-5 ages in months) and
+     * 120 in years are each independently plausible; a flat max:150 applied
+     * to a value recorded in days would accept an impossible "150-day-old
+     * patient is really 150 years old" typo class of error. This can't be a
+     * static rule because the bound depends on the sibling age_unit field.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
+
+        $validator->after(function (Validator $validator): void {
+            if (! $this->has('age_value') || $this->input('age_value') === null) {
+                return;
+            }
+
+            $unit = $this->input('age_unit');
+            $max = self::AGE_MAX_BY_UNIT[$unit] ?? null;
+
+            if ($max !== null && (int) $this->input('age_value') > $max) {
+                $validator->errors()->add('age_value', "The age value must not exceed {$max} when the unit is {$unit}.");
+            }
+        });
+    }
+
+    private function rejectUnknownFields(Validator $validator): void
+    {
+        // Delegates to the trait's implementation; kept as a named call here
+        // because this class also needs its own withValidator() for the
+        // age-bound check above, and a class can only define one
+        // withValidator() method — RejectsUnknownFields is written as a
+        // small helper method (see the trait) rather than relying on trait
+        // auto-invocation whenever a request needs a second withValidator()
+        // concern. See RejectsUnknownFields::withValidator() for the reusable
+        // version other requests in this plan use directly.
+        (function (): void {
+            parent::class;
+        })();
+    }
 }
 ```
 
-- [ ] **Step 5: Write `CaseContextController`**
+Note: `RejectsUnknownFields::withValidator()` is the trait's own hook method. A class using the trait normally does **not** define its own `withValidator()` — it lets the trait's implementation run. `UpdateClinicalCaseContextRequest` is the one exception in this plan because it needs a *second* check (the age/unit bound) that also uses `withValidator()`, and PHP does not let a trait and a class both contribute to the same method name without the class's own method taking over. Rather than the confusing `rejectUnknownFields()` indirection above, write this class's `withValidator()` to call both checks directly:
+
+```php
+    public function withValidator(Validator $validator): void
+    {
+        $allowedKeys = collect(array_keys($this->rules()))
+            ->map(fn (string $key): string => \Illuminate\Support\Str::before($key, '.*'))
+            ->map(fn (string $key): string => explode('.', $key)[0])
+            ->unique()
+            ->all();
+        $unknown = array_diff(array_keys($this->all()), $allowedKeys);
+
+        $validator->after(function (Validator $validator) use ($unknown): void {
+            foreach ($unknown as $key) {
+                $validator->errors()->add($key, "The {$key} field is not recognized.");
+            }
+
+            if (! $this->has('age_value') || $this->input('age_value') === null) {
+                return;
+            }
+
+            $unit = $this->input('age_unit');
+            $max = self::AGE_MAX_BY_UNIT[$unit] ?? null;
+
+            if ($max !== null && (int) $this->input('age_value') > $max) {
+                $validator->errors()->add('age_value', "The age value must not exceed {$max} when the unit is {$unit}.");
+            }
+        });
+    }
+```
+
+Drop the `RejectsUnknownFields` trait's use from this one class's `use` statement's effect (the trait can still be `use`d for its rule-key-extraction helper if refactored into a plain method later, but for now this class simply doesn't need the trait's own `withValidator()` since it inlines the equivalent check) — every other request class in this plan and in 2B/2C that does **not** also need a second `withValidator()` concern uses `use HasSyncEnvelope, RejectsUnknownFields;` exactly as originally described, with no override.
+
+- [ ] **Step 6: Write `CaseContextController`**
 
 ```php
 <?php
@@ -1242,6 +1761,8 @@ class CaseContextController extends Controller
     /** @return array<string, mixed> */
     private function payload(ClinicalCase $case): array
     {
+        $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+
         return [
             'encounter_date' => $case->encounter_date?->toDateString(),
             'case_category' => $case->case_category,
@@ -1254,6 +1775,12 @@ class CaseContextController extends Controller
             'weight_kg' => $case->weight_kg,
             'height_cm' => $case->height_cm,
             'pregnancy_lactation_status' => $case->pregnancy_lactation_status,
+            'case_display' => [
+                'case_number' => $case->case_number,
+                'rotation_name' => $case->rotationAssignment?->rotation?->name,
+                'clinical_site_name' => $case->clinicalSite?->name,
+                'ward_name' => $case->ward?->name,
+            ],
             'lock_version' => $case->lock_version,
             'updated_at' => $case->updated_at->toIso8601String(),
         ];
@@ -1261,7 +1788,9 @@ class CaseContextController extends Controller
 }
 ```
 
-- [ ] **Step 6: Add the route**
+Note: `case_display` is a read-only block — the field catalogue marks Educational Case ID and rotation/site/ward as "Generated" / "Derived from the authorized rotation assignment" (§4.1), never student-editable, so it is never part of `UpdateClinicalCaseContextRequest::rules()` and `RejectsUnknownFields` would reject it if a client ever tried to send it back in a sync payload — it only ever flows server → client.
+
+- [ ] **Step 7: Add the route**
 
 In `routes/web.php`, add inside the existing `role:student` group, immediately after the `student.cases.show` route:
 
@@ -1275,23 +1804,30 @@ Add the import near the other `Student` controller imports:
 use App\Http\Controllers\Student\CaseContextController;
 ```
 
-- [ ] **Step 7: Regenerate Wayfinder files**
+- [ ] **Step 8: Regenerate Wayfinder files**
 
 Run (PowerShell): `npm run build`
 This regenerates `resources/js/actions/App/Http/Controllers/Student/CaseContextController.ts` and the matching route file. Confirm with `git status` that only Wayfinder files plus your own new files changed.
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [ ] **Step 9: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=CaseContextSyncTest`
-Expected: PASS (5 tests).
+Expected: PASS (9 tests).
 
-- [ ] **Step 9: Write the Case Profile Vue section component**
+- [ ] **Step 10: Write the Case Profile Vue section component**
 
 ```vue
 <script setup lang="ts">
 import { RefreshCw, Check, CloudOff, FileClock, AlertTriangle } from '@lucide/vue';
 import { computed } from 'vue';
 import { useSectionSync, type SyncedSection } from '@/composables/useSectionSync';
+
+type CaseDisplay = {
+    case_number: number;
+    rotation_name: string | null;
+    clinical_site_name: string | null;
+    ward_name: string | null;
+};
 
 type CaseContextPayload = SyncedSection & {
     encounter_date: string | null;
@@ -1305,6 +1841,7 @@ type CaseContextPayload = SyncedSection & {
     weight_kg: string | null;
     height_cm: string | null;
     pregnancy_lactation_status: string | null;
+    case_display: CaseDisplay;
 };
 
 const props = defineProps<{
@@ -1330,6 +1867,9 @@ const statusLabel = computed(() => ({
     failed: 'Sync failed',
     conflict: 'Conflict — review changes',
 })[state.value]);
+
+const ageMaxByUnit: Record<string, number> = { days: 364, months: 59, years: 120 };
+const ageMax = computed(() => (payload.value.age_unit ? ageMaxByUnit[payload.value.age_unit] : undefined));
 </script>
 
 <template>
@@ -1340,6 +1880,16 @@ const statusLabel = computed(() => ({
                 <component :is="state === 'saving' ? RefreshCw : state === 'server' ? Check : state === 'device' ? CloudOff : state === 'unsynced' ? FileClock : AlertTriangle" class="size-3.5" :class="state === 'saving' ? 'animate-spin' : ''" />
                 {{ statusLabel }}
             </span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/60" data-test="case-display">
+            <p class="font-bold text-slate-700 dark:text-slate-200">Educational Case ID: #{{ payload.case_display.case_number }}</p>
+            <p class="mt-1 text-slate-500">
+                {{ payload.case_display.rotation_name ?? 'Rotation not assigned' }} ·
+                {{ payload.case_display.clinical_site_name ?? 'Site not assigned' }} ·
+                {{ payload.case_display.ward_name ?? 'Ward not assigned' }}
+            </p>
+            <p class="mt-1 text-xs text-slate-400">Generated and read-only. Never a hospital identifier.</p>
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2">
@@ -1372,7 +1922,7 @@ const statusLabel = computed(() => ({
             <div class="grid grid-cols-2 gap-2">
                 <label class="block text-sm">
                     <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Age</span>
-                    <input v-model.number="payload.age_value" type="number" min="0" max="150" data-test="age-value" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+                    <input v-model.number="payload.age_value" type="number" min="0" :max="ageMax" data-test="age-value" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
                 </label>
                 <label class="block text-sm">
                     <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Unit</span>
@@ -1427,29 +1977,31 @@ const statusLabel = computed(() => ({
 </template>
 ```
 
-- [ ] **Step 10: Type-check**
+- [ ] **Step 11: Type-check**
 
 Run (PowerShell): `npm run types:check`
 Expected: no errors.
 
-- [ ] **Step 11: Run the full backend suite**
+- [ ] **Step 12: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: all previous + 5 new tests pass (145 passed / 2 skipped).
+Expected: 146 previous + 9 new — 155 passed / 2 skipped.
 
-- [ ] **Step 12: Commit**
+- [ ] **Step 13: Commit**
 
 ```bash
-git add app/Http/Requests/Concerns/HasSyncEnvelope.php app/Http/Requests/Student/UpdateClinicalCaseContextRequest.php app/Http/Controllers/Student/CaseContextController.php routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/case-editor/CaseProfileSection.vue tests/Feature/CaseContextSyncTest.php
-git commit -m "feat: add partial-autosave Case Profile section (request, controller, route, component)"
+git add app/Http/Requests/Concerns/HasSyncEnvelope.php app/Http/Requests/Concerns/RejectsUnknownFields.php app/Http/Requests/Student/UpdateClinicalCaseContextRequest.php app/Http/Controllers/Student/CaseContextController.php routes/web.php resources/js/actions resources/js/routes resources/js/pages/student/case-editor/CaseProfileSection.vue tests/Feature/CaseContextSyncTest.php
+git commit -m "feat: add partial-autosave Case Profile section with generated case ID, derived rotation/site/ward, and unit-dependent age bounds"
 ```
 
 ---
 
-## Task 5: History & Diagnosis section — partial validation fix, controller, route, Vue component
+## Task 5: History & Diagnosis section — partial validation fix, full field set, controller, route, Vue component
+
+**Revision:** `UpdateCaseClinicalProfileRequest` already validated `past_surgical_history`, `adherence_status`, `family_history`, `substance_history` and `examination_findings` in the original draft, but `HistoryDiagnosisSection.vue` never rendered inputs for any of them — a student could never actually enter this data through the UI the plan shipped. This revision adds those five fields to the component (and to the controller's read/write payload, which also silently omitted them). It also applies `DeidentificationNotice` to every narrative field in this section, not only History of present illness, and clears `allergy_substance`/`allergy_reaction` server-side whenever `allergy_status` moves away from `known_allergy` in the same request (previously a student could set Known allergy → substance → then flip back to No known allergy and the stale substance/reaction would silently remain in the database, contradicting the visible UI).
 
 **Files:**
-- Modify: `app/Http/Requests/Student/UpdateCaseClinicalProfileRequest.php` (add `'sometimes'` to every field, add sync envelope)
+- Modify: `app/Http/Requests/Student/UpdateCaseClinicalProfileRequest.php` (add `'sometimes'` to every field, add sync envelope + unknown-field rejection)
 - Create: `app/Http/Controllers/Student/CaseClinicalProfileController.php`
 - Modify: `app/Models/CaseClinicalProfile.php` (implement `Syncable`)
 - Modify: `routes/web.php` (add the `sync` route)
@@ -1459,8 +2011,8 @@ git commit -m "feat: add partial-autosave Case Profile section (request, control
 - Test: `tests/Feature/CaseClinicalProfileSyncTest.php`
 
 **Interfaces:**
-- Consumes: `HasSyncEnvelope` (Task 4), `SectionSyncService` (Task 2), `useSectionSync` (Task 3).
-- Produces: `PUT /student/cases/{case}/clinical-profile` returning `{ "section": {...profile fields, lock_version, updated_at} }`; creates the `CaseClinicalProfile` row lazily on the first deliberate sync, never on page render. `detectPotentialIdentifiers(text: string): string[]`, `<DeidentificationNotice :text="..." />` — reused by later Slice 2B/2C sections with free-text fields.
+- Consumes: `HasSyncEnvelope`, `RejectsUnknownFields` (Task 4), `SectionSyncService` (Task 2), `useSectionSync` (Task 3).
+- Produces: `PUT /student/cases/{case}/clinical-profile` returning `{ "section": {...profile fields, lock_version, updated_at} }`; creates the `CaseClinicalProfile` row lazily on the first deliberate sync, never on page render. `detectPotentialIdentifiers(text: string): string[]`, `<DeidentificationNotice :text="..." />` — reused by every narrative field in this section and by every later Slice 2B/2C section with free text (medication notes, SOAP Subjective, ADR event, counselling notes).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1533,6 +2085,28 @@ class CaseClinicalProfileSyncTest extends TestCase
         $this->assertSame('Type 2 diabetes mellitus, 5 years.', $fresh->past_medical_history);
     }
 
+    public function test_a_single_field_payload_persists_the_previously_missing_history_fields(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/clinical-profile", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'past_surgical_history' => 'Appendicectomy, 2019.',
+            'adherence_status' => 'adherent',
+            'family_history' => 'Father: hypertension.',
+            'substance_history' => 'No tobacco or alcohol use reported.',
+            'examination_findings' => 'Alert, oriented, no acute distress (ward-round discussion).',
+        ]);
+
+        $fresh = $case->fresh()->clinicalProfile;
+        $this->assertSame('Appendicectomy, 2019.', $fresh->past_surgical_history);
+        $this->assertSame('adherent', $fresh->adherence_status);
+        $this->assertSame('Father: hypertension.', $fresh->family_history);
+        $this->assertSame('No tobacco or alcohol use reported.', $fresh->substance_history);
+        $this->assertSame('Alert, oriented, no acute distress (ward-round discussion).', $fresh->examination_findings);
+    }
+
     public function test_allergy_substance_is_required_when_allergy_status_is_known_allergy_in_the_same_request(): void
     {
         [, $student, $case] = $this->makeCase();
@@ -1548,6 +2122,27 @@ class CaseClinicalProfileSyncTest extends TestCase
         $response->assertJsonValidationErrors('allergy_substance');
     }
 
+    public function test_moving_allergy_status_away_from_known_allergy_clears_the_conditional_fields(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/clinical-profile", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'allergy_status' => 'known_allergy', 'allergy_substance' => 'Penicillin', 'allergy_reaction' => 'Rash',
+        ])->assertOk();
+
+        $this->putJson("/student/cases/{$case->id}/clinical-profile", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
+            'allergy_status' => 'no_known_allergy',
+        ])->assertOk();
+
+        $fresh = $case->fresh()->clinicalProfile;
+        $this->assertSame('no_known_allergy', $fresh->allergy_status);
+        $this->assertNull($fresh->allergy_substance);
+        $this->assertNull($fresh->allergy_reaction);
+    }
+
     public function test_rendering_the_editor_page_never_creates_a_profile_row(): void
     {
         [, $student, $case] = $this->makeCase();
@@ -1556,6 +2151,20 @@ class CaseClinicalProfileSyncTest extends TestCase
         $this->get("/student/cases/{$case->id}");
 
         $this->assertNull($case->fresh()->clinicalProfile);
+    }
+
+    public function test_an_unknown_field_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/clinical-profile", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'allergy_status' => 'unknown', 'patient_mrn' => '12345',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('patient_mrn');
     }
 
     public function test_a_different_student_cannot_sync_the_clinical_profile(): void
@@ -1596,7 +2205,7 @@ class CaseClinicalProfileSyncTest extends TestCase
 Run (PowerShell): `php artisan test --filter=CaseClinicalProfileSyncTest`
 Expected: FAIL — route not found.
 
-- [ ] **Step 3: Fix `UpdateCaseClinicalProfileRequest` for partial autosave**
+- [ ] **Step 3: Fix `UpdateCaseClinicalProfileRequest` for partial autosave and unknown-field rejection**
 
 Replace the full contents of `app/Http/Requests/Student/UpdateCaseClinicalProfileRequest.php`:
 
@@ -1606,12 +2215,13 @@ Replace the full contents of `app/Http/Requests/Student/UpdateCaseClinicalProfil
 namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCaseClinicalProfileRequest extends FormRequest
 {
-    use HasSyncEnvelope;
+    use HasSyncEnvelope, RejectsUnknownFields;
 
     public function authorize(): bool
     {
@@ -1647,7 +2257,7 @@ class UpdateCaseClinicalProfileRequest extends FormRequest
 
 - [ ] **Step 4: Make `CaseClinicalProfile` implement `Syncable`**
 
-In `app/Models/CaseClinicalProfile.php`, add imports and apply the trait/interface exactly as Task 2 did for `ClinicalCase`:
+In `app/Models/CaseClinicalProfile.php`, add imports and apply the trait/interface exactly as Task 2 did for `ClinicalCase` (this model backs exactly one section, so it does **not** override `lockVersionColumn()` — the trait's single-column default is correct):
 
 ```php
 use App\Contracts\Syncable;
@@ -1684,6 +2294,16 @@ class CaseClinicalProfileController extends Controller
         );
 
         $envelope = $request->syncEnvelope();
+        $data = $request->sectionData();
+
+        // Allergy conditional fields must never silently outlive their status:
+        // a student who records substance/reaction for "known_allergy" and
+        // then changes the answer must not leave stale substance/reaction
+        // data behind, invisible in a UI that now shows neither field.
+        if (array_key_exists('allergy_status', $data) && $data['allergy_status'] !== 'known_allergy') {
+            $data['allergy_substance'] = null;
+            $data['allergy_reaction'] = null;
+        }
 
         $result = $sync->sync(
             $profile,
@@ -1691,7 +2311,7 @@ class CaseClinicalProfileController extends Controller
             'clinical_profile',
             $envelope['client_operation_id'],
             $envelope['base_lock_version'],
-            [...$request->sectionData(), 'last_saved_by' => $request->user()->id],
+            [...$data, 'last_saved_by' => $request->user()->id],
             $envelope['resolution'],
             $envelope['confirmed'],
         );
@@ -1744,7 +2364,7 @@ Run (PowerShell): `npm run build`
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run (PowerShell): `php artisan test --filter=CaseClinicalProfileSyncTest`
-Expected: PASS (6 tests).
+Expected: PASS (9 tests).
 
 - [ ] **Step 9: Write the de-identification helper**
 
@@ -1796,7 +2416,7 @@ const warnings = computed(() => detectPotentialIdentifiers(props.text));
 </template>
 ```
 
-- [ ] **Step 11: Write the History & Diagnosis Vue section component**
+- [ ] **Step 11: Write the History & Diagnosis Vue section component (now with every history field the request already validates)**
 
 ```vue
 <script setup lang="ts">
@@ -1814,6 +2434,11 @@ type ClinicalProfilePayload = SyncedSection & {
     diagnoses: Diagnosis[] | null;
     past_medical_history: string | null;
     past_medical_history_none: boolean;
+    past_surgical_history: string | null;
+    adherence_status: string | null;
+    family_history: string | null;
+    substance_history: string | null;
+    examination_findings: string | null;
     allergy_status: string;
     allergy_substance: string | null;
     allergy_reaction: string | null;
@@ -1874,8 +2499,14 @@ function removeDiagnosis(index: number) {
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Chief complaints</h3>
             <div v-for="(complaint, index) in payload.chief_complaints ?? []" :key="index" class="mb-2 flex gap-2">
-                <input v-model="complaint.complaint" type="text" maxlength="255" placeholder="Complaint" :data-test="`chief-complaint-${index}`" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
-                <input v-model="complaint.duration" type="text" maxlength="60" placeholder="Duration" class="w-32 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+                <label class="flex-1 text-sm">
+                    <span class="sr-only">Complaint {{ index + 1 }}</span>
+                    <input v-model="complaint.complaint" type="text" maxlength="255" placeholder="Complaint" :data-test="`chief-complaint-${index}`" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+                </label>
+                <label class="w-32 text-sm">
+                    <span class="sr-only">Duration for complaint {{ index + 1 }}</span>
+                    <input v-model="complaint.duration" type="text" maxlength="60" placeholder="Duration" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+                </label>
                 <button type="button" aria-label="Remove complaint" class="rounded-xl border px-2" @click="removeComplaint(index)"><Trash2 class="size-4" /></button>
             </div>
             <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addComplaint"><Plus class="size-4" /> Add complaint</button>
@@ -1890,12 +2521,18 @@ function removeDiagnosis(index: number) {
         <div>
             <h3 class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Diagnosis / active problem</h3>
             <div v-for="(diagnosis, index) in payload.diagnoses ?? []" :key="index" class="mb-2 flex gap-2">
-                <input v-model="diagnosis.label" type="text" maxlength="255" placeholder="Diagnosis" :data-test="`diagnosis-${index}`" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
-                <select v-model="diagnosis.type" class="rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @change="edit">
-                    <option value="provisional">Provisional</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="comorbidity">Comorbidity</option>
-                </select>
+                <label class="flex-1 text-sm">
+                    <span class="sr-only">Diagnosis {{ index + 1 }}</span>
+                    <input v-model="diagnosis.label" type="text" maxlength="255" placeholder="Diagnosis" :data-test="`diagnosis-${index}`" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+                </label>
+                <label class="text-sm">
+                    <span class="sr-only">Type for diagnosis {{ index + 1 }}</span>
+                    <select v-model="diagnosis.type" class="rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @change="edit">
+                        <option value="provisional">Provisional</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="comorbidity">Comorbidity</option>
+                    </select>
+                </label>
                 <button type="button" aria-label="Remove diagnosis" class="rounded-xl border px-2" @click="removeDiagnosis(index)"><Trash2 class="size-4" /></button>
             </div>
             <button type="button" class="flex items-center gap-1 text-sm font-bold text-[#0b2942]" @click="addDiagnosis"><Plus class="size-4" /> Add diagnosis</button>
@@ -1908,6 +2545,38 @@ function removeDiagnosis(index: number) {
         <label class="flex items-center gap-2 text-sm">
             <input v-model="payload.past_medical_history_none" type="checkbox" data-test="past-medical-history-none" @change="edit" />
             None known / not available
+        </label>
+
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Past surgical history (optional)</span>
+            <textarea v-model="payload.past_surgical_history" rows="2" maxlength="5000" data-test="past-surgical-history" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+        </label>
+
+        <fieldset>
+            <legend class="mb-2 text-sm font-bold text-slate-700 dark:text-slate-200">Adherence status</legend>
+            <div class="flex flex-wrap gap-3 text-sm">
+                <label v-for="option in ['adherent', 'partially_adherent', 'non_adherent', 'unable_to_assess']" :key="option" class="flex items-center gap-1.5">
+                    <input v-model="payload.adherence_status" type="radio" :value="option" :data-test="`adherence-status-${option}`" @change="edit" />
+                    {{ option.replace(/_/g, ' ') }}
+                </label>
+            </div>
+        </fieldset>
+
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Family history (optional)</span>
+            <textarea v-model="payload.family_history" rows="2" maxlength="5000" data-test="family-history" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+            <DeidentificationNotice :text="payload.family_history" />
+        </label>
+
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Tobacco/alcohol/substance history (optional)</span>
+            <textarea v-model="payload.substance_history" rows="2" maxlength="5000" data-test="substance-history" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+        </label>
+
+        <label class="block text-sm">
+            <span class="mb-1 block font-medium text-slate-700 dark:text-slate-200">Relevant examination findings (optional; note the source)</span>
+            <textarea v-model="payload.examination_findings" rows="3" maxlength="5000" data-test="examination-findings" class="w-full rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700 dark:bg-slate-900" @input="edit" />
+            <DeidentificationNotice :text="payload.examination_findings" />
         </label>
 
         <fieldset>
@@ -1954,13 +2623,13 @@ Expected: no errors.
 - [ ] **Step 13: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: all previous + 6 new tests pass (151 passed / 2 skipped).
+Expected: 155 previous + 9 new — 164 passed / 2 skipped.
 
 - [ ] **Step 14: Commit**
 
 ```bash
 git add app/Http/Requests/Student/UpdateCaseClinicalProfileRequest.php app/Http/Controllers/Student/CaseClinicalProfileController.php app/Models/CaseClinicalProfile.php routes/web.php resources/js/actions resources/js/routes resources/js/lib/deidentification.ts resources/js/components/DeidentificationNotice.vue resources/js/pages/student/case-editor/HistoryDiagnosisSection.vue tests/Feature/CaseClinicalProfileSyncTest.php
-git commit -m "feat: add partial-autosave History & Diagnosis section with de-identification warnings"
+git commit -m "feat: add the full partial-autosave History & Diagnosis section, clearing stale allergy fields on status change"
 ```
 
 ---
@@ -2079,6 +2748,7 @@ class CaseEditorController extends Controller
     {
         Gate::authorize('view', $case);
 
+        $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
         $profile = $case->clinicalProfile;
 
         return Inertia::render('student/CaseEditor', [
@@ -2096,6 +2766,12 @@ class CaseEditorController extends Controller
                 'weight_kg' => $case->weight_kg,
                 'height_cm' => $case->height_cm,
                 'pregnancy_lactation_status' => $case->pregnancy_lactation_status,
+                'case_display' => [
+                    'case_number' => $case->case_number,
+                    'rotation_name' => $case->rotationAssignment?->rotation?->name,
+                    'clinical_site_name' => $case->clinicalSite?->name,
+                    'ward_name' => $case->ward?->name,
+                ],
                 'lock_version' => $case->lock_version,
                 'updated_at' => $case->updated_at->toIso8601String(),
             ],
@@ -2105,6 +2781,11 @@ class CaseEditorController extends Controller
                 'diagnoses' => $profile->diagnoses,
                 'past_medical_history' => $profile->past_medical_history,
                 'past_medical_history_none' => $profile->past_medical_history_none,
+                'past_surgical_history' => $profile->past_surgical_history,
+                'adherence_status' => $profile->adherence_status,
+                'family_history' => $profile->family_history,
+                'substance_history' => $profile->substance_history,
+                'examination_findings' => $profile->examination_findings,
                 'allergy_status' => $profile->allergy_status,
                 'allergy_substance' => $profile->allergy_substance,
                 'allergy_reaction' => $profile->allergy_reaction,
@@ -2194,6 +2875,11 @@ const emptyClinicalProfile = {
     diagnoses: null,
     past_medical_history: null,
     past_medical_history_none: false,
+    past_surgical_history: null,
+    adherence_status: null,
+    family_history: null,
+    substance_history: null,
+    examination_findings: null,
     allergy_status: 'unknown',
     allergy_substance: null,
     allergy_reaction: null,
@@ -2261,7 +2947,7 @@ Expected: no errors.
 - [ ] **Step 10: Run the full backend suite**
 
 Run (PowerShell): `php artisan test`
-Expected: all previous + 3 new tests pass (154 passed / 2 skipped).
+Expected: 164 previous + 3 new — 167 passed / 2 skipped.
 
 - [ ] **Step 11: Commit**
 
@@ -2384,7 +3070,7 @@ Expected: PASS (3 tests). If the cross-institution assertions unexpectedly retur
 - [ ] **Step 3: Run the full suite**
 
 Run (PowerShell): `php artisan test`
-Expected: all previous + 3 new tests pass (157 passed / 2 skipped).
+Expected: 167 previous + 3 new — 170 passed / 2 skipped.
 
 - [ ] **Step 4: Static analysis and formatting**
 
@@ -2403,6 +3089,8 @@ git commit -m "test: cover cross-institution, post-submission and faculty-read-o
 
 ## Task 8: Manual device verification (phone / tablet / desktop)
 
+**Revision:** The original Step 3.4's offline-refresh check ("edit offline, confirm the value survives a page refresh") described behavior the app cannot provide without a service worker caching the page shell — a hard refresh while offline hits the browser's own network-error interstitial, not the Inertia app, so there is nothing on-page to re-read from IndexedDB until the browser can load the app again. The corrected script verifies draft *recovery on reconnect*, not offline refresh.
+
 **Files:** None (verification only; no code changes).
 
 **Interfaces:** None.
@@ -2420,17 +3108,22 @@ Resize/emulate the browser to 390×844. As a student with an active rotation ass
 Pass criteria:
 - The section nav bar is horizontally scrollable and fits without page-level horizontal scroll.
 - Only one section's fields are visible at a time; switching sections via the nav or Previous/Next updates the visible fields without a full page reload (Inertia page stays the same, only `activeIndex` changes).
+- The Case Profile section shows the read-only Educational Case ID / rotation / site / ward block above the editable fields.
 - Typing in a Case Profile field shows "Saving…" then "Saved" within ~1 second (700ms debounce + round trip).
-- Typing in the History & Diagnosis "History of present illness" textarea with a value containing a 10-digit number (e.g. `9876543210`) shows the de-identification warning below the field.
+- Setting Age unit to "Days" and typing an age value over 364 shows a validation error on save; the same value is accepted when the unit is "Years".
+- Typing in the History & Diagnosis "History of present illness" textarea (or Family history, or Examination findings) with a value containing a 10-digit number (e.g. `9876543210`) shows the de-identification warning below the field.
+- Setting Allergy status to "Known allergy", filling in a substance, then switching back to "No known allergy" and reopening the page shows the substance field is gone (cleared server-side, not just hidden).
 - Touch targets (buttons, radio labels, nav pills) are comfortably tappable — no two adjacent tap targets closer than ~8px.
 
-- [ ] **Step 3: Offline draft recovery, reconnect, and conflict — repeat the SYNC-SPIKE-01 script against the new sections**
+- [ ] **Step 3: Offline draft recovery, reconnect, and conflict**
 
 Using DevTools network throttling/offline toggle:
-1. Go offline, edit a Case Profile field. Confirm the status changes to "Saved on this device" and the value survives a page refresh (re-fetch the page, confirm the field still shows the offline-entered value pulled from IndexedDB via `useSectionSync`'s `onMounted` recovery).
-2. Go back online. Confirm the pending change auto-syncs and the status returns to "Saved".
-3. Simulate a conflict: open the same case in two tabs, edit Case Profile in Tab A and let it save, then edit the same field in Tab B (which still holds the pre-Tab-A `lock_version`) and let it sync. Confirm Tab B shows the conflict panel with "Use server version" / "Keep local draft as a copy" / "Replace server version", and that choosing each option produces the behavior described in Task 2/3 (no silent overwrite in any path).
-4. Log out. Confirm no readable draft remains for that user (open DevTools Application → IndexedDB → `pharmalab-section-outbox` and confirm entries are gone, or repeat via `clearSectionOutbox()` if a logout hook isn't wired up yet — if it is NOT wired up, note this as a known gap for Slice 2C to address, do not silently treat it as passing).
+1. Go offline, edit a Case Profile field. Confirm the status changes to "Saved on this device".
+2. **Without refreshing the page** (a hard refresh while offline hits the browser's own network-error page, not the app — there is nothing to verify there), navigate within the app (e.g. switch sections and back) and confirm the offline-entered value is still shown from the in-memory `useSectionSync` state.
+3. Go back online. Confirm the pending change auto-syncs and the status returns to "Saved". Then reload the page and confirm the value persisted server-side (this is the real recovery guarantee — not an offline refresh, but a post-reconnect one).
+4. Simulate a conflict: open the same case in two tabs, edit Case Profile in Tab A and let it save, then edit the same field in Tab B (which still holds the pre-Tab-A `lock_version`) and let it sync. Confirm Tab B shows the conflict panel with "Use server version" / "Keep local draft as a copy" / "Replace server version", and that choosing each option produces the behavior described in Task 2/3 (no silent overwrite in any path).
+5. Edit a Case Profile field and, separately, toggle nothing else (2B's availability toggles don't exist yet in this slice) — confirm this single-section case still works exactly as before; the independent-lock-column change in Task 2 is fully exercised once 2B's toggles exist, and is re-verified in 2B's own device-verification task.
+6. Log out. Open DevTools Application → IndexedDB and confirm `pharmalab-section-outbox` has no entries left (Task 3's logout hook). If entries remain, this is a regression, not an expected gap — stop and fix it before proceeding, do not note it as a known limitation.
 
 - [ ] **Step 4: Tablet viewport (820×1180)**
 
@@ -2448,6 +3141,7 @@ Update `PROJECT_STATE.md`'s Slice 2 entry (once all of Slice 2A/2B/2C are comple
 
 ## Self-Review Notes
 
-- **Spec coverage:** User requirement 1 (explicit none/unavailable states) — Task 1 (schema only; UI lands in Slice 2B). Requirement 2 (mobile section-based editor) — Task 6. Requirement 3 (repeatable rows) — out of scope for 2A by design, owned by Slice 2B. Requirement 4 (partial autosave, `allergy_status` named example) — Tasks 4 and 5, with a dedicated regression test. Requirement 5 (IndexedDB outbox, idempotency, optimistic locking, conflict handling) — Tasks 2 and 3, proven end-to-end in Tasks 4, 5 and manually in Task 8. Requirement 6 (conditional allergy/ADR fields) — allergy fields in Task 5; ADR fields are Slice 2C's Conditional Clinical Activities section. Requirement 7 (de-identification warnings) — Task 5. Requirement 8 (student ownership, assigned-faculty visibility, institution isolation tests) — Task 7. Requirement 9 (device verification) — Task 8.
-- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test.
-- **Type consistency:** `SectionSyncService::sync()`'s return shape (`array{status, httpStatus, model}`) is identical across Tasks 2, 4 and 5. `useSectionSync`'s `SyncedSection` base type (`lock_version` + `updated_at`) is used consistently by both `CaseProfileSection.vue` and `HistoryDiagnosisSection.vue`. `HasSyncEnvelope` is defined once in Task 4 and reused unmodified in Task 5.
+- **Spec coverage:** User requirement 1 (explicit none/unavailable states) — Task 1 (schema, including the "no current medicines" explanation field and independent lock columns; UI lands in Slice 2B). Requirement 2 (mobile section-based editor) — Task 6. Requirement 3 (repeatable rows) — out of scope for 2A by design, owned by Slice 2B. Requirement 4 (partial autosave, `allergy_status` named example) — Tasks 4 and 5, with dedicated regression tests, now also proving the allergy-conditional-field-clearing behavior. Requirement 5 (IndexedDB outbox, idempotency, optimistic locking, conflict handling) — Tasks 2 and 3, including cross-section and cross-endpoint replay-safety hardening, proven end-to-end in Tasks 4, 5 and manually in Task 8. Requirement 6 (conditional allergy/ADR fields) — allergy fields in Task 5, including the clear-on-change fix; ADR fields are Slice 2C's Conditional Clinical Activities section. Requirement 7 (de-identification warnings) — Task 5, now applied to every narrative field in this slice, not only HPI. Requirement 8 (student ownership, assigned-faculty visibility, institution isolation tests) — Task 7. Requirement 9 (device verification) — Task 8, with the offline-refresh script corrected to describe actual browser behavior.
+- **Placeholder scan:** No task contains "TBD"/"handle appropriately"/unshown code. Task 3's composable and store have no automated test of their own — this is called out explicitly as a deliberate, justified divergence (no JS unit-test runner exists in this repo) rather than a silently-skipped test. Task 2's migration round-trip test names a concrete fallback (switch isolation trait) if the chosen approach proves flaky, rather than leaving the risk unaddressed.
+- **Type consistency:** `SectionSyncService::sync()`'s return shape (`array{status, httpStatus, model}`) is identical across Tasks 2, 4 and 5. `Syncable::getLockVersion(string $sectionKey)`/`applySyncedAttributes(string $sectionKey, ...)` is the same two-argument-plus-section-key shape everywhere it's called in this plan, and 2B/2C's plans are written against this exact signature (not the single-argument version the original draft shipped). `useSectionSync`'s `SyncedSection` base type (`lock_version` + `updated_at`) is used consistently by both `CaseProfileSection.vue` and `HistoryDiagnosisSection.vue`. `HasSyncEnvelope` and `RejectsUnknownFields` are defined once in Task 4 and reused unmodified (or, for the one class that needs a second `withValidator()` concern, inlined equivalently and explained) by every later request class in this series.
+- **Review Focus coverage:** all five items (partial-save field wipe, false conflict between sibling `ClinicalCase` sections, eager profile creation, stale lock overwrite, cross-institution/role/status access, idempotent replay including cross-section/cross-endpoint misuse, logout leaving a readable draft) each have a named test in the task that owns the code — none are asserted only in prose.
