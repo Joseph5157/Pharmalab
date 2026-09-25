@@ -48,7 +48,6 @@ use Illuminate\Support\Carbon;
     'allergy_substance',
     'allergy_reaction',
     'last_saved_by',
-    'lock_version',
 ])]
 class CaseClinicalProfile extends Model
 {
