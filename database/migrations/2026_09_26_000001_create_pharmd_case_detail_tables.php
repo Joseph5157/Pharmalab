@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('family_history')->nullable();
             $table->text('substance_history')->nullable();
             $table->text('examination_findings')->nullable();
-            $table->string('allergy_status', 20)->default('unknown');
+            $table->string('allergy_status', 20)->nullable();
             $table->text('allergy_substance')->nullable();
             $table->text('allergy_reaction')->nullable();
             $table->foreignId('last_saved_by')->constrained('users')->restrictOnDelete();
