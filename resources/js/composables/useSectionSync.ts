@@ -14,7 +14,8 @@ export type SyncState =
     | 'saving'
     | 'device'
     | 'failed'
-    | 'conflict';
+    | 'conflict'
+    | 'incomplete';
 export type SyncedSection = { lock_version: number; updated_at: string };
 export type SectionSyncOptions<T extends SyncedSection> = {
     userId: number;
@@ -30,6 +31,14 @@ export type SectionSyncOptions<T extends SyncedSection> = {
      * rejects any of these sent back as top-level request fields.
      */
     readonlyFields?: (keyof T)[];
+    /**
+     * Returns false while the payload is in a known-transient, compound-field
+     * state (e.g. one half of a required pair filled in but not the other).
+     * While false, edits are still drafted to IndexedDB but never sent to the
+     * server, so a debounced autosave firing mid-entry can't produce a
+     * spurious validation error for a field the user hasn't finished yet.
+     */
+    isSyncReady?: (payload: T) => boolean;
 };
 
 export function useSectionSync<T extends SyncedSection>(
@@ -80,19 +89,24 @@ export function useSectionSync<T extends SyncedSection>(
                   updatedAt: new Date().toISOString(),
               }
             : null;
+    const isReady = () => options.isSyncReady?.(payload.value) ?? true;
     async function edit() {
         conflict.value = null;
         confirmingReplace.value = false;
         validationErrors.value = [];
         operationId.value = crypto.randomUUID();
-        state.value = 'unsynced';
         const current = draft();
         if (current) await putSection(current);
+        window.clearTimeout(timer);
+        if (!isReady()) {
+            state.value = 'incomplete';
+            return;
+        }
         if (!online.value) {
             state.value = 'device';
             return;
         }
-        window.clearTimeout(timer);
+        state.value = 'unsynced';
         timer = window.setTimeout(() => void sync(), options.debounceMs ?? 700);
     }
     async function adoptServerSnapshot(server: T) {
@@ -114,6 +128,10 @@ export function useSectionSync<T extends SyncedSection>(
         confirmed = false,
     ) {
         if (syncing || !operationId.value) return;
+        if (!resolution && !isReady()) {
+            state.value = 'incomplete';
+            return;
+        }
         if (!online.value) {
             state.value = 'device';
             return;
@@ -242,11 +260,17 @@ export function useSectionSync<T extends SyncedSection>(
     const retry = () => void sync();
     const handleOnline = () => {
         online.value = true;
-        if (operationId.value && state.value !== 'conflict') void sync();
+        if (
+            operationId.value &&
+            state.value !== 'conflict' &&
+            state.value !== 'incomplete'
+        )
+            void sync();
     };
     const handleOffline = () => {
         online.value = false;
-        if (operationId.value) state.value = 'device';
+        if (operationId.value && state.value !== 'incomplete')
+            state.value = 'device';
     };
     onMounted(async () => {
         const local = await getSection<T>(storageKey);
@@ -254,8 +278,12 @@ export function useSectionSync<T extends SyncedSection>(
             payload.value = local.payload;
             baseLockVersion.value = local.baseLockVersion;
             operationId.value = local.clientOperationId;
-            state.value = online.value ? 'unsynced' : 'device';
-            if (online.value) void sync();
+            if (!isReady()) {
+                state.value = 'incomplete';
+            } else {
+                state.value = online.value ? 'unsynced' : 'device';
+                if (online.value) void sync();
+            }
         }
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);

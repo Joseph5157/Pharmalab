@@ -12,7 +12,7 @@ class CaseEditorController extends Controller
 {
     public function show(ClinicalCase $case): Response
     {
-        Gate::authorize('view', $case);
+        Gate::authorize('update', $case);
 
         $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
         $profile = $case->clinicalProfile;

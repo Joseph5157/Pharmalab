@@ -38,6 +38,36 @@ class CaseContextSyncTest extends TestCase
             ->assertJsonPath('section.lock_version', 1);
     }
 
+    public function test_clearing_a_numeric_field_with_an_empty_string_is_normalized_to_null(): void
+    {
+        [, $student, $case] = $this->makeCase([
+            'age_value' => 45,
+            'age_unit' => 'years',
+            'weight_kg' => 70.5,
+            'height_cm' => 170,
+            'hospital_day_at_first_review' => 3,
+        ]);
+
+        $this->syncAs($student, $case, [
+            'age_value' => '',
+            'age_unit' => null,
+            'weight_kg' => '',
+            'height_cm' => '',
+            'hospital_day_at_first_review' => '',
+        ])->assertOk()
+            ->assertJsonPath('section.age_value', null)
+            ->assertJsonPath('section.age_unit', null)
+            ->assertJsonPath('section.weight_kg', null)
+            ->assertJsonPath('section.height_cm', null)
+            ->assertJsonPath('section.hospital_day_at_first_review', null);
+
+        $case->refresh();
+        $this->assertNull($case->age_value);
+        $this->assertNull($case->weight_kg);
+        $this->assertNull($case->height_cm);
+        $this->assertNull($case->hospital_day_at_first_review);
+    }
+
     public function test_partial_autosave_does_not_erase_omitted_fields(): void
     {
         [, $student, $case] = $this->makeCase([

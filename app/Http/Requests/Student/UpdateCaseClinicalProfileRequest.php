@@ -4,6 +4,8 @@ namespace App\Http\Requests\Student;
 
 use App\Http\Requests\Concerns\HasSyncEnvelope;
 use App\Http\Requests\Concerns\RejectsUnknownFields;
+use App\Models\CaseClinicalProfile;
+use App\Models\ClinicalCase;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -37,7 +39,7 @@ class UpdateCaseClinicalProfileRequest extends FormRequest
             'substance_history' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'examination_findings' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'allergy_status' => ['sometimes', 'required', Rule::in(['no_known_allergy', 'known_allergy', 'unknown'])],
-            'allergy_substance' => ['nullable', 'required_if:allergy_status,known_allergy', 'string', 'max:1000'],
+            'allergy_substance' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'allergy_reaction' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
     }
@@ -45,5 +47,18 @@ class UpdateCaseClinicalProfileRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $this->rejectUnknownFields($validator);
+        $validator->after(function (Validator $validator): void {
+            $case = $this->route('case');
+            if (! $case instanceof ClinicalCase) {
+                return;
+            }
+            $profile = CaseClinicalProfile::query()->where('clinical_case_id', $case->id)->first();
+            $status = $this->has('allergy_status') ? $this->input('allergy_status') : $profile?->allergy_status;
+            $substance = $this->has('allergy_substance') ? $this->input('allergy_substance') : $profile?->allergy_substance;
+
+            if ($status === 'known_allergy' && ($substance === null || $substance === '')) {
+                $validator->errors()->add('allergy_substance', 'The allergy substance field is required when allergy status is known allergy.');
+            }
+        });
     }
 }

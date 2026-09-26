@@ -55,8 +55,36 @@ class CaseEditorPageTest extends TestCase
         $this->actingAs($otherStudent)->get(route('student.cases.edit', $case))->assertForbidden();
     }
 
+    public function test_owning_student_can_open_the_editor_for_a_returned_case(): void
+    {
+        [, $student, $case] = $this->makeCase(CaseStatus::Returned);
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case))->assertOk();
+    }
+
+    public function test_owning_student_cannot_open_the_editor_for_a_submitted_case(): void
+    {
+        [, $student, $case] = $this->makeCase(CaseStatus::Submitted);
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case))->assertForbidden();
+    }
+
+    public function test_owning_student_cannot_open_the_editor_for_an_under_review_case(): void
+    {
+        [, $student, $case] = $this->makeCase(CaseStatus::UnderReview);
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case))->assertForbidden();
+    }
+
+    public function test_owning_student_cannot_open_the_editor_for_an_approved_case(): void
+    {
+        [, $student, $case] = $this->makeCase(CaseStatus::Approved);
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case))->assertForbidden();
+    }
+
     /** @return array{Institution, User, ClinicalCase} */
-    private function makeCase(): array
+    private function makeCase(CaseStatus $status = CaseStatus::Draft): array
     {
         $institution = Institution::factory()->create();
         $student = User::factory()->student()->create(['institution_id' => $institution->id]);
@@ -70,7 +98,7 @@ class CaseEditorPageTest extends TestCase
             'student_id' => $student->id,
             'rotation_assignment_id' => $assignment->id,
             'case_number' => 1,
-            'status' => CaseStatus::Draft,
+            'status' => $status,
         ])];
     }
 }

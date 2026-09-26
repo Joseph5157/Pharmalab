@@ -47,6 +47,7 @@ const {
     endpoint: `/student/cases/${props.caseId}/context`,
     initialPayload: props.initial,
     readonlyFields: ['case_display'],
+    isSyncReady: (p) => (p.age_value === null) === (p.age_unit === null),
 });
 const status = computed(
     () =>
@@ -57,11 +58,21 @@ const status = computed(
             unsynced: 'Unsynced changes',
             failed: 'Sync failed',
             conflict: 'Conflict - review changes',
+            incomplete: 'Complete both age and age unit',
         })[state.value],
 );
 const ageMax = computed(
     () => ({ days: 364, months: 59, years: 120 })[payload.value.age_unit ?? ''],
 );
+function normalizeNumber(key: keyof Payload) {
+    if ((payload.value[key] as unknown) === '') {
+        (payload.value as Record<string, unknown>)[key] = null;
+    }
+}
+function onNumberInput(key: keyof Payload) {
+    normalizeNumber(key);
+    edit();
+}
 </script>
 <template>
     <section aria-labelledby="case-profile-heading" class="space-y-5">
@@ -139,7 +150,7 @@ const ageMax = computed(
                     min="1"
                     max="999"
                     class="mt-1 w-full rounded-xl border p-2"
-                    @input="edit"
+                    @input="onNumberInput('hospital_day_at_first_review')"
             /></label>
             <label
                 ><span>Age</span
@@ -149,7 +160,7 @@ const ageMax = computed(
                     min="0"
                     :max="ageMax"
                     class="mt-1 w-full rounded-xl border p-2"
-                    @input="edit"
+                    @input="onNumberInput('age_value')"
             /></label>
             <label
                 ><span>Age unit</span
@@ -186,7 +197,7 @@ const ageMax = computed(
                     min="0"
                     max="500"
                     class="mt-1 w-full rounded-xl border p-2"
-                    @input="edit"
+                    @input="onNumberInput('weight_kg')"
             /></label>
             <label
                 ><span>Height (cm)</span
@@ -196,7 +207,7 @@ const ageMax = computed(
                     min="0"
                     max="300"
                     class="mt-1 w-full rounded-xl border p-2"
-                    @input="edit"
+                    @input="onNumberInput('height_cm')"
             /></label>
             <label class="sm:col-span-2"
                 ><span>Pregnancy/lactation status (if relevant)</span

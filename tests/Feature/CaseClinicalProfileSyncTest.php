@@ -76,6 +76,30 @@ class CaseClinicalProfileSyncTest extends TestCase
         $this->assertSame('Alert, oriented, no acute distress.', $profile?->examination_findings);
     }
 
+    public function test_checking_no_known_history_clears_existing_history_text(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, ['past_medical_history' => 'Type 2 diabetes mellitus.'])->assertOk();
+        $this->syncAs($student, $case, ['past_medical_history_none' => true], 1)->assertOk();
+
+        $profile = $case->fresh()->clinicalProfile;
+        $this->assertTrue($profile?->past_medical_history_none);
+        $this->assertNull($profile?->past_medical_history);
+    }
+
+    public function test_entering_history_text_unchecks_no_known_history(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, ['past_medical_history_none' => true])->assertOk();
+        $this->syncAs($student, $case, ['past_medical_history' => 'Type 2 diabetes mellitus.'], 1)->assertOk();
+
+        $profile = $case->fresh()->clinicalProfile;
+        $this->assertFalse($profile?->past_medical_history_none);
+        $this->assertSame('Type 2 diabetes mellitus.', $profile?->past_medical_history);
+    }
+
     public function test_allergy_substance_is_required_with_known_allergy_in_the_same_request(): void
     {
         [, $student, $case] = $this->makeCase();
@@ -99,6 +123,37 @@ class CaseClinicalProfileSyncTest extends TestCase
         $this->assertSame('no_known_allergy', $profile?->allergy_status);
         $this->assertNull($profile?->allergy_substance);
         $this->assertNull($profile?->allergy_reaction);
+    }
+
+    public function test_clearing_allergy_substance_alone_while_status_stays_known_allergy_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, [
+            'allergy_status' => 'known_allergy',
+            'allergy_substance' => 'Penicillin',
+        ])->assertOk();
+
+        $this->syncAs($student, $case, ['allergy_substance' => null], 1)->assertUnprocessable()
+            ->assertJsonValidationErrors('allergy_substance');
+
+        $profile = $case->fresh()->clinicalProfile;
+        $this->assertSame('known_allergy', $profile?->allergy_status);
+        $this->assertSame('Penicillin', $profile?->allergy_substance);
+        $this->assertSame(1, $profile?->lock_version);
+    }
+
+    public function test_clearing_allergy_substance_to_an_empty_string_while_status_stays_known_allergy_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, [
+            'allergy_status' => 'known_allergy',
+            'allergy_substance' => 'Penicillin',
+        ])->assertOk();
+
+        $this->syncAs($student, $case, ['allergy_substance' => ''], 1)->assertUnprocessable()
+            ->assertJsonValidationErrors('allergy_substance');
     }
 
     public function test_rendering_a_case_page_never_creates_a_profile_row(): void

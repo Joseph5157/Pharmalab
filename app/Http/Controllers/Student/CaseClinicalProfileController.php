@@ -25,6 +25,12 @@ class CaseClinicalProfileController extends Controller
             $data['allergy_reaction'] = null;
         }
 
+        if (array_key_exists('past_medical_history_none', $data) && $data['past_medical_history_none']) {
+            $data['past_medical_history'] = null;
+        } elseif (array_key_exists('past_medical_history', $data) && $data['past_medical_history'] !== null && $data['past_medical_history'] !== '') {
+            $data['past_medical_history_none'] = false;
+        }
+
         $result = $sync->sync(
             $profile,
             $request->user(),

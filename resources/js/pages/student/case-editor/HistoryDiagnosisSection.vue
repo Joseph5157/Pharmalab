@@ -61,6 +61,23 @@ const {
     initialPayload: props.initial,
 });
 
+function onPastMedicalHistoryInput() {
+    if (
+        payload.value.past_medical_history !== null &&
+        payload.value.past_medical_history !== '' &&
+        payload.value.past_medical_history_none
+    ) {
+        payload.value.past_medical_history_none = false;
+    }
+    edit();
+}
+function onPastMedicalHistoryNoneChange() {
+    if (payload.value.past_medical_history_none) {
+        payload.value.past_medical_history = null;
+    }
+    edit();
+}
+
 const statusLabel = computed(
     () =>
         ({
@@ -70,6 +87,7 @@ const statusLabel = computed(
             unsynced: 'Unsynced changes',
             failed: 'Sync failed',
             conflict: 'Conflict - review changes',
+            incomplete: 'Complete required fields',
         })[state.value],
 );
 const statusIcon = computed(() =>
@@ -278,7 +296,7 @@ function removeDiagnosis(index: number): void {
                     :disabled="payload.past_medical_history_none"
                     data-test="past-medical-history"
                     class="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900"
-                    @input="edit"
+                    @input="onPastMedicalHistoryInput"
                 />
                 <DeidentificationNotice :text="payload.past_medical_history" />
             </label>
@@ -287,7 +305,7 @@ function removeDiagnosis(index: number): void {
                     v-model="payload.past_medical_history_none"
                     type="checkbox"
                     data-test="past-medical-history-none"
-                    @change="edit"
+                    @change="onPastMedicalHistoryNoneChange"
                 />
                 None known / not available</label
             >
