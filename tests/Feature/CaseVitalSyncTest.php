@@ -33,6 +33,24 @@ class CaseVitalSyncTest extends TestCase
         $this->assertSame('recorded', $case->fresh()->vitals_status);
     }
 
+    public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $created = $this->postJson("/student/cases/{$case->id}/vitals", [
+            'client_operation_id' => (string) Str::uuid(),
+        ])->assertCreated()->json('vital');
+
+        $this->assertSame(0, $created['lock_version'], 'a freshly created row must report the real DB default lock_version, not null');
+
+        $this->putJson("/student/cases/{$case->id}/vitals/{$created['id']}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => $created['lock_version'],
+            'note' => 'Edited right after creation',
+        ])->assertOk();
+    }
+
     public function test_owning_student_can_create_a_vital_row_with_data(): void
     {
         [, $student, $case] = $this->makeCase();

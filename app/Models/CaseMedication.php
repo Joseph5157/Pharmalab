@@ -60,6 +60,7 @@ class CaseMedication extends Model implements Syncable
     {
         return [
             'status' => MedicationStatus::class,
+            'indication_unclear' => 'boolean',
         ];
     }
 

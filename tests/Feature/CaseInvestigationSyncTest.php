@@ -31,6 +31,24 @@ class CaseInvestigationSyncTest extends TestCase
         $this->assertSame('recorded', $case->fresh()->investigations_status);
     }
 
+    public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $created = $this->postJson("/student/cases/{$case->id}/investigations", [
+            'client_operation_id' => (string) Str::uuid(),
+        ])->assertCreated()->json('investigation');
+
+        $this->assertSame(0, $created['lock_version'], 'a freshly created row must report the real DB default lock_version, not null');
+
+        $this->putJson("/student/cases/{$case->id}/investigations/{$created['id']}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => $created['lock_version'],
+            'interpretation' => 'Edited right after creation',
+        ])->assertOk();
+    }
+
     public function test_owning_student_can_create_an_investigation_row_with_data(): void
     {
         [, $student, $case] = $this->makeCase();

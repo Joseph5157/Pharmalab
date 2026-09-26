@@ -52,6 +52,8 @@ class CaseInvestigation extends Model implements Syncable
     {
         return [
             'observed_on' => 'date',
+            'unit_not_stated' => 'boolean',
+            'reference_range_not_provided' => 'boolean',
         ];
     }
 

@@ -69,6 +69,7 @@ const {
     sectionKey: 'medications',
     endpoint: `/student/cases/${props.caseId}/medications/${props.initial.id}`,
     initialPayload: props.initial,
+    readonlyFields: ['id'],
 });
 
 const statusIcon = computed(

@@ -109,6 +109,15 @@ class SectionSyncService
             $actualClass = $model::class;
             abort_unless($actualClass === $expectedClass, 500, "Model/section mismatch: {$sectionKey} expects {$expectedClass}, got {$actualClass}.");
 
+            // The factory's INSERT can rely on column defaults (e.g.
+            // lock_version, status) it never sets explicitly. Without a
+            // refresh those stay null on this in-memory instance even though
+            // the row itself has the default value, so the JSON response —
+            // and anything a client seeds a fresh useSectionSync() from —
+            // would carry a null lock_version and fail the next edit's
+            // required base_lock_version validation.
+            $model->refresh();
+
             $this->record($user, $model, $sectionKey, $clientOperationId, 0, 'saved');
 
             return ['status' => 'saved', 'httpStatus' => 201, 'model' => $model];

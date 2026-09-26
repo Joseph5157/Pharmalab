@@ -32,6 +32,24 @@ class CaseMedicationSyncTest extends TestCase
         $this->assertSame('documented', $case->fresh()->medication_chart_status);
     }
 
+    public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $created = $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(),
+        ])->assertCreated()->json('medication');
+
+        $this->assertSame(0, $created['lock_version'], 'a freshly created row must report the real DB default lock_version, not null');
+
+        $this->putJson("/student/cases/{$case->id}/medications/{$created['id']}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => $created['lock_version'],
+            'notes' => 'Edited right after creation',
+        ])->assertOk();
+    }
+
     public function test_owning_student_can_create_a_medication_row_with_data(): void
     {
         [, $student, $case] = $this->makeCase();

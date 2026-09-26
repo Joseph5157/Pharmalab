@@ -56,6 +56,7 @@ const {
     sectionKey: 'investigations',
     endpoint: `/student/cases/${props.caseId}/investigations/${props.initial.id}`,
     initialPayload: props.initial,
+    readonlyFields: ['id'],
 });
 
 const statusIcon = computed(
