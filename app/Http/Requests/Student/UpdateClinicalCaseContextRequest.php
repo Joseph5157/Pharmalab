@@ -37,6 +37,13 @@ class UpdateClinicalCaseContextRequest extends FormRequest
             $ageValue = $this->has('age_value') ? $this->input('age_value') : $case->age_value;
             $ageUnit = $this->has('age_unit') ? $this->input('age_unit') : $case->age_unit;
 
+            if (($ageValue === null) !== ($ageUnit === null)) {
+                $validator->errors()->add('age_value', 'Age value and age unit must both be provided, or both left empty.');
+                $validator->errors()->add('age_unit', 'Age value and age unit must both be provided, or both left empty.');
+
+                return;
+            }
+
             if ($ageValue === null) {
                 return;
             }

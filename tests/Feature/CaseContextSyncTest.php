@@ -92,6 +92,65 @@ class CaseContextSyncTest extends TestCase
         $this->assertSame('years', $case->fresh()->age_unit);
     }
 
+    public function test_an_age_value_without_a_unit_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, ['age_value' => 43])->assertUnprocessable()
+            ->assertJsonValidationErrors(['age_value', 'age_unit']);
+
+        $this->assertNull($case->fresh()->age_value);
+    }
+
+    public function test_an_age_unit_without_a_value_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, ['age_unit' => 'years'])->assertUnprocessable()
+            ->assertJsonValidationErrors(['age_value', 'age_unit']);
+
+        $this->assertNull($case->fresh()->age_unit);
+    }
+
+    public function test_clearing_only_the_age_value_leaves_an_orphaned_unit_and_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase(['age_value' => 45, 'age_unit' => 'years']);
+
+        $this->syncAs($student, $case, ['age_value' => null])->assertUnprocessable()
+            ->assertJsonValidationErrors(['age_value', 'age_unit']);
+
+        $case->refresh();
+        $this->assertSame(45, $case->age_value);
+        $this->assertSame('years', $case->age_unit);
+        $this->assertSame(0, $case->lock_version);
+    }
+
+    public function test_clearing_only_the_age_unit_leaves_an_orphaned_value_and_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase(['age_value' => 45, 'age_unit' => 'years']);
+
+        $this->syncAs($student, $case, ['age_unit' => null])->assertUnprocessable()
+            ->assertJsonValidationErrors(['age_value', 'age_unit']);
+
+        $case->refresh();
+        $this->assertSame(45, $case->age_value);
+        $this->assertSame('years', $case->age_unit);
+        $this->assertSame(0, $case->lock_version);
+    }
+
+    public function test_clearing_both_age_fields_together_is_permitted(): void
+    {
+        [, $student, $case] = $this->makeCase(['age_value' => 45, 'age_unit' => 'years']);
+
+        $this->syncAs($student, $case, ['age_value' => null, 'age_unit' => null])->assertOk()
+            ->assertJsonPath('section.age_value', null)
+            ->assertJsonPath('section.age_unit', null);
+
+        $case->refresh();
+        $this->assertNull($case->age_value);
+        $this->assertNull($case->age_unit);
+    }
+
     public function test_case_profile_locking_is_independent_from_other_case_sections(): void
     {
         [, $student, $case] = $this->makeCase();
