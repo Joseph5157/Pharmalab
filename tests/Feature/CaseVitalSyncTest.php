@@ -33,6 +33,30 @@ class CaseVitalSyncTest extends TestCase
         $this->assertSame('recorded', $case->fresh()->vitals_status);
     }
 
+    public function test_an_unrelated_field_can_be_edited_on_a_still_bare_row_via_a_whole_row_resend(): void
+    {
+        // Regression: useSectionSync resends the whole row on every autosave
+        // (not a partial patch), so a still-bare row's edit payload always
+        // includes observation_type:null alongside whatever field the
+        // student actually touched. UpdateCaseVitalRequest's
+        // observation_type rule was 'required' (unlike Store's 'nullable'),
+        // so editing e.g. just the note field on a row with no observation
+        // type yet 422'd. Found via a live Railway staging check.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'observation_type' => null, 'recorded_by' => $student->id,
+        ]);
+
+        $this->putJson("/student/cases/{$case->id}/vitals/{$vital->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'observation_type' => null,
+            'note' => 'Still deciding what to record',
+        ])->assertOk();
+    }
+
     public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();

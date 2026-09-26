@@ -31,6 +31,30 @@ class CaseInvestigationSyncTest extends TestCase
         $this->assertSame('recorded', $case->fresh()->investigations_status);
     }
 
+    public function test_an_unrelated_field_can_be_edited_on_a_still_bare_row_via_a_whole_row_resend(): void
+    {
+        // Regression: useSectionSync resends the whole row on every autosave,
+        // so a still-bare row's edit payload always includes
+        // test_name/result_type/result_value:null alongside whatever field
+        // was actually touched. UpdateCaseInvestigationRequest had those
+        // three as 'required' (unlike Store's 'nullable'), so editing e.g.
+        // just the interpretation field on a row with none of them set yet
+        // 422'd. Found via a live Railway staging check.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $investigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'test_name' => null, 'result_type' => null, 'result_value' => null, 'recorded_by' => $student->id,
+        ]);
+
+        $this->putJson("/student/cases/{$case->id}/investigations/{$investigation->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'test_name' => null, 'result_type' => null, 'result_value' => null,
+            'interpretation' => 'Still deciding what to record',
+        ])->assertOk();
+    }
+
     public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();

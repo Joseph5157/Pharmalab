@@ -24,7 +24,7 @@ class UpdateCaseMedicationRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'medication_context' => ['sometimes', 'nullable', Rule::in(['chart', 'history'])],
-            'generic_name' => ['sometimes', 'required', 'string', 'max:120'],
+            'generic_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'brand_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'indication' => ['sometimes', 'nullable', 'string', 'max:255'],
             'indication_unclear' => ['sometimes', 'boolean'],

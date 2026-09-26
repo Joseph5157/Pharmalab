@@ -22,7 +22,7 @@ class UpdateCaseVitalRequest extends FormRequest
     {
         return [
             ...$this->syncEnvelopeRules(),
-            'observation_type' => ['sometimes', 'required', 'string', 'max:40'],
+            'observation_type' => ['sometimes', 'nullable', 'string', 'max:40'],
             'value_numeric' => ['sometimes', 'nullable', 'numeric'],
             'value_text' => ['sometimes', 'nullable', 'string', 'max:60'],
             'value_systolic' => ['sometimes', 'nullable', 'integer', 'min:40', 'max:300'],

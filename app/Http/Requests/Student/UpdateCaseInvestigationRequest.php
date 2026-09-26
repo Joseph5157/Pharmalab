@@ -22,9 +22,9 @@ class UpdateCaseInvestigationRequest extends FormRequest
     {
         return [
             ...$this->syncEnvelopeRules(),
-            'test_name' => ['sometimes', 'required', 'string', 'max:120'],
-            'result_type' => ['sometimes', 'required', Rule::in(['numeric', 'qualitative', 'narrative'])],
-            'result_value' => ['sometimes', 'required', 'string', 'max:255'],
+            'test_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'result_type' => ['sometimes', 'nullable', Rule::in(['numeric', 'qualitative', 'narrative'])],
+            'result_value' => ['sometimes', 'nullable', 'string', 'max:255'],
             'unit' => ['sometimes', 'nullable', 'string', 'max:20'],
             'unit_not_stated' => ['sometimes', 'boolean'],
             'reference_range' => ['sometimes', 'nullable', 'string', 'max:120'],

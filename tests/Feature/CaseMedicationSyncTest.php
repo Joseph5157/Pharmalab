@@ -32,6 +32,30 @@ class CaseMedicationSyncTest extends TestCase
         $this->assertSame('documented', $case->fresh()->medication_chart_status);
     }
 
+    public function test_an_unrelated_field_can_be_edited_on_a_still_bare_row_via_a_whole_row_resend(): void
+    {
+        // Regression: useSectionSync resends the whole row on every autosave,
+        // so a still-bare row's edit payload always includes
+        // generic_name:null alongside whatever field was actually touched.
+        // UpdateCaseMedicationRequest had generic_name as 'required' (unlike
+        // Store's 'nullable'), so editing e.g. just the notes field on a row
+        // with no generic name yet 422'd. Found via a live Railway staging
+        // check.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $medication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'generic_name' => null, 'medication_context' => null, 'status' => MedicationStatus::Active->value, 'recorded_by' => $student->id,
+        ]);
+
+        $this->putJson("/student/cases/{$case->id}/medications/{$medication->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'generic_name' => null,
+            'notes' => 'Still deciding what to record',
+        ])->assertOk();
+    }
+
     public function test_an_add_row_tap_succeeds_when_the_client_sends_its_real_empty_payload_shape(): void
     {
         // Regression: the real frontend (MedicationChartSection.vue's emptyPayload())
