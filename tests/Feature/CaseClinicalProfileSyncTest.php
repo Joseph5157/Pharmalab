@@ -125,6 +125,19 @@ class CaseClinicalProfileSyncTest extends TestCase
         $this->assertNull($profile?->allergy_reaction);
     }
 
+    public function test_setting_allergy_substance_alone_while_status_stays_not_known_allergy_is_normalized_away(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->syncAs($student, $case, ['allergy_status' => 'no_known_allergy'])->assertOk();
+
+        $this->syncAs($student, $case, ['allergy_substance' => 'Peanut'], 1)->assertOk();
+
+        $profile = $case->fresh()->clinicalProfile;
+        $this->assertSame('no_known_allergy', $profile?->allergy_status);
+        $this->assertNull($profile?->allergy_substance);
+    }
+
     public function test_clearing_allergy_substance_alone_while_status_stays_known_allergy_is_rejected(): void
     {
         [, $student, $case] = $this->makeCase();

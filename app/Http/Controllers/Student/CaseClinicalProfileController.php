@@ -20,7 +20,8 @@ class CaseClinicalProfileController extends Controller
         $envelope = $request->syncEnvelope();
         $data = $request->sectionData();
 
-        if (array_key_exists('allergy_status', $data) && $data['allergy_status'] !== 'known_allergy') {
+        $effectiveAllergyStatus = array_key_exists('allergy_status', $data) ? $data['allergy_status'] : $profile->allergy_status;
+        if ($effectiveAllergyStatus !== 'known_allergy' && (array_key_exists('allergy_substance', $data) || array_key_exists('allergy_reaction', $data) || array_key_exists('allergy_status', $data))) {
             $data['allergy_substance'] = null;
             $data['allergy_reaction'] = null;
         }

@@ -59,6 +59,9 @@ const {
     sectionKey: 'clinical_profile',
     endpoint: `/student/cases/${props.caseId}/clinical-profile`,
     initialPayload: props.initial,
+    isSyncReady: (p) =>
+        p.allergy_status !== 'known_allergy' ||
+        (p.allergy_substance !== null && p.allergy_substance !== ''),
 });
 
 function onPastMedicalHistoryInput() {
@@ -87,7 +90,7 @@ const statusLabel = computed(
             unsynced: 'Unsynced changes',
             failed: 'Sync failed',
             conflict: 'Conflict - review changes',
-            incomplete: 'Complete required fields',
+            incomplete: 'Add an allergy substance',
         })[state.value],
 );
 const statusIcon = computed(() =>
@@ -97,7 +100,7 @@ const statusIcon = computed(() =>
           ? Check
           : state.value === 'device'
             ? CloudOff
-            : state.value === 'unsynced'
+            : state.value === 'unsynced' || state.value === 'incomplete'
               ? FileClock
               : AlertTriangle,
 );
