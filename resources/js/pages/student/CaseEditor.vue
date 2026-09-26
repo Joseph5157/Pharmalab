@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, CircleDotDashed } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import CaseProfileSection from './case-editor/CaseProfileSection.vue';
 import HistoryDiagnosisSection from './case-editor/HistoryDiagnosisSection.vue';
+import MedicationChartSection from './case-editor/MedicationChartSection.vue';
+import VitalsInvestigationsSection from './case-editor/VitalsInvestigationsSection.vue';
 
 type SectionId =
     | 'case_profile'
@@ -27,6 +29,9 @@ const props = defineProps<{
               updated_at: string;
           })
         | null;
+    vitals: (Record<string, unknown> & { id: string })[];
+    investigations: (Record<string, unknown> & { id: string })[];
+    medications: (Record<string, unknown> & { id: string })[];
 }>();
 
 defineOptions({
@@ -44,9 +49,9 @@ const sections: Section[] = [
     {
         id: 'vitals_investigations',
         label: 'Vitals & Investigations',
-        available: false,
+        available: true,
     },
-    { id: 'medication_chart', label: 'Medication Chart', available: false },
+    { id: 'medication_chart', label: 'Medication Chart', available: true },
     { id: 'soap', label: 'SOAP', available: false },
     {
         id: 'clinical_activities',
@@ -235,6 +240,63 @@ function handleTabKeydown(event: KeyboardEvent): void {
                 :case-id="clinicalCase.id"
                 :user-id="userId"
                 :initial="(clinicalProfile ?? emptyClinicalProfile) as any"
+            />
+        </div>
+        <div
+            id="section-panel-vitals_investigations"
+            role="tabpanel"
+            aria-labelledby="section-tab-vitals_investigations"
+            :hidden="activeSection.id !== 'vitals_investigations'"
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <VitalsInvestigationsSection
+                :case-id="clinicalCase.id"
+                :user-id="userId"
+                :initial-vitals="vitals as any"
+                :initial-investigations="investigations as any"
+                :initial-vitals-availability="
+                    {
+                        vitals_status: context.vitals_status,
+                        vitals_unavailable_reason:
+                            context.vitals_unavailable_reason,
+                        lock_version: context.vitals_availability_lock_version,
+                        updated_at: context.updated_at,
+                    } as any
+                "
+                :initial-investigations-availability="
+                    {
+                        investigations_status: context.investigations_status,
+                        investigations_unavailable_reason:
+                            context.investigations_unavailable_reason,
+                        lock_version:
+                            context.investigations_availability_lock_version,
+                        updated_at: context.updated_at,
+                    } as any
+                "
+            />
+        </div>
+        <div
+            id="section-panel-medication_chart"
+            role="tabpanel"
+            aria-labelledby="section-tab-medication_chart"
+            :hidden="activeSection.id !== 'medication_chart'"
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <MedicationChartSection
+                :case-id="clinicalCase.id"
+                :user-id="userId"
+                :initial-medications="medications as any"
+                :initial-availability="
+                    {
+                        medication_chart_status:
+                            context.medication_chart_status,
+                        medication_chart_none_reason:
+                            context.medication_chart_none_reason,
+                        lock_version:
+                            context.medication_chart_availability_lock_version,
+                        updated_at: context.updated_at,
+                    } as any
+                "
             />
         </div>
 

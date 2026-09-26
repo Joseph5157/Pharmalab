@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
 use App\Models\CaseClinicalProfile;
+use App\Models\CaseVital;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
@@ -45,6 +46,28 @@ class CaseEditorPageTest extends TestCase
         $this->actingAs($student)->get(route('student.cases.edit', $case))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('clinicalProfile.allergy_status', 'unknown'));
+    }
+
+    public function test_editor_page_includes_vitals_investigations_and_medications_with_their_own_lock_columns(): void
+    {
+        [$institution, $student, $case] = $this->makeCase();
+        CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse', 'value_numeric' => 80, 'recorded_by' => $student->id,
+        ]);
+        $this->actingAs($student);
+
+        $response = $this->get("/student/cases/{$case->id}/edit");
+
+        $response->assertInertia(fn ($page) => $page
+            ->has('vitals', 1)
+            ->where('vitals.0.observation_type', 'pulse')
+            ->has('investigations', 0)
+            ->has('medications', 0)
+            ->where('context.vitals_status', null)
+            ->where('context.vitals_availability_lock_version', 0)
+            ->where('context.investigations_availability_lock_version', 0)
+            ->where('context.medication_chart_availability_lock_version', 0));
     }
 
     public function test_a_different_student_cannot_open_the_editor(): void
