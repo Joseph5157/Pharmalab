@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import {
     deleteSection,
     listAllSections,
@@ -120,6 +120,15 @@ export function useRepeatableRowCreate<T extends { id: string }>(
     function handleOffline() {
         online.value = false;
     }
+
+    onMounted(() => {
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+    });
+    onBeforeUnmount(() => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    });
 
     return {
         online,
