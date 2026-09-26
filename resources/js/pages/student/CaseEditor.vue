@@ -128,7 +128,9 @@ function handleTabKeydown(event: KeyboardEvent): void {
 
 <template>
     <Head :title="`Case #${clinicalCase.case_number} - Edit`" />
-    <main class="mx-auto w-full max-w-2xl px-4 pt-5 pb-32 sm:px-6 md:pt-8">
+    <main
+        class="mx-auto w-full max-w-2xl px-4 pt-5 pb-44 sm:px-6 md:pt-8 md:pb-32"
+    >
         <header
             class="mb-5 rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
         >
@@ -310,7 +312,7 @@ function handleTabKeydown(event: KeyboardEvent): void {
         </p>
 
         <div
-            class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-700 dark:bg-slate-950/95"
+            class="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[45] border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0 md:z-20 dark:border-slate-700 dark:bg-slate-950/95"
         >
             <div
                 class="mx-auto flex max-w-2xl items-center justify-between gap-3"
