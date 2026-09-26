@@ -25,7 +25,7 @@ class StoreCaseMedicationRequest extends FormRequest
             'medication_context' => ['nullable', Rule::in(['chart', 'history'])],
             'generic_name' => ['nullable', 'string', 'max:120'],
             'brand_name' => ['nullable', 'string', 'max:120'],
-            'indication' => ['nullable', 'required_if:indication_unclear,false', 'string', 'max:255'],
+            'indication' => ['nullable', 'string', 'max:255'],
             'indication_unclear' => ['sometimes', 'boolean'],
             'dose_amount' => ['nullable', 'string', 'max:30'],
             'dose_unit' => ['nullable', 'string', 'max:20'],

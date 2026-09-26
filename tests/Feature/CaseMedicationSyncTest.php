@@ -32,6 +32,27 @@ class CaseMedicationSyncTest extends TestCase
         $this->assertSame('documented', $case->fresh()->medication_chart_status);
     }
 
+    public function test_an_add_row_tap_succeeds_when_the_client_sends_its_real_empty_payload_shape(): void
+    {
+        // Regression: the real frontend (MedicationChartSection.vue's emptyPayload())
+        // sends indication_unclear:false and status:'active' explicitly on every
+        // create, not merely omitting them — unlike this suite's other bare-add
+        // test, which only sends client_operation_id. `indication_unclear:false`
+        // used to trip `required_if:indication_unclear,false` on `indication`,
+        // 422ing every real "Add medicine" tap despite the plan's own "bare Add
+        // row must succeed" requirement. Found via a live Railway staging check.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(),
+            'medication_context' => null, 'generic_name' => null, 'brand_name' => null,
+            'indication' => null, 'indication_unclear' => false,
+            'dose_amount' => null, 'dose_unit' => null, 'dosage_form' => null, 'route' => null, 'frequency' => null,
+            'start_reference' => null, 'status' => 'active', 'stop_reference' => null, 'prn_indication' => null, 'notes' => null,
+        ])->assertCreated();
+    }
+
     public function test_a_freshly_created_row_can_be_edited_immediately_using_the_create_responses_own_lock_version(): void
     {
         [, $student, $case] = $this->makeCase();

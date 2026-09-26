@@ -26,7 +26,7 @@ class UpdateCaseMedicationRequest extends FormRequest
             'medication_context' => ['sometimes', 'nullable', Rule::in(['chart', 'history'])],
             'generic_name' => ['sometimes', 'required', 'string', 'max:120'],
             'brand_name' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'indication' => ['sometimes', 'nullable', 'required_if:indication_unclear,false', 'string', 'max:255'],
+            'indication' => ['sometimes', 'nullable', 'string', 'max:255'],
             'indication_unclear' => ['sometimes', 'boolean'],
             'dose_amount' => ['sometimes', 'nullable', 'string', 'max:30'],
             'dose_unit' => ['sometimes', 'nullable', 'string', 'max:20'],

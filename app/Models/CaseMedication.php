@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string $institution_id
  * @property string $clinical_case_id
- * @property string $medication_context
+ * @property string|null $medication_context
  * @property string|null $generic_name
  * @property string|null $brand_name
  * @property string|null $indication
