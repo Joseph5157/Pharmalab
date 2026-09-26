@@ -8,6 +8,7 @@ use App\Http\Requests\Student\StoreCaseMedicationRequest;
 use App\Http\Requests\Student\StoreCaseVitalRequest;
 use App\Http\Requests\Student\UpdateCaseClinicalProfileRequest;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CaseDetailRequestRulesTest extends TestCase
@@ -68,7 +69,9 @@ class CaseDetailRequestRulesTest extends TestCase
     {
         $rules = (new UpdateCaseClinicalProfileRequest)->rules();
 
-        $this->assertTrue(Validator::make(['allergy_status' => 'not_real'], $rules)->fails());
-        $this->assertTrue(Validator::make(['allergy_status' => 'no_known_allergy'], $rules)->passes());
+        $envelope = ['client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0];
+
+        $this->assertTrue(Validator::make([...$envelope, 'allergy_status' => 'not_real'], $rules)->fails());
+        $this->assertTrue(Validator::make([...$envelope, 'allergy_status' => 'no_known_allergy'], $rules)->passes());
     }
 }

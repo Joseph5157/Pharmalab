@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -48,11 +50,10 @@ use Illuminate\Support\Carbon;
     'allergy_substance',
     'allergy_reaction',
     'last_saved_by',
-    'lock_version',
 ])]
-class CaseClinicalProfile extends Model
+class CaseClinicalProfile extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {

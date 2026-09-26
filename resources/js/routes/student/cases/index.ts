@@ -236,6 +236,56 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
     
     show.form = showForm
 /**
+ * @see \App\Http\Controllers\Student\CaseEditorController::show
+ * @route '/student/cases/{case}/edit'
+ */
+export const edit = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: edit.url(args, options),
+    method: 'get',
+})
+
+edit.definition = {
+    methods: ['get', 'head'],
+    url: '/student/cases/{case}/edit',
+} satisfies RouteDefinition<['get', 'head']>
+
+edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') args = { case: args }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) args = { case: args.id }
+    if (Array.isArray(args)) args = { case: args[0] }
+
+    const parsedArgs = { case: typeof args.case === 'object' ? args.case.id : args.case }
+
+    return edit.definition.url.replace('{case}', parsedArgs.case.toString()).replace(/\/+$/, '') + queryParams(options)
+}
+
+edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: edit.url(args, options),
+    method: 'get',
+})
+
+edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: edit.url(args, options),
+    method: 'head',
+})
+
+const editForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, options),
+    method: 'get',
+})
+
+editForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, options),
+    method: 'get',
+})
+
+editForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string }] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, { [options?.mergeQuery ? 'mergeQuery' : 'query']: { _method: 'HEAD', ...(options?.query ?? options?.mergeQuery ?? {}) } }),
+    method: 'get',
+})
+
+edit.form = editForm
+/**
 * @see \App\Http\Controllers\Student\SoapController::soap
  * @see app/Http/Controllers/Student/SoapController.php:18
  * @route '/student/cases/{case}/soap'
@@ -420,6 +470,7 @@ const cases = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),
 show: Object.assign(show, show),
+edit: Object.assign(edit, edit),
 soap: Object.assign(soap, soap1a8e66),
 submit: Object.assign(submit, submit),
 }
