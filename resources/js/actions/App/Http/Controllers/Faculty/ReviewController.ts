@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::index
- * @see app/Http/Controllers/Faculty/ReviewController.php:19
+ * @see app/Http/Controllers/Faculty/ReviewController.php:18
  * @route '/faculty/reviews'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
 export const show = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
 show.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ show.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
 show.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -136,7 +136,7 @@ show.get = (args: { case: string | { id: string } } | [caseParam: string | { id:
 })
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
 show.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -146,7 +146,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
     /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
     const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -156,7 +156,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
         showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -165,7 +165,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::show
- * @see app/Http/Controllers/Faculty/ReviewController.php:35
+ * @see app/Http/Controllers/Faculty/ReviewController.php:34
  * @route '/faculty/reviews/{case}'
  */
         showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -181,7 +181,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @see app/Http/Controllers/Faculty/ReviewController.php:54
  * @route '/faculty/reviews/{case}/approve'
  */
 export const approve = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -196,7 +196,7 @@ approve.definition = {
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @see app/Http/Controllers/Faculty/ReviewController.php:54
  * @route '/faculty/reviews/{case}/approve'
  */
 approve.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -229,7 +229,7 @@ approve.url = (args: { case: string | { id: string } } | [caseParam: string | { 
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @see app/Http/Controllers/Faculty/ReviewController.php:54
  * @route '/faculty/reviews/{case}/approve'
  */
 approve.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -239,7 +239,7 @@ approve.post = (args: { case: string | { id: string } } | [caseParam: string | {
 
     /**
 * @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @see app/Http/Controllers/Faculty/ReviewController.php:54
  * @route '/faculty/reviews/{case}/approve'
  */
     const approveForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -249,7 +249,7 @@ approve.post = (args: { case: string | { id: string } } | [caseParam: string | {
 
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::approve
- * @see app/Http/Controllers/Faculty/ReviewController.php:55
+ * @see app/Http/Controllers/Faculty/ReviewController.php:54
  * @route '/faculty/reviews/{case}/approve'
  */
         approveForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -260,7 +260,7 @@ approve.post = (args: { case: string | { id: string } } | [caseParam: string | {
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
- * @see app/Http/Controllers/Faculty/ReviewController.php:68
+ * @see app/Http/Controllers/Faculty/ReviewController.php:67
  * @route '/faculty/reviews/{case}/return'
  */
 export const returnCase = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -275,7 +275,7 @@ returnCase.definition = {
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
- * @see app/Http/Controllers/Faculty/ReviewController.php:68
+ * @see app/Http/Controllers/Faculty/ReviewController.php:67
  * @route '/faculty/reviews/{case}/return'
  */
 returnCase.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -308,7 +308,7 @@ returnCase.url = (args: { case: string | { id: string } } | [caseParam: string |
 
 /**
 * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
- * @see app/Http/Controllers/Faculty/ReviewController.php:68
+ * @see app/Http/Controllers/Faculty/ReviewController.php:67
  * @route '/faculty/reviews/{case}/return'
  */
 returnCase.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -318,7 +318,7 @@ returnCase.post = (args: { case: string | { id: string } } | [caseParam: string 
 
     /**
 * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
- * @see app/Http/Controllers/Faculty/ReviewController.php:68
+ * @see app/Http/Controllers/Faculty/ReviewController.php:67
  * @route '/faculty/reviews/{case}/return'
  */
     const returnCaseForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -328,7 +328,7 @@ returnCase.post = (args: { case: string | { id: string } } | [caseParam: string 
 
             /**
 * @see \App\Http\Controllers\Faculty\ReviewController::returnCase
- * @see app/Http/Controllers/Faculty/ReviewController.php:68
+ * @see app/Http/Controllers/Faculty/ReviewController.php:67
  * @route '/faculty/reviews/{case}/return'
  */
         returnCaseForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

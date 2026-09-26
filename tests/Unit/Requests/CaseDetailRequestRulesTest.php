@@ -13,12 +13,13 @@ use Tests\TestCase;
 
 class CaseDetailRequestRulesTest extends TestCase
 {
-    public function test_vital_request_requires_observation_type(): void
+    public function test_vital_request_requires_a_client_operation_id(): void
     {
         $rules = (new StoreCaseVitalRequest)->rules();
 
         $this->assertTrue(Validator::make([], $rules)->fails());
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'observation_type' => 'pulse',
             'value_numeric' => 80,
             'unit' => 'beats/min',
