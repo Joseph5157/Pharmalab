@@ -203,11 +203,11 @@ export function useSectionSync<T extends SyncedSection>(
             baseLockVersion.value = body.section.lock_version;
             savedAt.value = new Date(body.section.updated_at);
             if (operationId.value === id) {
-                if (
-                    resolution === 'use_server' ||
-                    resolution === 'keep_local_copy'
-                )
-                    payload.value = body.section;
+                // Adopt the server-normalized section on every successful
+                // save, not just conflict resolutions — the server may clear
+                // or normalize fields (e.g. allergy substance/reaction) that
+                // the client-held payload doesn't know to drop.
+                Object.assign(payload.value, body.section);
                 operationId.value = null;
                 conflict.value = null;
                 confirmingReplace.value = false;
@@ -220,18 +220,18 @@ export function useSectionSync<T extends SyncedSection>(
                     await putSection(newer);
                 }
                 state.value = 'unsynced';
-                window.setTimeout(() => void sync(), 0);
             }
         } catch {
             if (generation === snapshotGeneration)
                 state.value = online.value ? 'failed' : 'device';
         } finally {
             syncing = false;
-            if (
-                generation !== snapshotGeneration &&
-                operationId.value &&
-                online.value
-            )
+            // A newer edit may have replaced operationId while this request
+            // was in flight; its debounced sync() call would have returned
+            // immediately (syncing was true) and nothing else reschedules it.
+            // Whatever this request's outcome, pick that newer operation back
+            // up so it isn't stranded unsynced.
+            if (operationId.value && operationId.value !== id && online.value)
                 window.setTimeout(() => void sync(), 0);
         }
     }
