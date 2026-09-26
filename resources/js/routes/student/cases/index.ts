@@ -2,6 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import context from './context'
 import clinicalProfile from './clinical-profile'
 import vitals from './vitals'
+import investigations from './investigations'
 import soap1a8e66 from './soap'
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
@@ -529,6 +530,7 @@ context: Object.assign(context, context),
 clinicalProfile: Object.assign(clinicalProfile, clinicalProfile),
 edit: Object.assign(edit, edit),
 vitals: Object.assign(vitals, vitals),
+investigations: Object.assign(investigations, investigations),
 soap: Object.assign(soap, soap1a8e66),
 submit: Object.assign(submit, submit),
 }

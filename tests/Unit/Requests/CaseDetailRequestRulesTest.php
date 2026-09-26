@@ -31,15 +31,27 @@ class CaseDetailRequestRulesTest extends TestCase
         $rules = (new StoreCaseInvestigationRequest)->rules();
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'test_name' => 'Haemoglobin',
             'result_type' => 'not_a_real_type',
             'result_value' => '13.5',
         ], $rules)->fails());
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'test_name' => 'Haemoglobin',
             'result_type' => 'numeric',
             'result_value' => '13.5',
+        ], $rules)->passes());
+    }
+
+    public function test_investigation_request_requires_a_client_operation_id(): void
+    {
+        $rules = (new StoreCaseInvestigationRequest)->rules();
+
+        $this->assertTrue(Validator::make([], $rules)->fails());
+        $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
         ], $rules)->passes());
     }
 

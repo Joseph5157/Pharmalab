@@ -9,20 +9,21 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
  * @property string $institution_id
  * @property string $clinical_case_id
- * @property string $test_name
- * @property string $result_type
- * @property string $result_value
+ * @property string|null $test_name
+ * @property string|null $result_type
+ * @property string|null $result_value
  * @property string|null $unit
  * @property bool $unit_not_stated
  * @property string|null $reference_range
  * @property bool $reference_range_not_provided
  * @property string|null $reported_flag
- * @property string|null $observed_on
+ * @property Carbon|null $observed_on
  * @property string|null $observed_at_time
  * @property string|null $interpretation
  * @property int $recorded_by
