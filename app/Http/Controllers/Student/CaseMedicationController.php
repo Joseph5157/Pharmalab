@@ -70,7 +70,7 @@ class CaseMedicationController extends Controller
         $model = $result['model'];
         abort_unless($model instanceof CaseMedication, 500, 'Unexpected model type returned from sync.');
 
-        return response()->json(['medication' => $this->payload($model)], $result['httpStatus']);
+        return response()->json(['section' => $this->payload($model)], $result['httpStatus']);
     }
 
     public function destroy(Request $request, ClinicalCase $case, CaseMedication $medication, SectionSyncService $sync): JsonResponse|Response

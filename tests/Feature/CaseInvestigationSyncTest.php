@@ -125,7 +125,11 @@ class CaseInvestigationSyncTest extends TestCase
 
         $this->putJson("/student/cases/{$case->id}/investigations/{$investigation->id}", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'interpretation' => 'Conflicting',
-        ])->assertStatus(409);
+        ])->assertStatus(409)
+            ->assertJsonPath('section.id', $investigation->id)
+            ->assertJsonPath('section.interpretation', 'First')
+            ->assertJsonPath('section.lock_version', 1)
+            ->assertJsonMissingPath('investigation');
     }
 
     public function test_editing_an_investigation_through_a_different_case_id_in_the_url_is_rejected(): void

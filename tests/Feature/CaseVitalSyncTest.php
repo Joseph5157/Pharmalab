@@ -149,6 +149,10 @@ class CaseVitalSyncTest extends TestCase
         ]);
 
         $response->assertStatus(409);
+        $response->assertJsonPath('section.id', $vital->id);
+        $response->assertJsonPath('section.note', 'First');
+        $response->assertJsonPath('section.lock_version', 1);
+        $response->assertJsonMissingPath('vital');
     }
 
     public function test_editing_a_vital_through_a_different_case_id_in_the_url_is_rejected(): void

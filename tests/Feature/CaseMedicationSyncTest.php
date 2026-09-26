@@ -141,6 +141,25 @@ class CaseMedicationSyncTest extends TestCase
         $this->assertSame('Reviewed with student.', $fresh->notes);
     }
 
+    public function test_a_stale_base_lock_version_on_a_row_edit_returns_a_replacement_compatible_server_snapshot(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $medication = $this->makeMedication($case, $student);
+
+        $this->putJson("/student/cases/{$case->id}/medications/{$medication->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'notes' => 'First',
+        ])->assertOk();
+
+        $this->putJson("/student/cases/{$case->id}/medications/{$medication->id}", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'notes' => 'Conflicting',
+        ])->assertStatus(409)
+            ->assertJsonPath('section.id', $medication->id)
+            ->assertJsonPath('section.notes', 'First')
+            ->assertJsonPath('section.lock_version', 1)
+            ->assertJsonMissingPath('medication');
+    }
+
     public function test_editing_a_medication_through_a_different_case_id_in_the_url_is_rejected(): void
     {
         [$institution, $student, $case, $assignment] = $this->makeCase();
