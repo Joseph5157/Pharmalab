@@ -13,6 +13,7 @@ use App\Http\Controllers\Student\CaseContextController;
 use App\Http\Controllers\Student\CaseController;
 use App\Http\Controllers\Student\CaseEditorController;
 use App\Http\Controllers\Student\CaseInvestigationController;
+use App\Http\Controllers\Student\CaseMedicationController;
 use App\Http\Controllers\Student\CaseVitalController;
 use App\Http\Controllers\Student\PortfolioController;
 use App\Http\Controllers\Student\SoapController;
@@ -44,6 +45,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::put('student/cases/{case}/investigations/{investigation}', [CaseInvestigationController::class, 'sync'])->name('student.cases.investigations.sync');
         Route::delete('student/cases/{case}/investigations/{investigation}', [CaseInvestigationController::class, 'destroy'])->name('student.cases.investigations.destroy');
         Route::put('student/cases/{case}/investigations-availability', [CaseInvestigationController::class, 'syncAvailability'])->name('student.cases.investigations.availability.sync');
+        Route::post('student/cases/{case}/medications', [CaseMedicationController::class, 'store'])->name('student.cases.medications.store');
+        Route::put('student/cases/{case}/medications/{medication}', [CaseMedicationController::class, 'sync'])->name('student.cases.medications.sync');
+        Route::delete('student/cases/{case}/medications/{medication}', [CaseMedicationController::class, 'destroy'])->name('student.cases.medications.destroy');
+        Route::put('student/cases/{case}/medication-chart-availability', [CaseMedicationController::class, 'syncAvailability'])->name('student.cases.medications.availability.sync');
         Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap');
         Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update');
         Route::post('student/cases/{case}/submit', [SubmissionController::class, 'store'])->name('student.cases.submit');

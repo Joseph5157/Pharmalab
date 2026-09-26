@@ -4,6 +4,7 @@ import CaseClinicalProfileController from './CaseClinicalProfileController'
 import CaseEditorController from './CaseEditorController'
 import CaseVitalController from './CaseVitalController'
 import CaseInvestigationController from './CaseInvestigationController'
+import CaseMedicationController from './CaseMedicationController'
 import SoapController from './SoapController'
 import SubmissionController from './SubmissionController'
 import PortfolioController from './PortfolioController'
@@ -14,6 +15,7 @@ CaseClinicalProfileController: Object.assign(CaseClinicalProfileController, Case
 CaseEditorController: Object.assign(CaseEditorController, CaseEditorController),
 CaseVitalController: Object.assign(CaseVitalController, CaseVitalController),
 CaseInvestigationController: Object.assign(CaseInvestigationController, CaseInvestigationController),
+CaseMedicationController: Object.assign(CaseMedicationController, CaseMedicationController),
 SoapController: Object.assign(SoapController, SoapController),
 SubmissionController: Object.assign(SubmissionController, SubmissionController),
 PortfolioController: Object.assign(PortfolioController, PortfolioController),

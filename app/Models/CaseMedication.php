@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $institution_id
  * @property string $clinical_case_id
  * @property string $medication_context
- * @property string $generic_name
+ * @property string|null $generic_name
  * @property string|null $brand_name
  * @property string|null $indication
  * @property bool $indication_unclear
@@ -27,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $frequency
  * @property string|null $start_reference
  * @property string|null $stop_reference
- * @property MedicationStatus $status
+ * @property MedicationStatus|null $status
  * @property string|null $prn_indication
  * @property string|null $notes
  * @property int $recorded_by

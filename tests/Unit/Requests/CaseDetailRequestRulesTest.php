@@ -60,13 +60,25 @@ class CaseDetailRequestRulesTest extends TestCase
         $rules = (new StoreCaseMedicationRequest)->rules();
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'generic_name' => 'Paracetamol',
             'status' => 'not_a_real_status',
         ], $rules)->fails());
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'generic_name' => 'Paracetamol',
             'status' => 'active',
+        ], $rules)->passes());
+    }
+
+    public function test_medication_request_requires_a_client_operation_id(): void
+    {
+        $rules = (new StoreCaseMedicationRequest)->rules();
+
+        $this->assertTrue(Validator::make([], $rules)->fails());
+        $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
         ], $rules)->passes());
     }
 
