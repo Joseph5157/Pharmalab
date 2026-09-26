@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Enums\MedicationStatus;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $generic_name
  * @property string|null $brand_name
  * @property string|null $indication
+ * @property bool $indication_unclear
  * @property string|null $dose_amount
  * @property string|null $dose_unit
  * @property string|null $dosage_form
@@ -36,6 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'generic_name',
     'brand_name',
     'indication',
+    'indication_unclear',
     'dose_amount',
     'dose_unit',
     'dosage_form',
@@ -48,9 +52,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'notes',
     'recorded_by',
 ])]
-class CaseMedication extends Model
+class CaseMedication extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {
