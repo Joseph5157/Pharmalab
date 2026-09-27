@@ -121,6 +121,18 @@ class CaseEditorController extends Controller
                 'lock_version' => $medication->lock_version,
                 'updated_at' => $medication->updated_at->toIso8601String(),
             ])->all(),
+            'soap' => $case->currentSoap === null ? null : [
+                'subjective' => $case->currentSoap->subjective,
+                'objective' => $case->currentSoap->objective,
+                'assessment' => $case->currentSoap->assessment,
+                'plan' => $case->currentSoap->plan,
+                'monitoring_plan' => $case->currentSoap->monitoring_plan,
+                'monitoring_plan_not_applicable_reason' => $case->currentSoap->monitoring_plan_not_applicable_reason,
+                'drug_related_problem_status' => $case->currentSoap->drug_related_problem_status,
+                'drug_related_problem_categories' => $case->currentSoap->drug_related_problem_categories,
+                'lock_version' => $case->currentSoap->lock_version,
+                'updated_at' => $case->currentSoap->updated_at->toIso8601String(),
+            ],
         ]);
     }
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, CircleDotDashed } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import CaseProfileSection from './case-editor/CaseProfileSection.vue';
 import HistoryDiagnosisSection from './case-editor/HistoryDiagnosisSection.vue';
 import MedicationChartSection from './case-editor/MedicationChartSection.vue';
+import SoapSection from './case-editor/SoapSection.vue';
 import VitalsInvestigationsSection from './case-editor/VitalsInvestigationsSection.vue';
 
 type SectionId =
@@ -32,6 +33,12 @@ const props = defineProps<{
     vitals: (Record<string, unknown> & { id: string })[];
     investigations: (Record<string, unknown> & { id: string })[];
     medications: (Record<string, unknown> & { id: string })[];
+    soap:
+        | (Record<string, unknown> & {
+              lock_version: number;
+              updated_at: string;
+          })
+        | null;
 }>();
 
 defineOptions({
@@ -52,7 +59,7 @@ const sections: Section[] = [
         available: true,
     },
     { id: 'medication_chart', label: 'Medication Chart', available: true },
-    { id: 'soap', label: 'SOAP', available: false },
+    { id: 'soap', label: 'SOAP', available: true },
     {
         id: 'clinical_activities',
         label: 'Conditional Clinical Activities',
@@ -66,6 +73,18 @@ const availableCount = sections.filter((section) => section.available).length;
 const progress = computed(
     () => `${activeIndex.value + 1} of ${availableCount}`,
 );
+const emptySoap = {
+    subjective: null,
+    objective: null,
+    assessment: null,
+    plan: null,
+    monitoring_plan: null,
+    monitoring_plan_not_applicable_reason: null,
+    drug_related_problem_status: null,
+    drug_related_problem_categories: null,
+    lock_version: 0,
+    updated_at: new Date().toISOString(),
+};
 const emptyClinicalProfile = {
     chief_complaints: null,
     history_present_illness: null,
@@ -91,12 +110,7 @@ function setTabRef(element: unknown, index: number): void {
 function goTo(index: number, moveFocus = false): void {
     const section = sections[index];
     if (!section) return;
-    if (!section.available) {
-        if (section.id === 'soap') {
-            router.get(`/student/cases/${props.clinicalCase.id}/soap`);
-        }
-        return;
-    }
+    if (!section.available) return;
     activeIndex.value = index;
     if (moveFocus) void nextTick(() => tabButtons.value[index]?.focus());
 }
@@ -198,7 +212,7 @@ function handleTabKeydown(event: KeyboardEvent): void {
                             ? `section-panel-${section.id}`
                             : undefined
                     "
-                    :aria-disabled="!section.available && section.id !== 'soap'"
+                    :aria-disabled="!section.available"
                     :tabindex="index === activeIndex ? 0 : -1"
                     :data-test="`section-nav-${section.id}`"
                     class="shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
@@ -299,6 +313,20 @@ function handleTabKeydown(event: KeyboardEvent): void {
                         updated_at: context.updated_at,
                     } as any
                 "
+            />
+        </div>
+
+        <div
+            id="section-panel-soap"
+            role="tabpanel"
+            aria-labelledby="section-tab-soap"
+            :hidden="activeSection.id !== 'soap'"
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <SoapSection
+                :case-id="clinicalCase.id"
+                :user-id="userId"
+                :initial="(soap ?? emptySoap) as any"
             />
         </div>
 

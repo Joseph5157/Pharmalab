@@ -20,25 +20,12 @@ class SoapNoteSyncTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_old_soap_page_and_its_update_route_still_work_unmodified(): void
-    {
-        [, $student, $case] = $this->makeCase();
-        $this->actingAs($student);
-
-        $this->get("/student/cases/{$case->id}/soap")->assertOk();
-
-        $response = $this->put("/student/cases/{$case->id}/soap", ['subjective' => 'Via the old page.']);
-
-        $response->assertRedirect();
-        $this->assertSame('Via the old page.', $case->fresh()->currentSoap->subjective);
-    }
-
     public function test_first_sync_lazily_creates_the_soap_note_and_persists_all_fields_including_monitoring_plan(): void
     {
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(),
             'base_lock_version' => 0,
             'subjective' => 'Patient reports headache for 3 days.',
@@ -63,10 +50,10 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'First.',
         ])->assertOk();
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1, 'objective' => 'BP 120/80.',
         ])->assertOk();
 
@@ -79,7 +66,7 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
             'monitoring_plan_not_applicable_reason' => 'Single-dose administration; no ongoing monitoring indicated.',
         ]);
@@ -93,12 +80,12 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
             'subjective' => 'Headache.', 'objective' => 'BP 140/90.',
         ])->assertOk();
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
             'assessment' => 'Tension-type headache.',
         ]);
@@ -127,11 +114,11 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'First',
         ])->assertOk();
 
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'Conflicting',
         ])->assertStatus(409);
     }
@@ -141,7 +128,7 @@ class SoapNoteSyncTest extends TestCase
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
-        $response = $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
             'subjective' => 'x', 'patient_name' => 'Should be rejected',
         ]);
@@ -156,7 +143,7 @@ class SoapNoteSyncTest extends TestCase
         $otherStudent = User::factory()->student()->create(['institution_id' => $institution->id]);
         $this->actingAs($otherStudent);
 
-        $this->putJson("/student/cases/{$case->id}/soap-sync", [
+        $this->putJson("/student/cases/{$case->id}/soap", [
             'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'x',
         ])->assertForbidden();
     }

@@ -5,7 +5,7 @@ import vitals from './vitals'
 import investigations from './investigations'
 import medications from './medications'
 import clinicalActivities from './clinical-activities'
-import soap1a8e66 from './soap'
+import soap from './soap'
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
  * @see app/Http/Controllers/Student/CaseController.php:20
@@ -344,108 +344,6 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
     
     edit.form = editForm
 /**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-export const soap = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: soap.url(args, options),
-    method: 'get',
-})
-
-soap.definition = {
-    methods: ["get","head"],
-    url: '/student/cases/{case}/soap',
-} satisfies RouteDefinition<["get","head"]>
-
-/**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-soap.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
-    if (typeof args === 'string' || typeof args === 'number') {
-        args = { case: args }
-    }
-
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
-    if (Array.isArray(args)) {
-        args = {
-                    case: args[0],
-                }
-    }
-
-    args = applyUrlDefaults(args)
-
-    const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
-
-    return soap.definition.url
-            .replace('{case}', parsedArgs.case.toString())
-            .replace(/\/+$/, '') + queryParams(options)
-}
-
-/**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-soap.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: soap.url(args, options),
-    method: 'get',
-})
-/**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: soap.url(args, options),
-    method: 'head',
-})
-
-    /**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-    const soapForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: soap.url(args, options),
-        method: 'get',
-    })
-
-            /**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-        soapForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: soap.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:21
- * @route '/student/cases/{case}/soap'
- */
-        soapForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: soap.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    soap.form = soapForm
-/**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
  * @see app/Http/Controllers/Student/SubmissionController.php:14
  * @route '/student/cases/{case}/submit'
@@ -535,7 +433,7 @@ vitals: Object.assign(vitals, vitals),
 investigations: Object.assign(investigations, investigations),
 medications: Object.assign(medications, medications),
 clinicalActivities: Object.assign(clinicalActivities, clinicalActivities),
-soap: Object.assign(soap, soap1a8e66),
+soap: Object.assign(soap, soap),
 submit: Object.assign(submit, submit),
 }
 
