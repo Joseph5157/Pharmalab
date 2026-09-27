@@ -371,6 +371,27 @@ class CaseVitalSyncTest extends TestCase
         $response->assertJsonValidationErrors('vitals_status');
     }
 
+    public function test_marking_vitals_unavailable_with_the_reason_key_entirely_omitted_is_rejected(): void
+    {
+        // Regression: PR #12 review — 'sometimes' on vitals_unavailable_reason's
+        // rule set meant Laravel skipped all its rules (including the
+        // implicit required_if) whenever the key was absent from the request
+        // altogether, not merely sent as null. Same fix as
+        // UpdateMedicationChartAvailabilityRequest: dropped 'sometimes' so
+        // required_if now evaluates regardless of the key's presence.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/vitals-availability", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'vitals_status' => 'unavailable',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('vitals_unavailable_reason');
+    }
+
     public function test_switching_back_to_recorded_clears_the_unavailable_reason(): void
     {
         [, $student, $case] = $this->makeCase();

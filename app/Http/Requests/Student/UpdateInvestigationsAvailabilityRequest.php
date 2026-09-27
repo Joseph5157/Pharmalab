@@ -24,7 +24,11 @@ class UpdateInvestigationsAvailabilityRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'investigations_status' => ['sometimes', 'nullable', Rule::in(['recorded', 'unavailable'])],
-            'investigations_unavailable_reason' => ['sometimes', 'nullable', 'required_if:investigations_status,unavailable', 'string', 'max:1000'],
+            // No 'sometimes': it would skip *all* rules for a key entirely
+            // absent from the request, including implicit ones like
+            // required_if — see UpdateMedicationChartAvailabilityRequest's
+            // identical fix (PR #12 review) for the full rationale.
+            'investigations_unavailable_reason' => ['nullable', 'required_if:investigations_status,unavailable', 'string', 'max:1000'],
         ];
     }
 

@@ -248,6 +248,23 @@ class CaseInvestigationSyncTest extends TestCase
         $response->assertJsonValidationErrors('investigations_status');
     }
 
+    public function test_marking_investigations_unavailable_with_the_reason_key_entirely_omitted_is_rejected(): void
+    {
+        // Regression: PR #12 review — same 'sometimes' + required_if gap as
+        // UpdateMedicationChartAvailabilityRequest, fixed the same way.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/investigations-availability", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'investigations_status' => 'unavailable',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('investigations_unavailable_reason');
+    }
+
     public function test_owning_student_can_mark_investigations_unavailable_with_a_reason(): void
     {
         [, $student, $case] = $this->makeCase();
