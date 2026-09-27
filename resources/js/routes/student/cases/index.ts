@@ -4,6 +4,7 @@ import clinicalProfile from './clinical-profile'
 import vitals from './vitals'
 import investigations from './investigations'
 import medications from './medications'
+import clinicalActivities from './clinical-activities'
 import soap1a8e66 from './soap'
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
@@ -533,6 +534,7 @@ edit: Object.assign(edit, edit),
 vitals: Object.assign(vitals, vitals),
 investigations: Object.assign(investigations, investigations),
 medications: Object.assign(medications, medications),
+clinicalActivities: Object.assign(clinicalActivities, clinicalActivities),
 soap: Object.assign(soap, soap1a8e66),
 submit: Object.assign(submit, submit),
 }

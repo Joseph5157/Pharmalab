@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RotationController;
 use App\Http\Controllers\CaseDraftNoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Faculty\ReviewController;
+use App\Http\Controllers\Student\CaseClinicalActivityController;
 use App\Http\Controllers\Student\CaseClinicalProfileController;
 use App\Http\Controllers\Student\CaseContextController;
 use App\Http\Controllers\Student\CaseController;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::put('student/cases/{case}/medications/{medication}', [CaseMedicationController::class, 'sync'])->name('student.cases.medications.sync');
         Route::delete('student/cases/{case}/medications/{medication}', [CaseMedicationController::class, 'destroy'])->name('student.cases.medications.destroy');
         Route::put('student/cases/{case}/medication-chart-availability', [CaseMedicationController::class, 'syncAvailability'])->name('student.cases.medications.availability.sync');
+        Route::put('student/cases/{case}/clinical-activities/adr', [CaseClinicalActivityController::class, 'syncAdr'])->name('student.cases.clinical-activities.adr.sync');
         Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap');
         Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update');
         Route::put('student/cases/{case}/soap-sync', [SoapController::class, 'sync'])->name('student.cases.soap.sync');

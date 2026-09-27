@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\Syncable;
+use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
@@ -27,6 +28,7 @@ class SectionSyncService
         'investigations' => CaseInvestigation::class,
         'medications' => CaseMedication::class,
         'soap' => SoapNote::class,
+        'clinical_activity_adr' => CaseClinicalActivity::class,
     ];
 
     public function __construct(private readonly AuditTrail $audit) {}
