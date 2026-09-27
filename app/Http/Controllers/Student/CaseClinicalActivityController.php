@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Enums\ClinicalActivityType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\UpdateAdrActivityRequest;
+use App\Http\Requests\Student\UpdateCounsellingActivityRequest;
 use App\Models\CaseClinicalActivity;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
@@ -24,6 +25,30 @@ class CaseClinicalActivityController extends Controller
             $activity,
             $request->user(),
             'clinical_activity_adr',
+            $envelope['client_operation_id'],
+            $envelope['base_lock_version'],
+            $data,
+            $envelope['resolution'],
+            $envelope['confirmed'],
+        );
+
+        $model = $result['model'];
+        abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
+
+        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+    }
+
+    public function syncCounselling(UpdateCounsellingActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
+    {
+        $activity = $this->findOrCreateSingleton($case, ClinicalActivityType::Counselling, $request->user()->id);
+
+        $envelope = $request->syncEnvelope();
+        $data = $this->mergeOrClearDetails($activity, $request->sectionData(), leavesConditionalState: fn (array $data): bool => array_key_exists('status', $data) && ! in_array($data['status'], ['performed', 'planned'], true));
+
+        $result = $sync->sync(
+            $activity,
+            $request->user(),
+            'clinical_activity_counselling',
             $envelope['client_operation_id'],
             $envelope['base_lock_version'],
             $data,

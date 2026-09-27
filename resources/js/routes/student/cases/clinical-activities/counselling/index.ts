@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Student\CaseClinicalActivityController::sync
- * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:17
- * @route '/student/cases/{case}/clinical-activities/adr'
+ * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:41
+ * @route '/student/cases/{case}/clinical-activities/counselling'
  */
 export const sync = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: sync.url(args, options),
@@ -11,13 +11,13 @@ export const sync = (args: { case: string | { id: string } } | [caseParam: strin
 
 sync.definition = {
     methods: ["put"],
-    url: '/student/cases/{case}/clinical-activities/adr',
+    url: '/student/cases/{case}/clinical-activities/counselling',
 } satisfies RouteDefinition<["put"]>
 
 /**
 * @see \App\Http\Controllers\Student\CaseClinicalActivityController::sync
- * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:17
- * @route '/student/cases/{case}/clinical-activities/adr'
+ * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:41
+ * @route '/student/cases/{case}/clinical-activities/counselling'
  */
 sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -49,8 +49,8 @@ sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseClinicalActivityController::sync
- * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:17
- * @route '/student/cases/{case}/clinical-activities/adr'
+ * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:41
+ * @route '/student/cases/{case}/clinical-activities/counselling'
  */
 sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: sync.url(args, options),
@@ -59,8 +59,8 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
     /**
 * @see \App\Http\Controllers\Student\CaseClinicalActivityController::sync
- * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:17
- * @route '/student/cases/{case}/clinical-activities/adr'
+ * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:41
+ * @route '/student/cases/{case}/clinical-activities/counselling'
  */
     const syncForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: sync.url(args, {
@@ -74,8 +74,8 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
             /**
 * @see \App\Http\Controllers\Student\CaseClinicalActivityController::sync
- * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:17
- * @route '/student/cases/{case}/clinical-activities/adr'
+ * @see app/Http/Controllers/Student/CaseClinicalActivityController.php:41
+ * @route '/student/cases/{case}/clinical-activities/counselling'
  */
         syncForm.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: sync.url(args, {
@@ -88,8 +88,8 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
         })
     
     sync.form = syncForm
-const adr = {
+const counselling = {
     sync: Object.assign(sync, sync),
 }
 
-export default adr
+export default counselling
