@@ -181,6 +181,57 @@ class ClinicalCaseAuthorizationTest extends TestCase
         }
     }
 
+    public function test_students_cannot_reopen_a_case(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $this->actingAs($student);
+
+        $case = $this->createCase($institution, $student, $assignment, CaseStatus::Approved);
+
+        $this->post(route('faculty.reviews.reopen', $case))->assertForbidden();
+    }
+
+    public function test_faculty_cannot_reopen_a_cross_institution_case(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $otherInstitution = Institution::factory()->create();
+        $otherStudent = User::factory()->student()->create(['institution_id' => $otherInstitution->id]);
+        $this->actingAs($faculty);
+
+        $otherCase = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $otherInstitution->id,
+            'student_id' => $otherStudent->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Approved,
+        ]);
+
+        $this->post(route('faculty.reviews.reopen', $otherCase))->assertNotFound();
+    }
+
+    public function test_faculty_cannot_reopen_a_case_that_is_not_approved(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $this->actingAs($faculty);
+
+        foreach ([CaseStatus::Draft, CaseStatus::Submitted, CaseStatus::UnderReview, CaseStatus::Returned] as $index => $status) {
+            $case = $this->createCase($institution, $student, $assignment, $status, $index + 1);
+
+            $this->post(route('faculty.reviews.reopen', $case), ['reason' => 'Test'])->assertForbidden();
+        }
+    }
+
+    public function test_unassigned_faculty_cannot_reopen_a_case(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $otherFaculty = User::factory()->faculty()->create(['institution_id' => $institution->id]);
+        $this->actingAs($otherFaculty);
+
+        $case = $this->createCase($institution, $student, $assignment, CaseStatus::Approved);
+
+        $this->post(route('faculty.reviews.reopen', $case), ['reason' => 'Test'])->assertForbidden();
+    }
+
     /** @return array{Institution, User, User, RotationAssignment, ClinicalSite} */
     private function setupInstitution(): array
     {

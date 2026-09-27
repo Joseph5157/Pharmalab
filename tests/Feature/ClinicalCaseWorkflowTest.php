@@ -405,6 +405,40 @@ class ClinicalCaseWorkflowTest extends TestCase
         $this->assertFalse((new ClinicalCasePolicy)->reopen($faculty, $case));
     }
 
+    public function test_reopen_http_endpoint_moves_an_approved_case_back_to_returned(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Approved,
+            'current_revision_number' => 1,
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'original']],
+            'snapshot_hash' => hash('sha256', 'original'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+            'approved_by' => $faculty->id,
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $this->post(route('faculty.reviews.reopen', $case), ['reason' => 'Please re-check the dosing.'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Returned->value]);
+    }
+
     /** @return array{Institution, User, User, RotationAssignment} */
     private function setupAssignment(): array
     {

@@ -64,6 +64,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('faculty/reviews/{case}', [ReviewController::class, 'show'])->name('faculty.reviews.show');
         Route::post('faculty/reviews/{case}/approve', [ReviewController::class, 'approve'])->name('faculty.reviews.approve');
         Route::post('faculty/reviews/{case}/return', [ReviewController::class, 'returnCase'])->name('faculty.reviews.return');
+        Route::post('faculty/reviews/{case}/reopen', [ReviewController::class, 'reopen'])->name('faculty.reviews.reopen');
     });
 
     Route::prefix('admin')->middleware('role:'.UserRole::Administrator->value)->group(function (): void {

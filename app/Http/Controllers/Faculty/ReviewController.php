@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Actions\ApproveCase;
+use App\Actions\ReopenCase;
 use App\Actions\ReturnCase;
 use App\Enums\CaseStatus;
 use App\Http\Controllers\Controller;
@@ -75,5 +76,18 @@ class ReviewController extends Controller
         $returnCase($request->user(), $case, $data['reason']);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Case returned for correction.']);
+    }
+
+    public function reopen(Request $request, ClinicalCase $case, ReopenCase $reopenCase): RedirectResponse
+    {
+        Gate::authorize('reopen', $case);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $reopenCase($request->user(), $case, $data['reason']);
+
+        return back()->with('toast', ['type' => 'success', 'message' => 'Case reopened.']);
     }
 }
