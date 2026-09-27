@@ -231,7 +231,7 @@ class ClinicalCaseWorkflowTest extends TestCase
             'submitted_at' => now(),
         ]);
 
-        CaseVersion::query()->withoutGlobalScopes()->create([
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'clinical_case_id' => $case->id,
             'version_number' => 1,
@@ -262,6 +262,11 @@ class ClinicalCaseWorkflowTest extends TestCase
         ]);
         $this->assertDatabaseMissing('case_review_comments', ['clinical_case_id' => $case->id]);
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
+        $this->assertDatabaseHas('case_versions', [
+            'id' => $version->id,
+            'approved_by' => null,
+            'approved_at' => null,
+        ]);
     }
 
     public function test_approve_is_rejected_once_the_case_has_already_moved_past_review(): void
