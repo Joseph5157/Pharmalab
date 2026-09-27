@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AcademicController;
 use App\Http\Controllers\Admin\ClinicalSiteController;
 use App\Http\Controllers\Admin\PeopleController;
 use App\Http\Controllers\Admin\RotationController;
-use App\Http\Controllers\CaseDraftNoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Faculty\ReviewController;
 use App\Http\Controllers\Student\CaseClinicalActivityController;
@@ -28,9 +27,6 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     Route::middleware('role:'.UserRole::Student->value)->group(function (): void {
         Route::get('student', [DashboardController::class, 'student'])->name('student.dashboard');
-        Route::get('student/sync-spike', [CaseDraftNoteController::class, 'index'])->name('student.sync-spike');
-        Route::get('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'show'])->name('student.sync-spike.show');
-        Route::put('student/sync-spike/{caseDraftNote}', [CaseDraftNoteController::class, 'sync'])->name('student.sync-spike.sync');
 
         Route::get('student/cases', [CaseController::class, 'index'])->name('student.cases.index');
         Route::post('student/cases', [CaseController::class, 'store'])->name('student.cases.store');

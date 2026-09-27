@@ -11,7 +11,7 @@ import UserInfo from '@/components/UserInfo.vue';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { User } from '@/types';
-import { clearCaseDraftStorage } from '@/lib/caseDraftStore';
+import { deleteLegacyCaseDraftDatabase } from '@/lib/legacyCaseDraftCleanup';
 import { clearSectionOutbox } from '@/lib/outboxStore';
 
 type Props = {
@@ -19,8 +19,8 @@ type Props = {
 };
 
 const handleLogout = async () => {
-    await clearCaseDraftStorage();
     await clearSectionOutbox();
+    deleteLegacyCaseDraftDatabase();
     router.flushAll();
     router.post(logout.url());
 };
