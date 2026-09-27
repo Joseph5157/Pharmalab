@@ -130,6 +130,7 @@ class CaseEditorController extends Controller
                 'assessment' => $case->currentSoap->assessment,
                 'plan' => $case->currentSoap->plan,
                 'monitoring_plan' => $case->currentSoap->monitoring_plan,
+                'monitoring_plan_not_applicable' => $case->currentSoap->monitoring_plan_not_applicable,
                 'monitoring_plan_not_applicable_reason' => $case->currentSoap->monitoring_plan_not_applicable_reason,
                 'drug_related_problem_status' => $case->currentSoap->drug_related_problem_status,
                 'drug_related_problem_categories' => $case->currentSoap->drug_related_problem_categories,

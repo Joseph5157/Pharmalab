@@ -34,6 +34,7 @@ type SoapPayload = SyncedSection & {
     assessment: string | null;
     plan: string | null;
     monitoring_plan: string | null;
+    monitoring_plan_not_applicable: boolean;
     monitoring_plan_not_applicable_reason: string | null;
     drug_related_problem_status: string | null;
     drug_related_problem_categories: string[] | null;
@@ -76,15 +77,24 @@ const statusLabel = computed(
         })[state.value],
 );
 
-const monitoringNotApplicable = computed({
-    get: () => payload.value.monitoring_plan_not_applicable_reason !== null,
-    set: (checked: boolean) => {
-        payload.value.monitoring_plan_not_applicable_reason = checked
-            ? ''
-            : null;
-        edit();
-    },
-});
+function onMonitoringPlanInput() {
+    if (
+        payload.value.monitoring_plan !== null &&
+        payload.value.monitoring_plan !== '' &&
+        payload.value.monitoring_plan_not_applicable
+    ) {
+        payload.value.monitoring_plan_not_applicable = false;
+    }
+    edit();
+}
+function onMonitoringNotApplicableChange() {
+    if (payload.value.monitoring_plan_not_applicable) {
+        payload.value.monitoring_plan = null;
+    } else {
+        payload.value.monitoring_plan_not_applicable_reason = null;
+    }
+    edit();
+}
 
 function toggleCategory(category: string) {
     const current = payload.value.drug_related_problem_categories ?? [];
@@ -251,21 +261,25 @@ function toggleCategory(category: string) {
                 v-model="payload.monitoring_plan"
                 rows="3"
                 maxlength="2000"
-                :disabled="monitoringNotApplicable"
+                :disabled="payload.monitoring_plan_not_applicable"
                 data-test="soap-monitoring-plan"
                 class="w-full rounded-xl border border-slate-200 px-3 py-2 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900"
-                @input="edit"
+                @input="onMonitoringPlanInput"
             />
         </label>
         <label class="flex items-center gap-2 text-sm">
             <input
-                v-model="monitoringNotApplicable"
+                v-model="payload.monitoring_plan_not_applicable"
                 type="checkbox"
                 data-test="soap-monitoring-not-applicable"
+                @change="onMonitoringNotApplicableChange"
             />
             Not applicable
         </label>
-        <label v-if="monitoringNotApplicable" class="block text-sm">
+        <label
+            v-if="payload.monitoring_plan_not_applicable"
+            class="block text-sm"
+        >
             <span
                 class="mb-1 block font-medium text-slate-700 dark:text-slate-200"
                 >Reason monitoring is not applicable</span

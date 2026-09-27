@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $assessment
  * @property string|null $plan
  * @property string|null $monitoring_plan
+ * @property bool $monitoring_plan_not_applicable
  * @property string|null $monitoring_plan_not_applicable_reason
  * @property int $author_id
  * @property int $last_saved_by
@@ -37,6 +38,7 @@ use Illuminate\Support\Carbon;
     'assessment',
     'plan',
     'monitoring_plan',
+    'monitoring_plan_not_applicable',
     'monitoring_plan_not_applicable_reason',
     'drug_related_problem_status',
     'drug_related_problem_categories',
@@ -50,6 +52,7 @@ class SoapNote extends Model implements Syncable
     protected function casts(): array
     {
         return [
+            'monitoring_plan_not_applicable' => 'boolean',
             'drug_related_problem_categories' => 'array',
         ];
     }

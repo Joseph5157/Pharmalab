@@ -75,6 +75,46 @@ class SoapNoteSyncTest extends TestCase
         $this->assertSame('Single-dose administration; no ongoing monitoring indicated.', $case->fresh()->currentSoap->monitoring_plan_not_applicable_reason);
     }
 
+    public function test_marking_monitoring_plan_not_applicable_persists_even_with_no_reason_typed_yet(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        // Regression for Task 9 live device verification: an empty reason
+        // string is normalized to null by Laravel's own request-input
+        // middleware before validation ever sees it, so the "checked" state
+        // must be a real boolean column, never inferred from the reason
+        // field's nullability.
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'monitoring_plan_not_applicable' => true, 'monitoring_plan_not_applicable_reason' => '',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('section.monitoring_plan_not_applicable', true);
+        $this->assertTrue($case->fresh()->currentSoap->monitoring_plan_not_applicable);
+    }
+
+    public function test_marking_monitoring_plan_not_applicable_clears_any_existing_plan_text(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/soap", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0,
+            'monitoring_plan' => 'Weekly renal function.',
+        ])->assertOk();
+
+        $response = $this->putJson("/student/cases/{$case->id}/soap", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 1,
+            'monitoring_plan_not_applicable' => true,
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($case->fresh()->currentSoap->monitoring_plan);
+        $this->assertTrue($case->fresh()->currentSoap->monitoring_plan_not_applicable);
+    }
+
     public function test_a_single_field_edit_does_not_erase_other_saved_fields(): void
     {
         [, $student, $case] = $this->makeCase();

@@ -94,6 +94,7 @@ const emptySoap = {
     assessment: null,
     plan: null,
     monitoring_plan: null,
+    monitoring_plan_not_applicable: false,
     monitoring_plan_not_applicable_reason: null,
     drug_related_problem_status: null,
     drug_related_problem_categories: null,

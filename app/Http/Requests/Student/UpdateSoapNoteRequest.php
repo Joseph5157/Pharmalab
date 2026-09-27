@@ -26,6 +26,7 @@ class UpdateSoapNoteRequest extends FormRequest
             'assessment' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'plan' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'monitoring_plan' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'monitoring_plan_not_applicable' => ['sometimes', 'boolean'],
             'monitoring_plan_not_applicable_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'drug_related_problem_status' => ['sometimes', 'nullable', 'in:none_identified,identified,unable_to_assess'],
             'drug_related_problem_categories' => ['sometimes', 'nullable', 'array'],
