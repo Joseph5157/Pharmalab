@@ -26,10 +26,17 @@ type RowPayload = SyncedSection & {
     details: Record<string, unknown> | null;
 };
 type AdrPayload = SyncedSection & {
+    // CaseEditorController's activityPayload() is shared with the repeatable
+    // rows, so a singleton that already exists on page load carries these two
+    // extra keys too — never sent back (see the readonlyFields below).
+    id?: string;
+    activity_type?: string;
     status: string | null;
     details: Record<string, unknown> | null;
 };
 type CounsellingPayload = SyncedSection & {
+    id?: string;
+    activity_type?: string;
     status: string | null;
     details: Record<string, unknown> | null;
 };
@@ -65,6 +72,12 @@ const adrSync = useSectionSync<AdrPayload>({
     sectionKey: 'clinical_activity_adr',
     endpoint: `/student/cases/${props.caseId}/clinical-activities/adr`,
     initialPayload: props.initialAdr ?? emptyAdr,
+    // initialAdr comes straight from CaseEditorController's activityPayload(),
+    // which also carries id/activity_type for the repeatable rows' sake — once
+    // the row already exists on page load, those two keys ride along into
+    // every edit unless excluded here, and UpdateAdrActivityRequest doesn't
+    // recognize either as a top-level field (Task 9 live device verification).
+    readonlyFields: ['id', 'activity_type'],
 });
 const counsellingSync = useSectionSync<CounsellingPayload>({
     userId: props.userId,
@@ -72,6 +85,7 @@ const counsellingSync = useSectionSync<CounsellingPayload>({
     sectionKey: 'clinical_activity_counselling',
     endpoint: `/student/cases/${props.caseId}/clinical-activities/counselling`,
     initialPayload: props.initialCounselling ?? emptyCounselling,
+    readonlyFields: ['id', 'activity_type'],
 });
 
 const interventionCreate = useRepeatableRowCreate<RowPayload>({
