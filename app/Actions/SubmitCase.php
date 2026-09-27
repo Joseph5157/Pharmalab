@@ -143,7 +143,7 @@ class SubmitCase
             'vitals' => [
                 'status' => $case->vitals_status,
                 'unavailable_reason' => $case->vitals_unavailable_reason,
-                'entries' => $case->vitals()->get()->map(fn (CaseVital $v): array => [
+                'entries' => $case->vitals()->orderBy('created_at')->orderBy('id')->get()->map(fn (CaseVital $v): array => [
                     'observation_type' => $v->observation_type,
                     'value_numeric' => $v->value_numeric,
                     'value_text' => $v->value_text,
@@ -159,7 +159,7 @@ class SubmitCase
             'investigations' => [
                 'status' => $case->investigations_status,
                 'unavailable_reason' => $case->investigations_unavailable_reason,
-                'entries' => $case->investigations()->get()->map(fn (CaseInvestigation $i): array => [
+                'entries' => $case->investigations()->orderBy('created_at')->orderBy('id')->get()->map(fn (CaseInvestigation $i): array => [
                     'test_name' => $i->test_name,
                     'result_type' => $i->result_type,
                     'result_value' => $i->result_value,
@@ -173,25 +173,31 @@ class SubmitCase
                     'interpretation' => $i->interpretation,
                 ])->all(),
             ],
+            // medication_context accepts 'chart'/'history'/null. The shipped
+            // Medication Chart section sends null by default but lets a student
+            // tag a row 'history'. Record both collections separately, using
+            // the same rule the completeness service uses: a row is history
+            // only when explicitly tagged 'history'; every other value
+            // (including null and 'chart') is part of the chart.
+            'medication_history' => [
+                'entries' => $case->medications()
+                    ->where('medication_context', 'history')
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->get()
+                    ->map(fn (CaseMedication $m): array => $this->medicationEntry($m))
+                    ->all(),
+            ],
             'medication_chart' => [
                 'status' => $case->medication_chart_status,
                 'none_reason' => $case->medication_chart_none_reason,
-                'entries' => $case->medications()->where(fn ($q) => $q->where('medication_context', '!=', 'history')->orWhereNull('medication_context'))->get()->map(fn (CaseMedication $m): array => [
-                    'generic_name' => $m->generic_name,
-                    'brand_name' => $m->brand_name,
-                    'indication' => $m->indication,
-                    'indication_unclear' => $m->indication_unclear,
-                    'dose_amount' => $m->dose_amount,
-                    'dose_unit' => $m->dose_unit,
-                    'dosage_form' => $m->dosage_form,
-                    'route' => $m->route,
-                    'frequency' => $m->frequency,
-                    'start_reference' => $m->start_reference,
-                    'stop_reference' => $m->stop_reference,
-                    'status' => $m->status?->value,
-                    'prn_indication' => $m->prn_indication,
-                    'notes' => $m->notes,
-                ])->all(),
+                'entries' => $case->medications()
+                    ->where(fn ($q) => $q->where('medication_context', '!=', 'history')->orWhereNull('medication_context'))
+                    ->orderBy('created_at')
+                    ->orderBy('id')
+                    ->get()
+                    ->map(fn (CaseMedication $m): array => $this->medicationEntry($m))
+                    ->all(),
             ],
             'soap' => $soap === null ? null : [
                 'subjective' => $soap->subjective,
@@ -204,11 +210,38 @@ class SubmitCase
                 'drug_related_problem_status' => $soap->drug_related_problem_status,
                 'drug_related_problem_categories' => $soap->drug_related_problem_categories,
             ],
-            'clinical_activities' => $case->clinicalActivities->map(fn (CaseClinicalActivity $activity): array => [
-                'activity_type' => $activity->activity_type->value,
-                'status' => $activity->status,
-                'details' => $activity->details,
-            ])->values()->all(),
+            'clinical_activities' => $case->clinicalActivities()
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (CaseClinicalActivity $activity): array => [
+                    'activity_type' => $activity->activity_type->value,
+                    'status' => $activity->status,
+                    'details' => $activity->details,
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function medicationEntry(CaseMedication $medication): array
+    {
+        return [
+            'generic_name' => $medication->generic_name,
+            'brand_name' => $medication->brand_name,
+            'indication' => $medication->indication,
+            'indication_unclear' => $medication->indication_unclear,
+            'dose_amount' => $medication->dose_amount,
+            'dose_unit' => $medication->dose_unit,
+            'dosage_form' => $medication->dosage_form,
+            'route' => $medication->route,
+            'frequency' => $medication->frequency,
+            'start_reference' => $medication->start_reference,
+            'stop_reference' => $medication->stop_reference,
+            'status' => $medication->status?->value,
+            'prn_indication' => $medication->prn_indication,
+            'notes' => $medication->notes,
         ];
     }
 }

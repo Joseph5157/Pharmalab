@@ -3,6 +3,15 @@ export type StoredSection<T = Record<string, unknown>> = {
     sectionKey: string;
     resourceId: string;
     userId: number;
+    /**
+     * The clinical case this draft belongs to. Section-level drafts can infer
+     * this from `resourceId`, but repeatable-row creates/edits cannot (their
+     * `resourceId` is a row/local id), so it is stored explicitly instead.
+     * Submission-review uses it to block submitting a case while that same
+     * case still has unsynced or permanently-failed work sitting in IndexedDB.
+     * Optional for records written before this field existed.
+     */
+    caseId?: string;
     payload: T;
     baseLockVersion: number;
     clientOperationId: string;
@@ -81,6 +90,26 @@ export async function listAllSections<T>(): Promise<StoredSection<T>[]> {
     const db = await database();
     return result<StoredSection<T>[]>(
         db.transaction('sections').objectStore('sections').getAll(),
+    );
+}
+/**
+ * Every still-unsynced draft (pending create, pending section edit, a
+ * validation failure, or a permanent 422/409 rejection) that belongs to the
+ * given case. Successful syncs delete their record, so any presence means the
+ * server does not yet have this device's latest work for the case.
+ */
+export async function listOutboxSectionsForCase<T = Record<string, unknown>>(
+    caseId: string,
+): Promise<StoredSection<T>[]> {
+    const all = await listAllSections<T>();
+    return all.filter(
+        (section) =>
+            section.caseId === caseId ||
+            // Backwards compatibility for section-level drafts written before
+            // caseId existed: their resourceId is the case id. Row-level
+            // legacy drafts cannot be attributed and are ignored rather than
+            // risking blocking on an unrelated case.
+            (section.caseId === undefined && section.resourceId === caseId),
     );
 }
 export async function keepSectionCopy<T>(

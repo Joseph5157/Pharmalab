@@ -83,6 +83,47 @@ class ClinicalCaseAuthorizationTest extends TestCase
         $this->assertDatabaseHas('clinical_cases', ['id' => $otherCase->id, 'status' => CaseStatus::Draft->value]);
     }
 
+    public function test_cross_institution_student_cannot_open_another_institutions_submission_review(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $otherInstitution = Institution::factory()->create();
+        $otherStudent = User::factory()->student()->create(['institution_id' => $otherInstitution->id]);
+        $this->actingAs($student);
+
+        $otherCase = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $otherInstitution->id,
+            'student_id' => $otherStudent->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Draft,
+        ]);
+
+        // The institution global scope removes the case from route-model
+        // binding for the acting student, so it is not found — the same
+        // isolation the existing faculty cross-institution test asserts.
+        $this->get(route('student.cases.submission-review', $otherCase))->assertNotFound();
+    }
+
+    public function test_cross_institution_student_cannot_submit_another_institutions_case(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $otherInstitution = Institution::factory()->create();
+        $otherStudent = User::factory()->student()->create(['institution_id' => $otherInstitution->id]);
+        $this->actingAs($student);
+
+        $otherCase = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $otherInstitution->id,
+            'student_id' => $otherStudent->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Draft,
+        ]);
+
+        $this->post(route('student.cases.submit', $otherCase), ['deidentification_attested' => true])
+            ->assertNotFound();
+        $this->assertDatabaseHas('clinical_cases', ['id' => $otherCase->id, 'status' => CaseStatus::Draft->value]);
+    }
+
     public function test_faculty_can_only_review_assigned_cases(): void
     {
         [$institution, $student, $faculty, $assignment] = $this->setupInstitution();

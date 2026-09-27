@@ -52,6 +52,7 @@ const {
     adoptServerSnapshot,
 } = useSectionSync<InvestigationPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.initial.id,
     sectionKey: 'investigations',
     endpoint: `/student/cases/${props.caseId}/investigations/${props.initial.id}`,

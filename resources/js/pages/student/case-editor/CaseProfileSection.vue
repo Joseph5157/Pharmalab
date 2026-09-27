@@ -42,6 +42,7 @@ const {
     validationErrors,
 } = useSectionSync<Payload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'case_context',
     endpoint: `/student/cases/${props.caseId}/context`,

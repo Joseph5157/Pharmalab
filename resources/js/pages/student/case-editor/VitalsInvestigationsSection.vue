@@ -43,6 +43,7 @@ const investigations = ref([...props.initialInvestigations]);
 
 const vitalsSync = useSectionSync<AvailabilityPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'vitals_availability',
     endpoint: `/student/cases/${props.caseId}/vitals-availability`,
@@ -54,6 +55,7 @@ const vitalsSync = useSectionSync<AvailabilityPayload>({
 });
 const investigationsSync = useSectionSync<InvestigationsAvailabilityPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'investigations_availability',
     endpoint: `/student/cases/${props.caseId}/investigations-availability`,
@@ -66,6 +68,7 @@ const investigationsSync = useSectionSync<InvestigationsAvailabilityPayload>({
 
 const vitalsCreate = useRepeatableRowCreate<RowPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     sectionKey: 'vitals',
     endpoint: `/student/cases/${props.caseId}/vitals`,
     responseKey: 'vital',
@@ -84,6 +87,7 @@ const vitalsCreate = useRepeatableRowCreate<RowPayload>({
 });
 const investigationsCreate = useRepeatableRowCreate<RowPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     sectionKey: 'investigations',
     endpoint: `/student/cases/${props.caseId}/investigations`,
     responseKey: 'investigation',

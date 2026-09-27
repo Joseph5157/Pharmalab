@@ -58,6 +58,7 @@ const {
     confirmingReplace,
 } = useSectionSync<SoapPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'soap',
     endpoint: `/student/cases/${props.caseId}/soap`,

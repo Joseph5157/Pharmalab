@@ -69,6 +69,124 @@ class CaseSubmissionTest extends TestCase
         $this->assertSame('recorded', $version->snapshot['vitals']['status']);
     }
 
+    public function test_snapshot_records_medication_history_and_chart_separately_by_medication_context(): void
+    {
+        [, $student, , $case] = $this->completeCase();
+
+        CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id,
+            'clinical_case_id' => $case->id,
+            'medication_context' => 'history',
+            'generic_name' => 'Warfarin',
+            'indication' => 'Prior anticoagulation',
+            'dose_amount' => '5',
+            'dose_unit' => 'mg',
+            'route' => 'oral',
+            'frequency' => 'OD',
+            'status' => 'stopped',
+            'recorded_by' => $student->id,
+        ]);
+
+        $version = app(SubmitCase::class)->__invoke($student, $case->fresh(), true);
+
+        $this->assertSame(
+            ['Paracetamol'],
+            array_column($version->snapshot['medication_chart']['entries'], 'generic_name'),
+        );
+        $this->assertSame(
+            ['Warfarin'],
+            array_column($version->snapshot['medication_history']['entries'], 'generic_name'),
+        );
+    }
+
+    public function test_snapshot_repeatable_collections_are_ordered_by_created_at_then_id(): void
+    {
+        [$institution, $student, , $case] = $this->completeCase();
+
+        // The fixture rows are dated 09:00. Add one earlier and one later per
+        // collection so the deterministic expected order differs from the
+        // order the rows were inserted (and, for clinical activities, from
+        // relation-load order).
+        CaseVital::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['created_at' => '2026-10-15 09:00:00']);
+        $lateVital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'temperature', 'value_numeric' => 38, 'recorded_by' => $student->id,
+        ]);
+        $lateVital->forceFill(['created_at' => '2026-10-15 10:00:00'])->saveQuietly();
+        $earlyVital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'respiratory_rate', 'value_numeric' => 18, 'recorded_by' => $student->id,
+        ]);
+        $earlyVital->forceFill(['created_at' => '2026-10-15 08:00:00'])->saveQuietly();
+
+        CaseInvestigation::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['created_at' => '2026-10-15 09:00:00']);
+        $lateInvestigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'test_name' => 'Sodium', 'result_type' => 'numeric', 'result_value' => '140',
+            'unit' => 'mmol/L', 'reference_range_not_provided' => true, 'recorded_by' => $student->id,
+        ]);
+        $lateInvestigation->forceFill(['created_at' => '2026-10-15 10:00:00'])->saveQuietly();
+        $earlyInvestigation = CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'test_name' => 'Potassium', 'result_type' => 'numeric', 'result_value' => '4.0',
+            'unit' => 'mmol/L', 'reference_range_not_provided' => true, 'recorded_by' => $student->id,
+        ]);
+        $earlyInvestigation->forceFill(['created_at' => '2026-10-15 08:00:00'])->saveQuietly();
+
+        CaseMedication::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['created_at' => '2026-10-15 09:00:00']);
+        $lateMedication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'medication_context' => null, 'generic_name' => 'Ibuprofen', 'indication' => 'Pain',
+            'dose_amount' => '400', 'dose_unit' => 'mg', 'route' => 'oral', 'frequency' => 'TID',
+            'status' => 'active', 'recorded_by' => $student->id,
+        ]);
+        $lateMedication->forceFill(['created_at' => '2026-10-15 10:00:00'])->saveQuietly();
+        $earlyMedication = CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'medication_context' => null, 'generic_name' => 'Aspirin', 'indication' => 'Antiplatelet',
+            'dose_amount' => '75', 'dose_unit' => 'mg', 'route' => 'oral', 'frequency' => 'OD',
+            'status' => 'active', 'recorded_by' => $student->id,
+        ]);
+        $earlyMedication->forceFill(['created_at' => '2026-10-15 08:00:00'])->saveQuietly();
+
+        CaseClinicalActivity::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['created_at' => '2026-10-15 09:00:00']);
+        $lateActivity = CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'monitoring', 'status' => 'in_progress', 'recorded_by' => $student->id,
+        ]);
+        $lateActivity->forceFill(['created_at' => '2026-10-15 10:00:00'])->saveQuietly();
+        $earlyActivity = CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'monitoring', 'status' => 'planned', 'recorded_by' => $student->id,
+        ]);
+        $earlyActivity->forceFill(['created_at' => '2026-10-15 08:00:00'])->saveQuietly();
+
+        $version = app(SubmitCase::class)->__invoke($student, $case->fresh(), true);
+
+        $this->assertSame(
+            ['respiratory_rate', 'pulse', 'temperature'],
+            array_column($version->snapshot['vitals']['entries'], 'observation_type'),
+        );
+        $this->assertSame(
+            ['Potassium', 'Haemoglobin', 'Sodium'],
+            array_column($version->snapshot['investigations']['entries'], 'test_name'),
+        );
+        $this->assertSame(
+            ['Aspirin', 'Paracetamol', 'Ibuprofen'],
+            array_column($version->snapshot['medication_chart']['entries'], 'generic_name'),
+        );
+
+        $monitoring = array_values(array_filter(
+            $version->snapshot['clinical_activities'],
+            fn (array $activity): bool => $activity['activity_type'] === 'monitoring',
+        ));
+        $this->assertSame(['planned', 'in_progress'], array_column($monitoring, 'status'));
+    }
+
     public function test_resubmitting_an_already_submitted_case_at_the_action_level_is_idempotent(): void
     {
         [, $student, , $case] = $this->completeCase();

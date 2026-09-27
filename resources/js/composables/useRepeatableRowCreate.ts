@@ -10,6 +10,12 @@ import {
 
 export type RepeatableRowCreateOptions = {
     userId: number;
+    /**
+     * The clinical case this section belongs to. Stored on every queued
+     * create draft so submission-review can tell which case's pending work
+     * blocks a submit.
+     */
+    caseId: string;
     sectionKey: string;
     endpoint: string;
     responseKey: string;
@@ -109,6 +115,7 @@ export function useRepeatableRowCreate<T extends { id: string }>(
             sectionKey: createSectionKey,
             resourceId: localId,
             userId: options.userId,
+            caseId: options.caseId,
             payload,
             baseLockVersion: 0,
             clientOperationId,
