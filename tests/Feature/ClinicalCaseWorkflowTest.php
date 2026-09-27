@@ -179,6 +179,115 @@ class ClinicalCaseWorkflowTest extends TestCase
         $this->assertDatabaseHas('case_versions', ['id' => $version->id, 'approved_by' => $faculty->id]);
     }
 
+    public function test_approve_forces_is_flagged_false_even_if_the_caller_sends_true(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $approveCase = app(ApproveCase::class);
+        $approveCase($faculty, $case, 'Great work.', [
+            // A malicious or buggy client sends is_flagged: true on approve.
+            ['section' => 'soap', 'body' => 'Nicely reasoned assessment.', 'is_flagged' => true],
+        ]);
+
+        $this->assertDatabaseHas('case_review_comments', [
+            'clinical_case_id' => $case->id,
+            'section' => 'soap',
+            'is_flagged' => false,
+        ]);
+    }
+
+    public function test_a_failed_approve_leaves_no_transition_or_comment_behind(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $approveCase = app(ApproveCase::class);
+
+        try {
+            $approveCase($faculty, $case, 'Duplicate section.', [
+                ['section' => 'soap', 'body' => 'First.', 'is_flagged' => false],
+                ['section' => 'soap', 'body' => 'Second.', 'is_flagged' => false],
+            ]);
+            $this->fail('Expected a database exception for the duplicate section.');
+        } catch (QueryException) {
+            // expected
+        }
+
+        $this->assertDatabaseMissing('case_status_transitions', [
+            'clinical_case_id' => $case->id,
+            'to_status' => CaseStatus::Approved->value,
+        ]);
+        $this->assertDatabaseMissing('case_review_comments', ['clinical_case_id' => $case->id]);
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
+    }
+
+    public function test_approve_is_rejected_once_the_case_has_already_moved_past_review(): void
+    {
+        // The pre-Slice-4 ApproveCase had no status guard at all. This proves
+        // the new row-lock-and-recheck guard actually rejects an approve
+        // attempt once the case is no longer Submitted/UnderReview — the
+        // same simulated-race shape as ReturnCase's equivalent test.
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Draft,
+        ]);
+
+        $this->actingAs($faculty);
+
+        $approveCase = app(ApproveCase::class);
+
+        $this->expectException(HttpException::class);
+        $approveCase($faculty, $case, 'Too early.', []);
+    }
+
     public function test_faculty_can_return_case_for_correction(): void
     {
         $institution = Institution::factory()->create();
