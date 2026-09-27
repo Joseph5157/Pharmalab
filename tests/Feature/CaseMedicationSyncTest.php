@@ -264,12 +264,8 @@ class CaseMedicationSyncTest extends TestCase
         // Regression: UpdateMedicationChartAvailabilityRequest's reason field
         // had no required_if, unlike its Vitals/Investigations siblings.
         // Found via a fresh whole-branch code review. The reason key is sent
-        // explicitly-empty here (not omitted) because that's the real
-        // frontend's actual shape — useSectionSync's whole-row resend always
-        // includes every declared field — and, like its Vitals/Investigations
-        // siblings, 'sometimes' on this rule means an entirely omitted key
-        // skips required_if too; that's an existing, shared characteristic
-        // of this validation shape, not something this fix changes.
+        // explicitly-empty here (not omitted) to mirror the real frontend's
+        // actual whole-row-resend shape.
         [, $student, $case] = $this->makeCase();
         $this->actingAs($student);
 
@@ -278,6 +274,28 @@ class CaseMedicationSyncTest extends TestCase
             'base_lock_version' => 0,
             'medication_chart_status' => 'none_documented',
             'medication_chart_none_reason' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('medication_chart_none_reason');
+    }
+
+    public function test_marking_no_current_medicines_documented_with_the_reason_key_entirely_omitted_is_rejected(): void
+    {
+        // Regression: PR #12 review — 'sometimes' on medication_chart_none_reason's
+        // rule set meant Laravel skipped *all* its rules (including the
+        // implicit required_if) whenever the key was absent from the request
+        // altogether, not merely sent as null — a raw client could bypass the
+        // reason requirement entirely just by never including the key.
+        // Dropped 'sometimes' from that field's rules so required_if now
+        // evaluates regardless of the key's presence.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/medication-chart-availability", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'medication_chart_status' => 'none_documented',
         ]);
 
         $response->assertStatus(422);

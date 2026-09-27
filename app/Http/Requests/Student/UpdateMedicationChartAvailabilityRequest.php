@@ -24,7 +24,16 @@ class UpdateMedicationChartAvailabilityRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'medication_chart_status' => ['sometimes', 'nullable', Rule::in(['documented', 'none_documented'])],
-            'medication_chart_none_reason' => ['sometimes', 'nullable', 'required_if:medication_chart_status,none_documented', 'string', 'max:1000'],
+            // No 'sometimes': Laravel's `sometimes` skips *all* rules for a
+            // key entirely absent from the request, including implicit ones
+            // like required_if — so a client that simply never sends this
+            // key could set medication_chart_status to none_documented with
+            // no reason at all. Dropping it makes required_if evaluate
+            // regardless of presence (Laravel's own $this->getData() lookup
+            // in validated() still excludes a genuinely-absent key from the
+            // output either way, so this doesn't force null onto unrelated
+            // partial updates that never touch this field).
+            'medication_chart_none_reason' => ['nullable', 'required_if:medication_chart_status,none_documented', 'string', 'max:1000'],
         ];
     }
 
