@@ -109,4 +109,15 @@ class ClinicalCasePolicy
     {
         return $this->review($user, $case);
     }
+
+    public function reopen(User $user, ClinicalCase $case): bool
+    {
+        if ($case->institution_id !== $user->institution_id) {
+            return false;
+        }
+
+        return $user->role === UserRole::Faculty
+            && $case->rotationAssignment->primary_preceptor_id === $user->id
+            && $case->status === CaseStatus::Approved;
+    }
 }

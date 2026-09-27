@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\ApproveCase;
+use App\Actions\ReopenCase;
 use App\Actions\ReturnCase;
 use App\Actions\SubmitCase;
 use App\Enums\CaseFormVersion;
@@ -21,6 +22,7 @@ use App\Models\Rotation;
 use App\Models\RotationAssignment;
 use App\Models\SoapNote;
 use App\Models\User;
+use App\Policies\ClinicalCasePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -340,5 +342,86 @@ class ClinicalCaseWorkflowTest extends TestCase
         $this->assertSame('inpatient', $case->care_setting);
         $this->assertSame(3, $case->hospital_day_at_first_review);
         $this->assertSame('65.25', $case->weight_kg);
+    }
+
+    public function test_faculty_can_reopen_an_approved_case_and_the_prior_version_is_untouched(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Approved,
+            'current_revision_number' => 1,
+        ]);
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'original']],
+            'snapshot_hash' => hash('sha256', 'original'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now()->subDay(),
+            'approved_by' => $faculty->id,
+            'approved_at' => now()->subHour(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $reopenCase = app(ReopenCase::class);
+        $reopenCase($faculty, $case, 'Diagnosis needs revisiting after new labs.');
+
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Returned->value]);
+        $this->assertDatabaseHas('case_status_transitions', [
+            'clinical_case_id' => $case->id,
+            'from_status' => CaseStatus::Approved->value,
+            'to_status' => CaseStatus::Returned->value,
+            'case_version_id' => $version->id,
+            'reason' => 'Diagnosis needs revisiting after new labs.',
+        ]);
+        $this->assertDatabaseHas('case_versions', [
+            'id' => $version->id,
+            'approved_by' => $faculty->id,
+            'snapshot_hash' => hash('sha256', 'original'),
+        ]);
+    }
+
+    public function test_reopen_is_rejected_when_the_case_is_not_approved(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+        ]);
+
+        $this->assertFalse((new ClinicalCasePolicy)->reopen($faculty, $case));
+    }
+
+    /** @return array{Institution, User, User, RotationAssignment} */
+    private function setupAssignment(): array
+    {
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $faculty = User::factory()->faculty()->create(['institution_id' => $institution->id]);
+        $site = ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Hospital', 'code' => 'HSP', 'status' => 'active']);
+        $programme = Programme::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Pharm.D', 'code' => 'PD', 'duration_years' => 6, 'status' => 'active']);
+        $rotation = Rotation::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'programme_id' => $programme->id, 'clinical_site_id' => $site->id, 'name' => 'Rotation', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31', 'status' => 'active']);
+        $assignment = RotationAssignment::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'rotation_id' => $rotation->id,
+            'student_id' => $student->id,
+            'primary_preceptor_id' => $faculty->id,
+            'status' => 'active',
+        ]);
+
+        return [$institution, $student, $faculty, $assignment];
     }
 }
