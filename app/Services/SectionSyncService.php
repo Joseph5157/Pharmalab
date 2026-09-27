@@ -30,6 +30,7 @@ class SectionSyncService
         'soap' => SoapNote::class,
         'clinical_activity_adr' => CaseClinicalActivity::class,
         'clinical_activity_counselling' => CaseClinicalActivity::class,
+        'clinical_activities' => CaseClinicalActivity::class,
     ];
 
     public function __construct(private readonly AuditTrail $audit) {}

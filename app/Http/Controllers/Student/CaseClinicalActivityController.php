@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Student;
 
 use App\Enums\ClinicalActivityType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\StoreCaseClinicalActivityRequest;
 use App\Http\Requests\Student\UpdateAdrActivityRequest;
+use App\Http\Requests\Student\UpdateCaseClinicalActivityRequest;
 use App\Http\Requests\Student\UpdateCounsellingActivityRequest;
 use App\Models\CaseClinicalActivity;
 use App\Models\ClinicalCase;
 use App\Services\SectionSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class CaseClinicalActivityController extends Controller
 {
@@ -60,6 +65,79 @@ class CaseClinicalActivityController extends Controller
         abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
 
         return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+    }
+
+    public function store(StoreCaseClinicalActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
+    {
+        $data = $request->validated();
+        $clientOperationId = $data['client_operation_id'];
+        unset($data['client_operation_id']);
+
+        $result = $sync->create(
+            fn (): CaseClinicalActivity => CaseClinicalActivity::query()->create([
+                ...$data,
+                'institution_id' => $case->institution_id,
+                'clinical_case_id' => $case->id,
+                'recorded_by' => $request->user()->id,
+            ]),
+            $request->user(),
+            'clinical_activities',
+            $clientOperationId,
+            $case->id,
+        );
+
+        $model = $result['model'];
+        abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
+
+        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+    }
+
+    public function sync(UpdateCaseClinicalActivityRequest $request, ClinicalCase $case, CaseClinicalActivity $activity, SectionSyncService $sync): JsonResponse
+    {
+        abort_unless($activity->clinical_case_id === $case->id, 404);
+        abort_unless(in_array($activity->activity_type, [ClinicalActivityType::Intervention, ClinicalActivityType::Monitoring], true), 404);
+
+        $envelope = $request->syncEnvelope();
+        $data = $request->sectionData();
+        if (array_key_exists('details', $data)) {
+            $data['details'] = [...($activity->details ?? []), ...$data['details']];
+        }
+
+        $result = $sync->sync(
+            $activity,
+            $request->user(),
+            'clinical_activities',
+            $envelope['client_operation_id'],
+            $envelope['base_lock_version'],
+            $data,
+            $envelope['resolution'],
+            $envelope['confirmed'],
+        );
+
+        $model = $result['model'];
+        abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
+
+        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+    }
+
+    public function destroy(Request $request, ClinicalCase $case, CaseClinicalActivity $activity, SectionSyncService $sync): JsonResponse|Response
+    {
+        Gate::authorize('update', $activity);
+        abort_unless($activity->clinical_case_id === $case->id, 404);
+        abort_unless(in_array($activity->activity_type, [ClinicalActivityType::Intervention, ClinicalActivityType::Monitoring], true), 404);
+
+        $data = $request->validate(['base_lock_version' => ['required', 'integer', 'min:0']]);
+
+        $result = $sync->delete($activity, $request->user(), 'clinical_activities', $data['base_lock_version']);
+
+        if ($result['status'] === 'conflict') {
+            $model = $result['model'];
+            abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
+
+            return response()->json(['activity' => $this->payload($model)], 409);
+        }
+
+        return response()->noContent();
     }
 
     /**

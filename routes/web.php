@@ -52,6 +52,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::put('student/cases/{case}/medication-chart-availability', [CaseMedicationController::class, 'syncAvailability'])->name('student.cases.medications.availability.sync');
         Route::put('student/cases/{case}/clinical-activities/adr', [CaseClinicalActivityController::class, 'syncAdr'])->name('student.cases.clinical-activities.adr.sync');
         Route::put('student/cases/{case}/clinical-activities/counselling', [CaseClinicalActivityController::class, 'syncCounselling'])->name('student.cases.clinical-activities.counselling.sync');
+        Route::post('student/cases/{case}/clinical-activities', [CaseClinicalActivityController::class, 'store'])->name('student.cases.clinical-activities.store');
+        Route::put('student/cases/{case}/clinical-activities/{activity}', [CaseClinicalActivityController::class, 'sync'])->name('student.cases.clinical-activities.sync');
+        Route::delete('student/cases/{case}/clinical-activities/{activity}', [CaseClinicalActivityController::class, 'destroy'])->name('student.cases.clinical-activities.destroy');
         Route::get('student/cases/{case}/soap', [SoapController::class, 'show'])->name('student.cases.soap');
         Route::put('student/cases/{case}/soap', [SoapController::class, 'update'])->name('student.cases.soap.update');
         Route::put('student/cases/{case}/soap-sync', [SoapController::class, 'sync'])->name('student.cases.soap.sync');
