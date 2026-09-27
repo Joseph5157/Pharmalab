@@ -92,25 +92,52 @@ export async function listAllSections<T>(): Promise<StoredSection<T>[]> {
         db.transaction('sections').objectStore('sections').getAll(),
     );
 }
+export type OutboxClassification<T = Record<string, unknown>> = {
+    /** Unsynced drafts explicitly tagged with the submitted case. */
+    caseSections: StoredSection<T>[];
+    /** Legacy drafts with no caseId — ambiguous, so they must block too. */
+    ambiguousSections: StoredSection<T>[];
+};
+
 /**
- * Every still-unsynced draft (pending create, pending section edit, a
- * validation failure, or a permanent 422/409 rejection) that belongs to the
- * given case. Successful syncs delete their record, so any presence means the
- * server does not yet have this device's latest work for the case.
+ * Splits outbox records for submission-review:
+ * - `caseSections`: still-unsynced drafts tagged with this exact case
+ *   (pending creates/edits, validation failures, permanent 422/409
+ *   rejections) — these block submit.
+ * - `ambiguousSections`: legacy records written before caseId existed. Their
+ *   ownership cannot be safely inferred (a section-level record's resourceId
+ *   is its case id, but a row-level one's is not), so they are never guessed
+ *   at or silently discarded — they are returned separately and also block.
+ * Records tagged with a different, known caseId are excluded (non-blocking).
  */
-export async function listOutboxSectionsForCase<T = Record<string, unknown>>(
+export function classifyOutboxSections<T = Record<string, unknown>>(
+    sections: StoredSection<T>[],
     caseId: string,
-): Promise<StoredSection<T>[]> {
+): OutboxClassification<T> {
+    const caseSections: StoredSection<T>[] = [];
+    const ambiguousSections: StoredSection<T>[] = [];
+
+    for (const section of sections) {
+        if (section.caseId === caseId) {
+            caseSections.push(section);
+        } else if (section.caseId === undefined) {
+            ambiguousSections.push(section);
+        }
+    }
+
+    return { caseSections, ambiguousSections };
+}
+
+/**
+ * Reads every outbox record (successful syncs delete theirs) and classifies
+ * it for the given case. Any presence means the server does not yet have this
+ * device's latest work for the case.
+ */
+export async function listCaseOutbox<T = Record<string, unknown>>(
+    caseId: string,
+): Promise<OutboxClassification<T>> {
     const all = await listAllSections<T>();
-    return all.filter(
-        (section) =>
-            section.caseId === caseId ||
-            // Backwards compatibility for section-level drafts written before
-            // caseId existed: their resourceId is the case id. Row-level
-            // legacy drafts cannot be attributed and are ignored rather than
-            // risking blocking on an unrelated case.
-            (section.caseId === undefined && section.resourceId === caseId),
-    );
+    return classifyOutboxSections(all, caseId);
 }
 export async function keepSectionCopy<T>(
     section: StoredSection<T>,

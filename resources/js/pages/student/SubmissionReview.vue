@@ -4,7 +4,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, WifiOff } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { listOutboxSectionsForCase } from '@/lib/outboxStore';
+import { listCaseOutbox } from '@/lib/outboxStore';
 
 type SectionId =
     | 'case_profile'
@@ -51,17 +51,20 @@ defineOptions({
 });
 
 const online = ref(navigator.onLine);
-const pendingOutboxCount = ref(0);
+const casePendingCount = ref(0);
+const legacyPendingCount = ref(0);
 
 const checkPendingWork = async () => {
     try {
-        const pending = await listOutboxSectionsForCase(props.clinicalCase.id);
-        pendingOutboxCount.value = pending.length;
+        const outbox = await listCaseOutbox(props.clinicalCase.id);
+        casePendingCount.value = outbox.caseSections.length;
+        legacyPendingCount.value = outbox.ambiguousSections.length;
     } catch {
         // IndexedDB may be unavailable (e.g. some private-browsing modes).
         // If it cannot be read we do not know of any pending work, so do not
         // block submission on a storage error.
-        pendingOutboxCount.value = 0;
+        casePendingCount.value = 0;
+        legacyPendingCount.value = 0;
     }
 };
 
@@ -93,7 +96,11 @@ onUnmounted(() => {
 
 const attested = ref(false);
 const isReady = computed(() => props.submissionErrors.length === 0);
-const hasPendingOutboxWork = computed(() => pendingOutboxCount.value > 0);
+const hasCaseOutboxWork = computed(() => casePendingCount.value > 0);
+const hasLegacyOutboxWork = computed(() => legacyPendingCount.value > 0);
+const hasPendingOutboxWork = computed(
+    () => hasCaseOutboxWork.value || hasLegacyOutboxWork.value,
+);
 const canSubmit = computed(
     () =>
         isReady.value &&
@@ -439,10 +446,21 @@ const activityDisplay = (activity: Record<string, unknown>): string =>
             >
                 <AlertTriangle class="size-5" /> Unsynced changes on this device
             </h2>
-            <p class="mt-3 text-sm text-rose-800 dark:text-rose-200">
-                {{ pendingOutboxCount }} change(s) to this case have not been
+            <p
+                v-if="hasCaseOutboxWork"
+                class="mt-3 text-sm text-rose-800 dark:text-rose-200"
+            >
+                {{ casePendingCount }} change(s) to this case have not been
                 saved to the server yet. Submitting now would send an older
                 version of the case.
+            </p>
+            <p
+                v-if="hasLegacyOutboxWork"
+                data-test="legacy-outbox-warning"
+                class="mt-3 text-sm text-rose-800 dark:text-rose-200"
+            >
+                Older unsynced changes on this device must be resolved before
+                submission.
             </p>
             <p class="mt-2 text-sm text-rose-800 dark:text-rose-200">
                 Open the case editor to finish syncing, or reconnect, then
