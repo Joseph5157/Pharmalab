@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight, CircleDotDashed } from '@lucide/vue';
 import { computed, nextTick, ref } from 'vue';
 import CaseProfileSection from './case-editor/CaseProfileSection.vue';
+import ConditionalClinicalActivitiesSection from './case-editor/ConditionalClinicalActivitiesSection.vue';
 import HistoryDiagnosisSection from './case-editor/HistoryDiagnosisSection.vue';
 import MedicationChartSection from './case-editor/MedicationChartSection.vue';
 import SoapSection from './case-editor/SoapSection.vue';
@@ -39,6 +40,20 @@ const props = defineProps<{
               updated_at: string;
           })
         | null;
+    adr:
+        | (Record<string, unknown> & {
+              lock_version: number;
+              updated_at: string;
+          })
+        | null;
+    counselling:
+        | (Record<string, unknown> & {
+              lock_version: number;
+              updated_at: string;
+          })
+        | null;
+    interventions: (Record<string, unknown> & { id: string })[];
+    monitoringFollowUps: (Record<string, unknown> & { id: string })[];
 }>();
 
 defineOptions({
@@ -63,7 +78,7 @@ const sections: Section[] = [
     {
         id: 'clinical_activities',
         label: 'Conditional Clinical Activities',
-        available: false,
+        available: true,
     },
 ];
 const activeIndex = ref(0);
@@ -330,14 +345,22 @@ function handleTabKeydown(event: KeyboardEvent): void {
             />
         </div>
 
-        <p
-            v-if="!activeSection.available"
-            class="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300"
-            role="status"
+        <div
+            id="section-panel-clinical_activities"
+            role="tabpanel"
+            aria-labelledby="section-tab-clinical_activities"
+            :hidden="activeSection.id !== 'clinical_activities'"
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
         >
-            {{ activeSection.label }} is represented in this editor and will
-            become available in its planned Slice 2 work.
-        </p>
+            <ConditionalClinicalActivitiesSection
+                :case-id="clinicalCase.id"
+                :user-id="userId"
+                :initial-adr="adr as any"
+                :initial-counselling="counselling as any"
+                :initial-interventions="interventions as any"
+                :initial-monitoring-follow-ups="monitoringFollowUps as any"
+            />
+        </div>
 
         <div
             class="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[45] border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0 md:z-20 dark:border-slate-700 dark:bg-slate-950/95"

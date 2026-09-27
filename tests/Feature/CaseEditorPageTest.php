@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
+use App\Enums\ClinicalActivityType;
+use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
@@ -132,6 +134,24 @@ class CaseEditorPageTest extends TestCase
         // Allowed, not 404 — the old SoapEditor.vue page it used to render is
         // gone, and no route serves it as a GET.
         $this->get("/student/cases/{$case->id}/soap")->assertStatus(405);
+    }
+
+    public function test_editor_page_includes_clinical_activities_split_by_shape(): void
+    {
+        [$institution, $student, $case] = $this->makeCase();
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Intervention->value, 'recorded_by' => $student->id,
+        ]);
+        $this->actingAs($student);
+
+        $response = $this->get("/student/cases/{$case->id}/edit");
+
+        $response->assertInertia(fn ($page) => $page
+            ->has('interventions', 1)
+            ->has('monitoringFollowUps', 0)
+            ->where('adr', null)
+            ->where('counselling', null));
     }
 
     /** @return array{Institution, User, ClinicalCase} */

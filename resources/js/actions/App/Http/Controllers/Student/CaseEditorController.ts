@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 export const show = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 show.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ show.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 show.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ show.get = (args: { case: string | { id: string } } | [caseParam: string | { id:
 })
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 show.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
     /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
     const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
         showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
         showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

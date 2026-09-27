@@ -243,7 +243,7 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 export const edit = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -258,7 +258,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -291,7 +291,7 @@ edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -300,7 +300,7 @@ edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id:
 })
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
 edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -310,7 +310,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
     /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
     const editForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -320,7 +320,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
         editForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -329,7 +329,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:16
+ * @see app/Http/Controllers/Student/CaseEditorController.php:18
  * @route '/student/cases/{case}/edit'
  */
         editForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
