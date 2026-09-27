@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Requests\Student;
+
+use App\Http\Requests\Concerns\HasSyncEnvelope;
+use App\Http\Requests\Concerns\RejectsUnknownFields;
+use App\Models\CaseVital;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
+
+class UpdateCaseVitalRequest extends FormRequest
+{
+    use HasSyncEnvelope, RejectsUnknownFields;
+
+    public function authorize(): bool
+    {
+        return $this->user()?->can('update', $this->route('vital')) ?? false;
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        return [
+            ...$this->syncEnvelopeRules(),
+            'observation_type' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'value_numeric' => ['sometimes', 'nullable', 'numeric'],
+            'value_text' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'value_systolic' => ['sometimes', 'nullable', 'integer', 'min:40', 'max:300'],
+            'value_diastolic' => ['sometimes', 'nullable', 'integer', 'min:20', 'max:200'],
+            'unit' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'observed_on' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
+            'observed_at_time' => ['sometimes', 'nullable', 'date_format:H:i'],
+            'source' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->rejectUnknownFields($validator);
+
+        $validator->after(function (Validator $validator): void {
+            $vital = $this->route('vital');
+            $vital = $vital instanceof CaseVital ? $vital : null;
+            $type = $this->has('observation_type') ? $this->input('observation_type') : $vital?->observation_type;
+
+            // BP must be entered as a pair (StoreCaseVitalRequest enforces the
+            // same rule on create). This is a partial update ('sometimes' on
+            // every field), so a key the client omits falls back to the
+            // vital's already-stored value rather than being treated as
+            // absent-and-therefore-unpaired — otherwise a whole-row resend
+            // that nulls out just one side, or a genuine partial PATCH that
+            // never mentions the other side, could silently persist a
+            // half-filled pair.
+            if ($type === 'blood_pressure') {
+                $systolicFilled = $this->has('value_systolic')
+                    ? $this->filled('value_systolic')
+                    : $vital?->value_systolic !== null;
+                $diastolicFilled = $this->has('value_diastolic')
+                    ? $this->filled('value_diastolic')
+                    : $vital?->value_diastolic !== null;
+
+                if ($systolicFilled && ! $diastolicFilled) {
+                    $validator->errors()->add('value_diastolic', 'Diastolic pressure is required when systolic pressure is recorded.');
+                }
+                if ($diastolicFilled && ! $systolicFilled) {
+                    $validator->errors()->add('value_systolic', 'Systolic pressure is required when diastolic pressure is recorded.');
+                }
+            }
+
+            if ($type === 'oxygen_saturation' && $this->filled('value_numeric')) {
+                $value = (float) $this->input('value_numeric');
+                if ($value < 0 || $value > 100) {
+                    $validator->errors()->add('value_numeric', 'Oxygen saturation must be between 0 and 100.');
+                }
+            }
+        });
+    }
+}

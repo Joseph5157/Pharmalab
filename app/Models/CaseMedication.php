@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Enums\MedicationStatus;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -13,10 +15,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $id
  * @property string $institution_id
  * @property string $clinical_case_id
- * @property string $medication_context
- * @property string $generic_name
+ * @property string|null $medication_context
+ * @property string|null $generic_name
  * @property string|null $brand_name
  * @property string|null $indication
+ * @property bool $indication_unclear
  * @property string|null $dose_amount
  * @property string|null $dose_unit
  * @property string|null $dosage_form
@@ -24,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $frequency
  * @property string|null $start_reference
  * @property string|null $stop_reference
- * @property MedicationStatus $status
+ * @property MedicationStatus|null $status
  * @property string|null $prn_indication
  * @property string|null $notes
  * @property int $recorded_by
@@ -36,6 +39,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'generic_name',
     'brand_name',
     'indication',
+    'indication_unclear',
     'dose_amount',
     'dose_unit',
     'dosage_form',
@@ -48,14 +52,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'notes',
     'recorded_by',
 ])]
-class CaseMedication extends Model
+class CaseMedication extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {
         return [
             'status' => MedicationStatus::class,
+            'indication_unclear' => 'boolean',
         ];
     }
 

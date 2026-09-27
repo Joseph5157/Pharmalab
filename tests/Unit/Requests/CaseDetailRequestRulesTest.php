@@ -13,12 +13,13 @@ use Tests\TestCase;
 
 class CaseDetailRequestRulesTest extends TestCase
 {
-    public function test_vital_request_requires_observation_type(): void
+    public function test_vital_request_requires_a_client_operation_id(): void
     {
         $rules = (new StoreCaseVitalRequest)->rules();
 
         $this->assertTrue(Validator::make([], $rules)->fails());
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'observation_type' => 'pulse',
             'value_numeric' => 80,
             'unit' => 'beats/min',
@@ -30,15 +31,27 @@ class CaseDetailRequestRulesTest extends TestCase
         $rules = (new StoreCaseInvestigationRequest)->rules();
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'test_name' => 'Haemoglobin',
             'result_type' => 'not_a_real_type',
             'result_value' => '13.5',
         ], $rules)->fails());
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'test_name' => 'Haemoglobin',
             'result_type' => 'numeric',
             'result_value' => '13.5',
+        ], $rules)->passes());
+    }
+
+    public function test_investigation_request_requires_a_client_operation_id(): void
+    {
+        $rules = (new StoreCaseInvestigationRequest)->rules();
+
+        $this->assertTrue(Validator::make([], $rules)->fails());
+        $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
         ], $rules)->passes());
     }
 
@@ -47,13 +60,25 @@ class CaseDetailRequestRulesTest extends TestCase
         $rules = (new StoreCaseMedicationRequest)->rules();
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'generic_name' => 'Paracetamol',
             'status' => 'not_a_real_status',
         ], $rules)->fails());
 
         $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
             'generic_name' => 'Paracetamol',
             'status' => 'active',
+        ], $rules)->passes());
+    }
+
+    public function test_medication_request_requires_a_client_operation_id(): void
+    {
+        $rules = (new StoreCaseMedicationRequest)->rules();
+
+        $this->assertTrue(Validator::make([], $rules)->fails());
+        $this->assertTrue(Validator::make([
+            'client_operation_id' => (string) Str::uuid(),
         ], $rules)->passes());
     }
 
