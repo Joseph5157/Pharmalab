@@ -2,9 +2,19 @@
 
 namespace Tests\Unit;
 
+use App\Models\CaseStatusTransition;
+use App\Models\ClinicalCase;
+use App\Models\ClinicalSite;
+use App\Models\Institution;
+use App\Models\Programme;
+use App\Models\Rotation;
+use App\Models\RotationAssignment;
+use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CaseReviewCommentSchemaTest extends TestCase
@@ -25,7 +35,7 @@ class CaseReviewCommentSchemaTest extends TestCase
         [$institutionId, $caseId, $transitionId, $userId] = $this->seedTransition();
 
         DB::table('case_review_comments')->insert([
-            'id' => (string) \Illuminate\Support\Str::ulid(),
+            'id' => (string) Str::ulid(),
             'institution_id' => $institutionId,
             'clinical_case_id' => $caseId,
             'case_status_transition_id' => $transitionId,
@@ -36,10 +46,10 @@ class CaseReviewCommentSchemaTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('case_review_comments')->insert([
-            'id' => (string) \Illuminate\Support\Str::ulid(),
+            'id' => (string) Str::ulid(),
             'institution_id' => $institutionId,
             'clinical_case_id' => $caseId,
             'case_status_transition_id' => $transitionId,
@@ -54,13 +64,13 @@ class CaseReviewCommentSchemaTest extends TestCase
     /** @return array{string, string, string, int} */
     private function seedTransition(): array
     {
-        $institution = \App\Models\Institution::factory()->create();
-        $student = \App\Models\User::factory()->student()->create(['institution_id' => $institution->id]);
-        $faculty = \App\Models\User::factory()->faculty()->create(['institution_id' => $institution->id]);
-        $site = \App\Models\ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Hospital', 'code' => 'HSP', 'status' => 'active']);
-        $programme = \App\Models\Programme::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Pharm.D', 'code' => 'PD', 'duration_years' => 6, 'status' => 'active']);
-        $rotation = \App\Models\Rotation::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'programme_id' => $programme->id, 'clinical_site_id' => $site->id, 'name' => 'Rotation', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31', 'status' => 'active']);
-        $assignment = \App\Models\RotationAssignment::query()->withoutGlobalScopes()->create([
+        $institution = Institution::factory()->create();
+        $student = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $faculty = User::factory()->faculty()->create(['institution_id' => $institution->id]);
+        $site = ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Hospital', 'code' => 'HSP', 'status' => 'active']);
+        $programme = Programme::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'name' => 'Pharm.D', 'code' => 'PD', 'duration_years' => 6, 'status' => 'active']);
+        $rotation = Rotation::query()->withoutGlobalScopes()->create(['institution_id' => $institution->id, 'programme_id' => $programme->id, 'clinical_site_id' => $site->id, 'name' => 'Rotation', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31', 'status' => 'active']);
+        $assignment = RotationAssignment::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'rotation_id' => $rotation->id,
             'student_id' => $student->id,
@@ -68,7 +78,7 @@ class CaseReviewCommentSchemaTest extends TestCase
             'status' => 'active',
         ]);
 
-        $case = \App\Models\ClinicalCase::query()->withoutGlobalScopes()->create([
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'student_id' => $student->id,
             'rotation_assignment_id' => $assignment->id,
@@ -76,7 +86,7 @@ class CaseReviewCommentSchemaTest extends TestCase
             'status' => 'submitted',
         ]);
 
-        $transition = \App\Models\CaseStatusTransition::query()->withoutGlobalScopes()->create([
+        $transition = CaseStatusTransition::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'clinical_case_id' => $case->id,
             'from_status' => 'submitted',
