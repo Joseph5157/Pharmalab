@@ -32,6 +32,7 @@ class CaseEditorController extends Controller
             'counselling' => $presenter->singletonActivity($case, ClinicalActivityType::Counselling),
             'interventions' => $presenter->repeatableActivity($case, ClinicalActivityType::Intervention),
             'monitoringFollowUps' => $presenter->repeatableActivity($case, ClinicalActivityType::Monitoring),
+            'initialSection' => request()->query('section'),
         ]);
     }
 }

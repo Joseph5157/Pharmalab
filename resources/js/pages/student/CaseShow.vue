@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Send, CheckCircle, RotateCcw, Clock, MapPin, User } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
@@ -51,11 +51,12 @@ defineOptions({
     },
 });
 
-const submitForm = useForm({});
-const submitCase = () =>
-    submitForm.post(`/student/cases/${props.clinicalCase.id}/submit`, {
-        preserveScroll: true,
-    });
+const canReviewForSubmission = (): boolean =>
+    props.clinicalCase.status === 'draft' ||
+    props.clinicalCase.status === 'returned';
+
+const goToSubmissionReview = () =>
+    router.get(`/student/cases/${props.clinicalCase.id}/submission-review`);
 
 const statusColor = (status: string) => {
     switch (status) {
@@ -108,14 +109,6 @@ const hasSoap = (soap: SoapNote | null): boolean => {
         soap.plan
     );
 };
-
-const canSubmit = (): boolean => {
-    return (
-        (props.clinicalCase.status === 'draft' ||
-            props.clinicalCase.status === 'returned') &&
-        hasSoap(props.clinicalCase.current_soap)
-    );
-};
 </script>
 
 <template>
@@ -157,12 +150,11 @@ const canSubmit = (): boolean => {
                     Continue documentation
                 </Button>
                 <Button
-                    v-if="canSubmit()"
+                    v-if="canReviewForSubmission()"
                     class="bg-[#0b2942] text-white"
-                    :disabled="submitForm.processing"
-                    @click="submitCase"
+                    @click="goToSubmissionReview"
                 >
-                    <Send class="mr-1 size-4" /> Submit
+                    <Send class="mr-1 size-4" /> Review & submit
                 </Button>
             </div>
         </div>
