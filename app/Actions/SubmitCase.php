@@ -45,6 +45,13 @@ class SubmitCase
                 return $latest;
             }
 
+            // The authorization check ran before this lock was acquired. If a
+            // faculty member moved the case to UnderReview/Approved in that
+            // window, a retried/duplicated request must not silently
+            // re-validate and move it back to Submitted, overwriting that
+            // decision — submission is a one-way door once review has begun.
+            abort_unless(in_array($case->status, [CaseStatus::Draft, CaseStatus::Returned], true), 409);
+
             $errors = $this->completeness->submissionErrors($case);
             if (! $deidentificationAttested) {
                 $errors[] = ['section' => 'submission_review', 'message' => 'Confirm the de-identification attestation before submitting.'];

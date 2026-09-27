@@ -108,6 +108,39 @@ class CaseCompletenessServiceTest extends TestCase
         $this->assertTrue($service->sectionCompletion($case->fresh())['vitals_investigations']);
     }
 
+    public function test_a_vital_row_with_no_value_at_all_blocks_submission(): void
+    {
+        [$institution, $student, $case] = $this->completeCase();
+
+        CaseVital::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['value_numeric' => null, 'value_text' => null, 'value_systolic' => null, 'value_diastolic' => null]);
+
+        $service = new CaseCompletenessService;
+        $fresh = $case->fresh();
+
+        $this->assertFalse($service->sectionCompletion($fresh)['vitals_investigations']);
+        $this->assertTrue(collect($service->submissionErrors($fresh))->contains(fn (array $e): bool => str_contains($e['message'], 'vital sign')));
+    }
+
+    public function test_a_blood_pressure_vital_row_with_only_systolic_and_diastolic_is_complete(): void
+    {
+        [$institution, $student, $case] = $this->completeCase();
+
+        CaseVital::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)->delete();
+        CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'observation_type' => 'blood_pressure',
+            'value_systolic' => 120,
+            'value_diastolic' => 80,
+            'recorded_by' => $student->id,
+        ]);
+
+        $service = new CaseCompletenessService;
+
+        $this->assertTrue($service->sectionCompletion($case->fresh())['vitals_investigations']);
+    }
+
     public function test_an_investigation_row_missing_both_unit_and_unit_not_stated_blocks_submission(): void
     {
         [$institution, $student, $case] = $this->completeCase();
@@ -144,6 +177,21 @@ class CaseCompletenessServiceTest extends TestCase
         $service = new CaseCompletenessService;
 
         $this->assertFalse($service->sectionCompletion($case->fresh())['medication_chart']);
+    }
+
+    public function test_one_incomplete_medication_row_blocks_submission_even_alongside_a_complete_one(): void
+    {
+        [$institution, $student, $case] = $this->completeCase();
+
+        CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'generic_name' => 'Ibuprofen',
+            'status' => 'active',
+            'recorded_by' => $student->id,
+        ]);
+
+        $this->assertFalse((new CaseCompletenessService)->sectionCompletion($case->fresh())['medication_chart']);
     }
 
     public function test_medication_context_history_rows_do_not_count_toward_the_chart_and_are_not_independently_required(): void
@@ -229,6 +277,34 @@ class CaseCompletenessServiceTest extends TestCase
         $this->assertTrue($service->sectionCompletion($case->fresh())['clinical_activities']);
     }
 
+    public function test_an_intervention_row_with_a_problem_but_no_recommendation_does_not_satisfy_the_trigger(): void
+    {
+        [$institution, $student, $case] = $this->completeCase();
+
+        SoapNote::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['drug_related_problem_status' => 'identified', 'drug_related_problem_categories' => ['dose_too_low']]);
+
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'activity_type' => 'intervention',
+            'details' => ['problem' => 'Dose too low for renal function.'],
+            'recorded_by' => $student->id,
+        ]);
+
+        $this->assertFalse((new CaseCompletenessService)->sectionCompletion($case->fresh())['clinical_activities']);
+    }
+
+    public function test_monitoring_plan_not_applicable_with_a_written_reason_is_complete(): void
+    {
+        [, , $case] = $this->completeCase();
+
+        SoapNote::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)
+            ->update(['monitoring_plan' => null, 'monitoring_plan_not_applicable' => true, 'monitoring_plan_not_applicable_reason' => 'Single-dose analgesic, no ongoing monitoring required.']);
+
+        $this->assertTrue((new CaseCompletenessService)->sectionCompletion($case->fresh())['soap']);
+    }
+
     public function test_suspected_adr_must_be_answered_and_yes_requires_event_and_medicine(): void
     {
         [, , $case] = $this->completeCase();
@@ -240,6 +316,9 @@ class CaseCompletenessServiceTest extends TestCase
         $this->assertFalse((new CaseCompletenessService)->sectionCompletion($case->fresh())['clinical_activities']);
 
         $adr->update(['status' => 'yes', 'details' => null]);
+        $this->assertFalse((new CaseCompletenessService)->sectionCompletion($case->fresh())['clinical_activities']);
+
+        $adr->update(['status' => 'yes', 'details' => ['event' => 'Rash']]);
         $this->assertFalse((new CaseCompletenessService)->sectionCompletion($case->fresh())['clinical_activities']);
 
         $adr->update(['status' => 'no', 'details' => null]);

@@ -58,7 +58,10 @@ Legend: **M** mandatory before submission, **C** conditionally mandatory, **O** 
 
 | Field | Level | Submission rule |
 | --- | --- | --- |
-| At least one relevant observation, or a reason | M | `vitals_status === 'recorded'` AND at least one `CaseVital` row exists, OR `vitals_status === 'unavailable'` |
+| At least one relevant observation, or a reason | M | `vitals_status === 'recorded'` AND at least one `CaseVital` row exists AND **every row is row-complete** (below), OR `vitals_status === 'unavailable'` |
+| Per row: observation type and a value | M (added in final review — see note below) | `observation_type` filled AND (`value_numeric` not null OR `value_text` filled OR both `value_systolic`/`value_diastolic` not null) |
+
+**Correction added during the final whole-branch review, after the human-reviewed draft above:** the first cut of this matrix only checked `vitals()->exists()`, so an empty vital row (created by tapping "Add vital" with nothing filled in) counted as complete. This is exactly the gap `PROJECT_STATE.md`'s Slice 1 acceptance record named as belonging to Slice 3 ("a vital with neither `value_numeric` nor `value_text` still counts as present") — it was dropped from the matrix by oversight, not by a deliberate scope decision, unlike the two items in "Discovered gaps" below. Fixed to match the same row-level pattern already used for medications and investigations.
 
 ### Investigations (spec §4.4) — section `vitals_investigations`
 

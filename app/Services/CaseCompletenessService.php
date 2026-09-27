@@ -6,6 +6,7 @@ use App\Enums\ClinicalActivityType;
 use App\Models\CaseClinicalActivity;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
+use App\Models\CaseVital;
 use App\Models\ClinicalCase;
 
 class CaseCompletenessService
@@ -67,10 +68,10 @@ class CaseCompletenessService
         }
 
         if (! $this->vitalsComplete($case)) {
-            $errors[] = ['section' => 'vitals_investigations', 'message' => 'Record at least one vital sign, or mark vitals unavailable with a reason.'];
+            $errors[] = ['section' => 'vitals_investigations', 'message' => 'Record at least one complete vital sign (with a value), or mark vitals unavailable with a reason.'];
         }
         if (! $this->investigationsComplete($case)) {
-            $errors[] = ['section' => 'vitals_investigations', 'message' => 'Record at least one complete investigation result (test name, result, and a unit or "Unit not stated"), or mark investigations unavailable with a reason.'];
+            $errors[] = ['section' => 'vitals_investigations', 'message' => 'Record at least one complete investigation result (test name, result, a unit or "Unit not stated", and a reference range or "Reference range not provided"), or mark investigations unavailable with a reason.'];
         }
 
         if (! $this->medicationChartComplete($case)) {
@@ -142,8 +143,25 @@ class CaseCompletenessService
 
     private function vitalsComplete(ClinicalCase $case): bool
     {
-        return ($case->vitals_status === 'recorded' && $case->vitals()->exists())
-            || $case->vitals_status === 'unavailable';
+        if ($case->vitals_status === 'unavailable') {
+            return true;
+        }
+        if ($case->vitals_status !== 'recorded') {
+            return false;
+        }
+        $vitals = $case->vitals;
+
+        return $vitals->isNotEmpty() && $vitals->every(fn (CaseVital $v): bool => $this->vitalRowComplete($v));
+    }
+
+    private function vitalRowComplete(CaseVital $vital): bool
+    {
+        return filled($vital->observation_type)
+            && (
+                $vital->value_numeric !== null
+                || filled($vital->value_text)
+                || ($vital->value_systolic !== null && $vital->value_diastolic !== null)
+            );
     }
 
     private function investigationsComplete(ClinicalCase $case): bool

@@ -20,6 +20,7 @@ use App\Models\RotationAssignment;
 use App\Models\SoapNote;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class CaseSubmissionTest extends TestCase
@@ -77,6 +78,26 @@ class CaseSubmissionTest extends TestCase
 
         $this->assertSame($first->id, $second->id);
         $this->assertSame(1, CaseVersion::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)->count());
+    }
+
+    public function test_submit_refuses_a_case_that_has_moved_to_under_review_or_approved_since_the_authorization_check(): void
+    {
+        [, $student, , $case] = $this->completeCase();
+
+        // Simulates the race the policy check alone cannot close: by the time
+        // SubmitCase acquires its row lock, a faculty member has already
+        // moved the case past Submitted. A retried/duplicated request must
+        // not silently re-submit and overwrite that decision.
+        $case->update(['status' => CaseStatus::UnderReview]);
+
+        try {
+            app(SubmitCase::class)->__invoke($student, $case->fresh(), true);
+            $this->fail('Expected an HttpException with status 409.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::UnderReview->value]);
     }
 
     public function test_a_repeated_http_submit_on_an_already_submitted_case_succeeds_idempotently(): void

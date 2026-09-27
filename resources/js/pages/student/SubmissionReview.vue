@@ -22,10 +22,22 @@ const sectionLabels: Record<SectionId, string> = {
     clinical_activities: 'Conditional Clinical Activities',
 };
 
+type Row = Record<string, unknown> & { id: string };
+
 const props = defineProps<{
     clinicalCase: { id: string; case_number: number; status: string };
     sectionCompletion: Record<SectionId, boolean>;
     submissionErrors: { section: SectionId; message: string }[];
+    context: Record<string, unknown>;
+    clinicalProfile: Record<string, unknown> | null;
+    vitals: Row[];
+    investigations: Row[];
+    medications: Row[];
+    soap: Record<string, unknown> | null;
+    adr: Record<string, unknown> | null;
+    counselling: Record<string, unknown> | null;
+    interventions: Row[];
+    monitoringFollowUps: Row[];
 }>();
 
 defineOptions({
@@ -80,6 +92,39 @@ const sectionIds: SectionId[] = [
     'soap',
     'clinical_activities',
 ];
+
+const vitalDisplay = (vital: Row): string => {
+    if (vital.value_systolic !== null && vital.value_diastolic !== null) {
+        return `${vital.observation_type}: ${vital.value_systolic}/${vital.value_diastolic}`;
+    }
+    const value = vital.value_numeric ?? vital.value_text;
+    return `${vital.observation_type}: ${value ?? '—'}${vital.unit ? ' ' + vital.unit : ''}`;
+};
+
+const investigationDisplay = (investigation: Row): string => {
+    const unit = investigation.unit_not_stated
+        ? 'unit not stated'
+        : (investigation.unit ?? '');
+    return `${investigation.test_name}: ${investigation.result_value ?? '—'} ${unit}`.trim();
+};
+
+const medicationDisplay = (medication: Row): string => {
+    const parts = [
+        medication.dose_amount,
+        medication.dose_unit,
+        medication.route,
+        medication.frequency,
+    ]
+        .filter((part) => part !== null && part !== undefined && part !== '')
+        .join(' ');
+    return `${medication.generic_name}${parts ? ' — ' + parts : ''}`;
+};
+
+const activityDisplay = (activity: Record<string, unknown>): string =>
+    Object.entries((activity.details as Record<string, unknown> | null) ?? {})
+        .filter(([, value]) => value !== null && value !== '')
+        .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
+        .join(' · ');
 </script>
 
 <template>
@@ -135,6 +180,197 @@ const sectionIds: SectionId[] = [
                     </Button>
                 </li>
             </ul>
+        </section>
+
+        <section
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
+                What you are about to submit
+            </h2>
+            <div class="mt-4 space-y-4 text-sm">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        Case profile
+                    </h3>
+                    <p class="mt-1">
+                        {{ context.care_setting ?? '—' }} ·
+                        {{ context.encounter_date ?? '—' }} ·
+                        {{ context.age_value ?? '—' }}
+                        {{ context.age_unit ?? '' }} · {{ context.sex ?? '—' }}
+                    </p>
+                </div>
+
+                <div v-if="clinicalProfile">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        History &amp; diagnosis
+                    </h3>
+                    <p
+                        v-if="clinicalProfile.history_present_illness"
+                        class="mt-1 whitespace-pre-wrap"
+                    >
+                        {{ clinicalProfile.history_present_illness }}
+                    </p>
+                    <p class="mt-1">
+                        Allergy status:
+                        {{ clinicalProfile.allergy_status ?? 'not answered' }}
+                        <template
+                            v-if="
+                                clinicalProfile.allergy_status ===
+                                'known_allergy'
+                            "
+                        >
+                            ({{ clinicalProfile.allergy_substance }})
+                        </template>
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        Vitals
+                    </h3>
+                    <p
+                        v-if="context.vitals_status === 'unavailable'"
+                        class="mt-1 text-slate-500"
+                    >
+                        Marked unavailable:
+                        {{ context.vitals_unavailable_reason }}
+                    </p>
+                    <ul
+                        v-else-if="vitals.length"
+                        class="mt-1 list-inside list-disc"
+                    >
+                        <li v-for="vital in vitals" :key="vital.id">
+                            {{ vitalDisplay(vital) }}
+                        </li>
+                    </ul>
+                    <p v-else class="mt-1 text-slate-500">
+                        No vitals recorded.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        Investigations
+                    </h3>
+                    <p
+                        v-if="context.investigations_status === 'unavailable'"
+                        class="mt-1 text-slate-500"
+                    >
+                        Marked unavailable:
+                        {{ context.investigations_unavailable_reason }}
+                    </p>
+                    <ul
+                        v-else-if="investigations.length"
+                        class="mt-1 list-inside list-disc"
+                    >
+                        <li
+                            v-for="investigation in investigations"
+                            :key="investigation.id"
+                        >
+                            {{ investigationDisplay(investigation) }}
+                        </li>
+                    </ul>
+                    <p v-else class="mt-1 text-slate-500">
+                        No investigations recorded.
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        Medication chart
+                    </h3>
+                    <p
+                        v-if="
+                            context.medication_chart_status ===
+                            'none_documented'
+                        "
+                        class="mt-1 text-slate-500"
+                    >
+                        No current medicines documented:
+                        {{ context.medication_chart_none_reason }}
+                    </p>
+                    <ul
+                        v-else-if="medications.length"
+                        class="mt-1 list-inside list-disc"
+                    >
+                        <li
+                            v-for="medication in medications"
+                            :key="medication.id"
+                        >
+                            {{ medicationDisplay(medication) }}
+                        </li>
+                    </ul>
+                    <p v-else class="mt-1 text-slate-500">
+                        No medicines recorded.
+                    </p>
+                </div>
+
+                <div v-if="soap">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        SOAP
+                    </h3>
+                    <dl class="mt-1 space-y-1">
+                        <div>
+                            <dt class="inline font-medium">S:</dt>
+                            <dd class="inline">{{ soap.subjective ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="inline font-medium">O:</dt>
+                            <dd class="inline">{{ soap.objective ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="inline font-medium">A:</dt>
+                            <dd class="inline">{{ soap.assessment ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="inline font-medium">P:</dt>
+                            <dd class="inline">{{ soap.plan ?? '—' }}</dd>
+                        </div>
+                    </dl>
+                    <p class="mt-1">
+                        Monitoring plan:
+                        {{
+                            soap.monitoring_plan_not_applicable
+                                ? `Not applicable — ${soap.monitoring_plan_not_applicable_reason}`
+                                : (soap.monitoring_plan ?? '—')
+                        }}
+                    </p>
+                    <p class="mt-1">
+                        Drug-related problem:
+                        {{ soap.drug_related_problem_status ?? 'not answered' }}
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-500 uppercase">
+                        Conditional clinical activities
+                    </h3>
+                    <p class="mt-1">
+                        Suspected ADR: {{ adr?.status ?? 'not answered' }}
+                    </p>
+                    <p
+                        v-if="adr?.status === 'yes'"
+                        class="mt-1 text-slate-600 dark:text-slate-300"
+                    >
+                        {{ activityDisplay(adr) }}
+                    </p>
+                    <p class="mt-1">
+                        Patient counselling:
+                        {{ counselling?.status ?? 'not answered' }}
+                    </p>
+                    <p v-if="interventions.length" class="mt-1">
+                        {{ interventions.length }} pharmacist intervention(s)
+                        recorded.
+                    </p>
+                    <p v-if="monitoringFollowUps.length" class="mt-1">
+                        {{ monitoringFollowUps.length }} monitoring follow-up(s)
+                        recorded.
+                    </p>
+                </div>
+            </div>
         </section>
 
         <section
