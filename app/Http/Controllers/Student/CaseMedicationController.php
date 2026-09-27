@@ -24,24 +24,30 @@ class CaseMedicationController extends Controller
 
         $result = $sync->create(
             function () use ($case, $data, $request): CaseMedication {
-                if ($case->medication_chart_status !== 'documented') {
-                    $case->forceFill([
+                // Locked the same way sync()/delete() lock their target row:
+                // two near-simultaneous "Add medicine" requests for this case
+                // must not both read medication_chart_availability_lock_version
+                // before either commits its increment.
+                $lockedCase = ClinicalCase::query()->whereKey($case->id)->lockForUpdate()->firstOrFail();
+                if ($lockedCase->medication_chart_status !== 'documented') {
+                    $lockedCase->forceFill([
                         'medication_chart_status' => 'documented',
                         'medication_chart_none_reason' => null,
-                        'medication_chart_availability_lock_version' => $case->medication_chart_availability_lock_version + 1,
+                        'medication_chart_availability_lock_version' => $lockedCase->medication_chart_availability_lock_version + 1,
                     ])->save();
                 }
 
                 return CaseMedication::query()->create([
                     ...$data,
-                    'institution_id' => $case->institution_id,
-                    'clinical_case_id' => $case->id,
+                    'institution_id' => $lockedCase->institution_id,
+                    'clinical_case_id' => $lockedCase->id,
                     'recorded_by' => $request->user()->id,
                 ]);
             },
             $request->user(),
             'medications',
             $clientOperationId,
+            $case->id,
         );
 
         $model = $result['model'];

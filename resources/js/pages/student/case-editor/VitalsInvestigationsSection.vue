@@ -47,6 +47,10 @@ const vitalsSync = useSectionSync<AvailabilityPayload>({
     sectionKey: 'vitals_availability',
     endpoint: `/student/cases/${props.caseId}/vitals-availability`,
     initialPayload: props.initialVitalsAvailability,
+    isSyncReady: (p) =>
+        p.vitals_status !== 'unavailable' ||
+        (p.vitals_unavailable_reason !== null &&
+            p.vitals_unavailable_reason !== ''),
 });
 const investigationsSync = useSectionSync<InvestigationsAvailabilityPayload>({
     userId: props.userId,
@@ -54,6 +58,10 @@ const investigationsSync = useSectionSync<InvestigationsAvailabilityPayload>({
     sectionKey: 'investigations_availability',
     endpoint: `/student/cases/${props.caseId}/investigations-availability`,
     initialPayload: props.initialInvestigationsAvailability,
+    isSyncReady: (p) =>
+        p.investigations_status !== 'unavailable' ||
+        (p.investigations_unavailable_reason !== null &&
+            p.investigations_unavailable_reason !== ''),
 });
 
 const vitalsCreate = useRepeatableRowCreate<RowPayload>({
@@ -113,6 +121,19 @@ function removeInvestigation(id: string) {
     if (id.startsWith(LOCAL_ROW_PREFIX))
         void investigationsCreate.cancelQueuedCreate(id);
     investigations.value = investigations.value.filter((i) => i.id !== id);
+}
+
+async function retryVitalCreate(localId: string) {
+    const row = await vitalsCreate.retryFailedCreate(localId);
+    if (row)
+        vitals.value = vitals.value.map((v) => (v.id === localId ? row : v));
+}
+async function retryInvestigationCreate(localId: string) {
+    const row = await investigationsCreate.retryFailedCreate(localId);
+    if (row)
+        investigations.value = investigations.value.map((i) =>
+            i.id === localId ? row : i,
+        );
 }
 
 function handleReconnect() {
@@ -237,16 +258,85 @@ const investigationsStatusLabel = computed(() =>
             </fieldset>
 
             <div
-                v-if="vitalsSync.payload.value.vitals_status !== 'unavailable'"
+                v-if="vitalsSync.state.value === 'failed'"
+                data-test="vitals-availability-errors"
+                role="alert"
+                class="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
+            >
+                <p v-if="vitalsSync.validationErrors.value.length === 0">
+                    This section could not be saved. Check your connection and
+                    try again.
+                </p>
+                <ul v-else class="list-disc space-y-1 pl-5">
+                    <li
+                        v-for="(message, index) in vitalsSync.validationErrors
+                            .value"
+                        :key="index"
+                    >
+                        {{ message }}
+                    </li>
+                </ul>
+                <button
+                    type="button"
+                    class="mt-2 font-bold underline"
+                    @click="vitalsSync.retry"
+                >
+                    Retry
+                </button>
+            </div>
+
+            <div
+                v-if="
+                    vitalsSync.payload.value.vitals_status !== 'unavailable' ||
+                    vitalsSync.state.value === 'failed'
+                "
                 class="space-y-3"
             >
                 <template v-for="vital in vitals" :key="vital.id">
                     <div
                         v-if="vital.id.startsWith(LOCAL_ROW_PREFIX)"
-                        class="rounded-2xl border border-dashed border-slate-300 p-4 text-xs text-slate-500 dark:border-slate-600"
-                        data-test="vital-row-pending"
+                        class="rounded-2xl border p-4 text-xs"
+                        :class="
+                            vitalsCreate.failedCreateErrors.value[vital.id]
+                                ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300'
+                                : 'border-dashed border-slate-300 text-slate-500 dark:border-slate-600'
+                        "
+                        :data-test="
+                            vitalsCreate.failedCreateErrors.value[vital.id]
+                                ? 'vital-row-create-failed'
+                                : 'vital-row-pending'
+                        "
                     >
-                        Waiting to sync…
+                        <template
+                            v-if="
+                                vitalsCreate.failedCreateErrors.value[vital.id]
+                            "
+                        >
+                            <p role="alert" class="font-bold">
+                                {{
+                                    vitalsCreate.failedCreateErrors.value[
+                                        vital.id
+                                    ][0]
+                                }}
+                            </p>
+                            <div class="mt-2 flex gap-3 font-bold">
+                                <button
+                                    type="button"
+                                    class="underline"
+                                    @click="retryVitalCreate(vital.id)"
+                                >
+                                    Retry
+                                </button>
+                                <button
+                                    type="button"
+                                    class="underline"
+                                    @click="removeVital(vital.id)"
+                                >
+                                    Discard
+                                </button>
+                            </div>
+                        </template>
+                        <template v-else>Waiting to sync…</template>
                     </div>
                     <VitalRow
                         v-else
@@ -341,9 +431,42 @@ const investigationsStatusLabel = computed(() =>
             </fieldset>
 
             <div
+                v-if="investigationsSync.state.value === 'failed'"
+                data-test="investigations-availability-errors"
+                role="alert"
+                class="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
+            >
+                <p
+                    v-if="
+                        investigationsSync.validationErrors.value.length === 0
+                    "
+                >
+                    This section could not be saved. Check your connection and
+                    try again.
+                </p>
+                <ul v-else class="list-disc space-y-1 pl-5">
+                    <li
+                        v-for="(message, index) in investigationsSync
+                            .validationErrors.value"
+                        :key="index"
+                    >
+                        {{ message }}
+                    </li>
+                </ul>
+                <button
+                    type="button"
+                    class="mt-2 font-bold underline"
+                    @click="investigationsSync.retry"
+                >
+                    Retry
+                </button>
+            </div>
+
+            <div
                 v-if="
                     investigationsSync.payload.value.investigations_status !==
-                    'unavailable'
+                        'unavailable' ||
+                    investigationsSync.state.value === 'failed'
                 "
                 class="space-y-3"
             >
@@ -353,10 +476,59 @@ const investigationsStatusLabel = computed(() =>
                 >
                     <div
                         v-if="investigation.id.startsWith(LOCAL_ROW_PREFIX)"
-                        class="rounded-2xl border border-dashed border-slate-300 p-4 text-xs text-slate-500 dark:border-slate-600"
-                        data-test="investigation-row-pending"
+                        class="rounded-2xl border p-4 text-xs"
+                        :class="
+                            investigationsCreate.failedCreateErrors.value[
+                                investigation.id
+                            ]
+                                ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300'
+                                : 'border-dashed border-slate-300 text-slate-500 dark:border-slate-600'
+                        "
+                        :data-test="
+                            investigationsCreate.failedCreateErrors.value[
+                                investigation.id
+                            ]
+                                ? 'investigation-row-create-failed'
+                                : 'investigation-row-pending'
+                        "
                     >
-                        Waiting to sync…
+                        <template
+                            v-if="
+                                investigationsCreate.failedCreateErrors.value[
+                                    investigation.id
+                                ]
+                            "
+                        >
+                            <p role="alert" class="font-bold">
+                                {{
+                                    investigationsCreate.failedCreateErrors
+                                        .value[investigation.id][0]
+                                }}
+                            </p>
+                            <div class="mt-2 flex gap-3 font-bold">
+                                <button
+                                    type="button"
+                                    class="underline"
+                                    @click="
+                                        retryInvestigationCreate(
+                                            investigation.id,
+                                        )
+                                    "
+                                >
+                                    Retry
+                                </button>
+                                <button
+                                    type="button"
+                                    class="underline"
+                                    @click="
+                                        removeInvestigation(investigation.id)
+                                    "
+                                >
+                                    Discard
+                                </button>
+                            </div>
+                        </template>
+                        <template v-else>Waiting to sync…</template>
                     </div>
                     <InvestigationRow
                         v-else

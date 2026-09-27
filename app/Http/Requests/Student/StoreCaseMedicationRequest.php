@@ -34,7 +34,13 @@ class StoreCaseMedicationRequest extends FormRequest
             'frequency' => ['nullable', 'string', 'max:60'],
             'start_reference' => ['nullable', 'string', 'max:30'],
             'stop_reference' => ['nullable', 'required_if:status,stopped', 'required_if:status,completed', 'string', 'max:30'],
-            'status' => ['nullable', Rule::in(array_map(fn (MedicationStatus $s): string => $s->value, MedicationStatus::cases()))],
+            // No 'nullable': case_medications.status is NOT NULL with a
+            // default('active') the client is expected to always send
+            // explicitly (see 2026_09_29_000004's docblock). 'sometimes'
+            // lets a genuinely omitted key fall through to that DB default
+            // untouched, but an explicit null must still be rejected rather
+            // than overriding the default with NULL on INSERT.
+            'status' => ['sometimes', Rule::in(array_map(fn (MedicationStatus $s): string => $s->value, MedicationStatus::cases()))],
             'prn_indication' => ['nullable', 'required_if:status,prn', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];

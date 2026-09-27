@@ -24,7 +24,7 @@ class UpdateMedicationChartAvailabilityRequest extends FormRequest
         return [
             ...$this->syncEnvelopeRules(),
             'medication_chart_status' => ['sometimes', 'nullable', Rule::in(['documented', 'none_documented'])],
-            'medication_chart_none_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'medication_chart_none_reason' => ['sometimes', 'nullable', 'required_if:medication_chart_status,none_documented', 'string', 'max:1000'],
         ];
     }
 

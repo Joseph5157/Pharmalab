@@ -168,6 +168,122 @@ class CaseMedicationSyncTest extends TestCase
         $this->assertCount(1, $case->fresh()->medications);
     }
 
+    public function test_reusing_a_create_operation_id_against_a_different_case_is_rejected(): void
+    {
+        // Same cross-case replay guard as CaseVitalSyncTest — see its
+        // equivalent test for the full rationale.
+        [$institution, $student, $case, $assignment] = $this->makeCase();
+        $otherCase = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id, 'case_number' => 2, 'status' => CaseStatus::Draft,
+        ]);
+        $this->actingAs($student);
+        $operationId = (string) Str::uuid();
+
+        $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => $operationId, 'generic_name' => 'Metformin', 'status' => MedicationStatus::Active->value,
+        ])->assertCreated();
+
+        $this->postJson("/student/cases/{$otherCase->id}/medications", [
+            'client_operation_id' => $operationId, 'generic_name' => 'Amoxicillin', 'status' => MedicationStatus::Active->value,
+        ])->assertStatus(409);
+
+        $this->assertCount(0, $otherCase->fresh()->medications);
+    }
+
+    public function test_creating_a_second_medication_does_not_re_increment_the_availability_lock_version(): void
+    {
+        // See CaseVitalSyncTest's equivalent test for the full rationale.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(), 'generic_name' => 'Metformin', 'status' => MedicationStatus::Active->value,
+        ])->assertCreated();
+        $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(), 'generic_name' => 'Amoxicillin', 'status' => MedicationStatus::Active->value,
+        ])->assertCreated();
+
+        $this->assertSame(1, $case->fresh()->medication_chart_availability_lock_version);
+        $this->assertCount(2, $case->fresh()->medications);
+    }
+
+    public function test_creating_a_medication_with_an_explicit_null_status_is_rejected(): void
+    {
+        // Regression: case_medications.status is NOT NULL with only a
+        // default('active'); Store's rule was 'nullable', so an explicit
+        // null (not merely an omitted key) would 500 by overriding that
+        // default on INSERT — the same defect class already fixed for
+        // generic_name/medication_context. Found via a fresh whole-branch
+        // code review.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(),
+            'generic_name' => 'Amoxicillin',
+            'status' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('status');
+    }
+
+    public function test_omitting_status_entirely_on_create_still_succeeds_and_keeps_the_db_default(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->postJson("/student/cases/{$case->id}/medications", [
+            'client_operation_id' => (string) Str::uuid(),
+            'generic_name' => 'Amoxicillin',
+        ]);
+
+        $response->assertCreated();
+        $this->assertSame(MedicationStatus::Active, $case->fresh()->medications->first()->status);
+    }
+
+    public function test_updating_a_medication_with_an_explicit_null_status_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $medication = $this->makeMedication($case, $student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/medications/{$medication->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'status' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('status');
+    }
+
+    public function test_marking_no_current_medicines_documented_without_a_reason_is_rejected(): void
+    {
+        // Regression: UpdateMedicationChartAvailabilityRequest's reason field
+        // had no required_if, unlike its Vitals/Investigations siblings.
+        // Found via a fresh whole-branch code review. The reason key is sent
+        // explicitly-empty here (not omitted) because that's the real
+        // frontend's actual shape — useSectionSync's whole-row resend always
+        // includes every declared field — and, like its Vitals/Investigations
+        // siblings, 'sometimes' on this rule means an entirely omitted key
+        // skips required_if too; that's an existing, shared characteristic
+        // of this validation shape, not something this fix changes.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $response = $this->putJson("/student/cases/{$case->id}/medication-chart-availability", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'medication_chart_status' => 'none_documented',
+            'medication_chart_none_reason' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('medication_chart_none_reason');
+    }
+
     public function test_a_single_field_edit_does_not_require_or_erase_other_fields(): void
     {
         [, $student, $case] = $this->makeCase();

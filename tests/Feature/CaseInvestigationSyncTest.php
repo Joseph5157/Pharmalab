@@ -119,6 +119,43 @@ class CaseInvestigationSyncTest extends TestCase
         $this->assertCount(1, $case->fresh()->investigations);
     }
 
+    public function test_reusing_a_create_operation_id_against_a_different_case_is_rejected(): void
+    {
+        // Same cross-case replay guard as CaseVitalSyncTest — see its
+        // equivalent test for the full rationale.
+        [$institution, $student, $case] = $this->makeCase();
+        $otherCase = $this->makeCaseFor($institution, $student, 2);
+        $this->actingAs($student);
+        $operationId = (string) Str::uuid();
+
+        $this->postJson("/student/cases/{$case->id}/investigations", [
+            'client_operation_id' => $operationId, 'test_name' => 'Sodium', 'result_type' => 'numeric', 'result_value' => '140',
+        ])->assertCreated();
+
+        $this->postJson("/student/cases/{$otherCase->id}/investigations", [
+            'client_operation_id' => $operationId, 'test_name' => 'Potassium', 'result_type' => 'numeric', 'result_value' => '4.5',
+        ])->assertStatus(409);
+
+        $this->assertCount(0, $otherCase->fresh()->investigations);
+    }
+
+    public function test_creating_a_second_investigation_does_not_re_increment_the_availability_lock_version(): void
+    {
+        // See CaseVitalSyncTest's equivalent test for the full rationale.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->postJson("/student/cases/{$case->id}/investigations", [
+            'client_operation_id' => (string) Str::uuid(), 'test_name' => 'Sodium', 'result_type' => 'numeric', 'result_value' => '140',
+        ])->assertCreated();
+        $this->postJson("/student/cases/{$case->id}/investigations", [
+            'client_operation_id' => (string) Str::uuid(), 'test_name' => 'Potassium', 'result_type' => 'numeric', 'result_value' => '4.5',
+        ])->assertCreated();
+
+        $this->assertSame(1, $case->fresh()->investigations_availability_lock_version);
+        $this->assertCount(2, $case->fresh()->investigations);
+    }
+
     public function test_a_single_field_edit_does_not_require_or_erase_other_fields(): void
     {
         [, $student, $case] = $this->makeCase();

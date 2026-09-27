@@ -107,6 +107,121 @@ class CaseVitalSyncTest extends TestCase
         $response->assertJsonValidationErrors('value_diastolic');
     }
 
+    public function test_setting_only_systolic_via_a_whole_row_resend_update_is_rejected(): void
+    {
+        // Regression: StoreCaseVitalRequest enforces the BP pair, but
+        // UpdateCaseVitalRequest never re-implemented it — a student typing
+        // Systolic then pausing before Diastolic (a whole-row resend, so
+        // value_diastolic is sent explicitly null) silently persisted a
+        // half-filled pair. Found via a fresh whole-branch code review.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'observation_type' => null, 'recorded_by' => $student->id,
+        ]);
+
+        $response = $this->putJson("/student/cases/{$case->id}/vitals/{$vital->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'observation_type' => 'blood_pressure',
+            'value_systolic' => 120,
+            'value_diastolic' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('value_diastolic');
+    }
+
+    public function test_a_partial_update_omitting_diastolic_falls_back_to_the_stored_value_for_pairing(): void
+    {
+        // A true partial update (distinct from the JS client's whole-row
+        // resend) that only touches an unrelated field must not treat the
+        // omitted diastolic key as absent-and-therefore-unpaired — it must
+        // fall back to the row's already-stored value, the same way
+        // observation_type itself already falls back.
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'blood_pressure', 'value_systolic' => 120, 'value_diastolic' => 80,
+            'recorded_by' => $student->id,
+        ]);
+
+        $this->putJson("/student/cases/{$case->id}/vitals/{$vital->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'note' => 'Reviewed, unchanged BP.',
+        ])->assertOk();
+    }
+
+    public function test_a_partial_update_nulling_only_systolic_while_diastolic_remains_stored_is_rejected(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+        $vital = CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $case->institution_id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'blood_pressure', 'value_systolic' => 120, 'value_diastolic' => 80,
+            'recorded_by' => $student->id,
+        ]);
+
+        $response = $this->putJson("/student/cases/{$case->id}/vitals/{$vital->id}", [
+            'client_operation_id' => (string) Str::uuid(),
+            'base_lock_version' => 0,
+            'value_systolic' => null,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('value_systolic');
+    }
+
+    public function test_reusing_a_create_operation_id_against_a_different_case_is_rejected(): void
+    {
+        // Regression: SectionSyncService::create()'s idempotent-replay path
+        // checked section_key/syncable_type but never that the replayed row
+        // belongs to the case in the current request's URL — a
+        // client_operation_id reused across two of the same student's cases
+        // (e.g. a stale offline-queue draft replayed after switching cases)
+        // could hand back a row belonging to a different case entirely.
+        [$institution, $student, $case] = $this->makeCase();
+        $otherCase = $this->makeCaseFor($institution, $student, 2);
+        $this->actingAs($student);
+        $operationId = (string) Str::uuid();
+
+        $this->postJson("/student/cases/{$case->id}/vitals", [
+            'client_operation_id' => $operationId, 'observation_type' => 'pulse', 'value_numeric' => 80,
+        ])->assertCreated();
+
+        $this->postJson("/student/cases/{$otherCase->id}/vitals", [
+            'client_operation_id' => $operationId, 'observation_type' => 'pulse', 'value_numeric' => 90,
+        ])->assertStatus(409);
+
+        $this->assertCount(0, $otherCase->fresh()->vitals);
+    }
+
+    public function test_creating_a_second_vital_does_not_re_increment_the_availability_lock_version(): void
+    {
+        // Guards the create()-path lockForUpdate() refactor: the factory now
+        // re-fetches the case row inside the transaction rather than reusing
+        // the controller's already-loaded $case, so this pins down that the
+        // "already recorded, don't re-bump" branch still reads the true,
+        // current DB state across two sequential creates. (A real concurrent
+        // two-connection race isn't reproducible against this suite's
+        // SQLite test driver, which has no meaningful row-level locking.)
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->postJson("/student/cases/{$case->id}/vitals", [
+            'client_operation_id' => (string) Str::uuid(), 'observation_type' => 'pulse', 'value_numeric' => 80,
+        ])->assertCreated();
+        $this->postJson("/student/cases/{$case->id}/vitals", [
+            'client_operation_id' => (string) Str::uuid(), 'observation_type' => 'temperature', 'value_numeric' => 37,
+        ])->assertCreated();
+
+        $this->assertSame(1, $case->fresh()->vitals_availability_lock_version);
+        $this->assertCount(2, $case->fresh()->vitals);
+    }
+
     public function test_oxygen_saturation_rejects_a_value_outside_0_to_100(): void
     {
         [, $student, $case] = $this->makeCase();

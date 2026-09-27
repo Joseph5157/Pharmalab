@@ -44,6 +44,30 @@ class UpdateCaseVitalRequest extends FormRequest
             $vital = $vital instanceof CaseVital ? $vital : null;
             $type = $this->has('observation_type') ? $this->input('observation_type') : $vital?->observation_type;
 
+            // BP must be entered as a pair (StoreCaseVitalRequest enforces the
+            // same rule on create). This is a partial update ('sometimes' on
+            // every field), so a key the client omits falls back to the
+            // vital's already-stored value rather than being treated as
+            // absent-and-therefore-unpaired — otherwise a whole-row resend
+            // that nulls out just one side, or a genuine partial PATCH that
+            // never mentions the other side, could silently persist a
+            // half-filled pair.
+            if ($type === 'blood_pressure') {
+                $systolicFilled = $this->has('value_systolic')
+                    ? $this->filled('value_systolic')
+                    : $vital?->value_systolic !== null;
+                $diastolicFilled = $this->has('value_diastolic')
+                    ? $this->filled('value_diastolic')
+                    : $vital?->value_diastolic !== null;
+
+                if ($systolicFilled && ! $diastolicFilled) {
+                    $validator->errors()->add('value_diastolic', 'Diastolic pressure is required when systolic pressure is recorded.');
+                }
+                if ($diastolicFilled && ! $systolicFilled) {
+                    $validator->errors()->add('value_systolic', 'Systolic pressure is required when diastolic pressure is recorded.');
+                }
+            }
+
             if ($type === 'oxygen_saturation' && $this->filled('value_numeric')) {
                 $value = (float) $this->input('value_numeric');
                 if ($value < 0 || $value > 100) {

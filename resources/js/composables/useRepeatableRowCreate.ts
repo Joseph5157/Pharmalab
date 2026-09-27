@@ -1,6 +1,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import {
     deleteSection,
+    getSection,
     listAllSections,
     putSection,
     sectionKey as buildSectionKey,
@@ -35,6 +36,8 @@ export function useRepeatableRowCreate<T extends { id: string }>(
 ) {
     const online = ref(navigator.onLine);
     const createSectionKey = `${options.sectionKey}:create`;
+    /** Keyed by localId; present only for a permanently-rejected (422/409) queued create. */
+    const failedCreateErrors = ref<Record<string, string[]>>({});
 
     async function flush(
         draft: StoredSection<Record<string, unknown>>,
@@ -53,6 +56,26 @@ export function useRepeatableRowCreate<T extends { id: string }>(
                     ...draft.payload,
                 }),
             });
+            if (response.status === 422 || response.status === 409) {
+                // Unlike a network/server failure, resubmitting the exact
+                // same payload will never succeed here — mirror
+                // useSectionSync's validationErrors convention instead of
+                // silently retrying this draft forever on every 'online'
+                // event.
+                const body = (await response.json().catch(() => null)) as {
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                } | null;
+                const messages = body?.errors
+                    ? Object.values(body.errors).flat()
+                    : [body?.message ?? 'This row could not be created.'];
+                failedCreateErrors.value = {
+                    ...failedCreateErrors.value,
+                    [draft.resourceId]: messages,
+                };
+                await putSection({ ...draft, lastError: messages.join(' ') });
+                return null;
+            }
             if (!response.ok) return null;
             const body = (await response.json()) as Record<string, T>;
             await deleteSection(draft.key);
@@ -96,9 +119,31 @@ export function useRepeatableRowCreate<T extends { id: string }>(
         await deleteSection(
             buildSectionKey(options.userId, createSectionKey, localId),
         );
+        if (localId in failedCreateErrors.value) {
+            const { [localId]: _removed, ...rest } = failedCreateErrors.value;
+            failedCreateErrors.value = rest;
+        }
     }
 
-    /** Finds every queued draft for this section and this user and retries each one. */
+    /** Retries a single draft the user explicitly asked to retry after a 422/409. */
+    async function retryFailedCreate(localId: string): Promise<T | null> {
+        const draft = await getSection<Record<string, unknown>>(
+            buildSectionKey(options.userId, createSectionKey, localId),
+        );
+        if (!draft) return null;
+        if (localId in failedCreateErrors.value) {
+            const { [localId]: _removed, ...rest } = failedCreateErrors.value;
+            failedCreateErrors.value = rest;
+        }
+        return flush(draft);
+    }
+
+    /**
+     * Finds every queued draft for this section and this user and retries
+     * each one — skipping drafts already marked permanently failed, so a
+     * reconnect doesn't keep resubmitting a rejection that will never
+     * succeed on its own.
+     */
     async function replayPending(
         onReplaced: (localId: string, row: T) => void,
     ) {
@@ -106,7 +151,8 @@ export function useRepeatableRowCreate<T extends { id: string }>(
         const pending = all.filter(
             (section) =>
                 section.sectionKey === createSectionKey &&
-                section.userId === options.userId,
+                section.userId === options.userId &&
+                !section.lastError,
         );
         for (const draft of pending) {
             const synced = await flush(draft);
@@ -132,8 +178,10 @@ export function useRepeatableRowCreate<T extends { id: string }>(
 
     return {
         online,
+        failedCreateErrors,
         queueCreate,
         cancelQueuedCreate,
+        retryFailedCreate,
         replayPending,
         handleOnline,
         handleOffline,

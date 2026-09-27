@@ -55,6 +55,9 @@ const {
     endpoint: `/student/cases/${props.caseId}/vitals/${props.initial.id}`,
     initialPayload: props.initial,
     readonlyFields: ['id'],
+    isSyncReady: (p) =>
+        p.observation_type !== 'blood_pressure' ||
+        (p.value_systolic === null) === (p.value_diastolic === null),
 });
 
 const statusIcon = computed(

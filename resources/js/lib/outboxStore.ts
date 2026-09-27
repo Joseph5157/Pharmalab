@@ -7,6 +7,14 @@ export type StoredSection<T = Record<string, unknown>> = {
     baseLockVersion: number;
     clientOperationId: string;
     updatedAt: string;
+    /**
+     * Set once a queued row-creation POST comes back 422/409 — a rejection
+     * that will never resolve by blindly resubmitting the same payload on
+     * the next 'online' event, unlike a genuine network/server failure.
+     * Its presence stops useRepeatableRowCreate's replayPending() from
+     * retrying this draft until the user explicitly retries or discards it.
+     */
+    lastError?: string;
 };
 
 export type StoredSectionCopy<T = Record<string, unknown>> =

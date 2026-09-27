@@ -24,24 +24,30 @@ class CaseVitalController extends Controller
 
         $result = $sync->create(
             function () use ($case, $data, $request): CaseVital {
-                if ($case->vitals_status !== 'recorded') {
-                    $case->forceFill([
+                // Locked the same way sync()/delete() lock their target row:
+                // two near-simultaneous "Add vital" requests for this case
+                // must not both read vitals_availability_lock_version before
+                // either commits its increment.
+                $lockedCase = ClinicalCase::query()->whereKey($case->id)->lockForUpdate()->firstOrFail();
+                if ($lockedCase->vitals_status !== 'recorded') {
+                    $lockedCase->forceFill([
                         'vitals_status' => 'recorded',
                         'vitals_unavailable_reason' => null,
-                        'vitals_availability_lock_version' => $case->vitals_availability_lock_version + 1,
+                        'vitals_availability_lock_version' => $lockedCase->vitals_availability_lock_version + 1,
                     ])->save();
                 }
 
                 return CaseVital::query()->create([
                     ...$data,
-                    'institution_id' => $case->institution_id,
-                    'clinical_case_id' => $case->id,
+                    'institution_id' => $lockedCase->institution_id,
+                    'clinical_case_id' => $lockedCase->id,
                     'recorded_by' => $request->user()->id,
                 ]);
             },
             $request->user(),
             'vitals',
             $clientOperationId,
+            $case->id,
         );
 
         $model = $result['model'];

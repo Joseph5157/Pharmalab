@@ -24,24 +24,30 @@ class CaseInvestigationController extends Controller
 
         $result = $sync->create(
             function () use ($case, $data, $request): CaseInvestigation {
-                if ($case->investigations_status !== 'recorded') {
-                    $case->forceFill([
+                // Locked the same way sync()/delete() lock their target row:
+                // two near-simultaneous "Add investigation" requests for this
+                // case must not both read investigations_availability_lock_version
+                // before either commits its increment.
+                $lockedCase = ClinicalCase::query()->whereKey($case->id)->lockForUpdate()->firstOrFail();
+                if ($lockedCase->investigations_status !== 'recorded') {
+                    $lockedCase->forceFill([
                         'investigations_status' => 'recorded',
                         'investigations_unavailable_reason' => null,
-                        'investigations_availability_lock_version' => $case->investigations_availability_lock_version + 1,
+                        'investigations_availability_lock_version' => $lockedCase->investigations_availability_lock_version + 1,
                     ])->save();
                 }
 
                 return CaseInvestigation::query()->create([
                     ...$data,
-                    'institution_id' => $case->institution_id,
-                    'clinical_case_id' => $case->id,
+                    'institution_id' => $lockedCase->institution_id,
+                    'clinical_case_id' => $lockedCase->id,
                     'recorded_by' => $request->user()->id,
                 ]);
             },
             $request->user(),
             'investigations',
             $clientOperationId,
+            $case->id,
         );
 
         $model = $result['model'];

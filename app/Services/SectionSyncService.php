@@ -81,11 +81,11 @@ class SectionSyncService
      * @param  \Closure(): (Model&Syncable)  $factory
      * @return array{status: string, httpStatus: int, model: Model&Syncable}
      */
-    public function create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId): array
+    public function create(\Closure $factory, User $user, string $sectionKey, string $clientOperationId, string $expectedClinicalCaseId): array
     {
         $expectedClass = $this->modelClassForSection($sectionKey);
 
-        return DB::transaction(function () use ($factory, $user, $sectionKey, $clientOperationId, $expectedClass): array {
+        return DB::transaction(function () use ($factory, $user, $sectionKey, $clientOperationId, $expectedClass, $expectedClinicalCaseId): array {
             $existing = SyncOperation::query()
                 ->where('user_id', $user->id)
                 ->where('client_operation_id', $clientOperationId)
@@ -100,6 +100,22 @@ class SectionSyncService
 
                 /** @var Model&Syncable $model */
                 $model = $expectedClass::query()->withoutGlobalScopes()->findOrFail($existing->syncable_id);
+
+                // Every mutating endpoint for these child rows re-checks the
+                // resolved model against the route's case (see the
+                // clinical_case_id === $case->id guards in
+                // CaseVital/Investigation/MedicationController::sync()/destroy()).
+                // The replay path above resolves a model from a stored
+                // operation with no such check — a client_operation_id reused
+                // across two of the same user's cases (e.g. a stale
+                // offline-queue draft replayed after navigating to a
+                // different case) would otherwise hand back a row that
+                // belongs to a case other than the one in this request's URL.
+                abort_unless(
+                    (string) $model->getAttribute('clinical_case_id') === $expectedClinicalCaseId,
+                    409,
+                    'Operation ID already used for a different action.',
+                );
 
                 return ['status' => $existing->result_status, 'httpStatus' => 201, 'model' => $model];
             }

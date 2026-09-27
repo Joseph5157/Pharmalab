@@ -39,6 +39,10 @@ const availabilitySync = useSectionSync<AvailabilityPayload>({
     sectionKey: 'medication_chart_availability',
     endpoint: `/student/cases/${props.caseId}/medication-chart-availability`,
     initialPayload: props.initialAvailability,
+    isSyncReady: (p) =>
+        p.medication_chart_status !== 'none_documented' ||
+        (p.medication_chart_none_reason !== null &&
+            p.medication_chart_none_reason !== ''),
 });
 
 const medicationsCreate = useRepeatableRowCreate<RowPayload>({
@@ -75,6 +79,14 @@ function removeMedication(id: string) {
     if (id.startsWith(LOCAL_ROW_PREFIX))
         void medicationsCreate.cancelQueuedCreate(id);
     medications.value = medications.value.filter((m) => m.id !== id);
+}
+
+async function retryMedicationCreate(localId: string) {
+    const row = await medicationsCreate.retryFailedCreate(localId);
+    if (row)
+        medications.value = medications.value.map((m) =>
+            m.id === localId ? row : m,
+        );
 }
 
 function handleReconnect() {
@@ -173,7 +185,9 @@ const statusLabel = computed(
                 "
                 class="mt-2 block text-sm"
             >
-                <span class="sr-only">Explanation (optional)</span>
+                <span class="sr-only"
+                    >Reason no current medicines are documented</span
+                >
                 <input
                     v-model="
                         availabilitySync.payload.value
@@ -181,7 +195,7 @@ const statusLabel = computed(
                     "
                     type="text"
                     maxlength="1000"
-                    placeholder="Explanation (optional)"
+                    placeholder="Reason"
                     data-test="medication-chart-none-reason"
                     class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
                     @input="availabilitySync.edit"
@@ -190,19 +204,92 @@ const statusLabel = computed(
         </fieldset>
 
         <div
+            v-if="availabilitySync.state.value === 'failed'"
+            data-test="medication-chart-availability-errors"
+            role="alert"
+            class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
+        >
+            <p v-if="availabilitySync.validationErrors.value.length === 0">
+                This section could not be saved. Check your connection and try
+                again.
+            </p>
+            <ul v-else class="list-disc space-y-1 pl-5">
+                <li
+                    v-for="(message, index) in availabilitySync.validationErrors
+                        .value"
+                    :key="index"
+                >
+                    {{ message }}
+                </li>
+            </ul>
+            <button
+                type="button"
+                class="mt-2 font-bold underline"
+                @click="availabilitySync.retry"
+            >
+                Retry
+            </button>
+        </div>
+
+        <div
             v-if="
                 availabilitySync.payload.value.medication_chart_status !==
-                'none_documented'
+                    'none_documented' ||
+                availabilitySync.state.value === 'failed'
             "
             class="space-y-3"
         >
             <template v-for="medication in medications" :key="medication.id">
                 <div
                     v-if="medication.id.startsWith(LOCAL_ROW_PREFIX)"
-                    class="rounded-2xl border border-dashed border-slate-300 p-4 text-xs text-slate-500 dark:border-slate-600"
-                    data-test="medication-row-pending"
+                    class="rounded-2xl border p-4 text-xs"
+                    :class="
+                        medicationsCreate.failedCreateErrors.value[
+                            medication.id
+                        ]
+                            ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300'
+                            : 'border-dashed border-slate-300 text-slate-500 dark:border-slate-600'
+                    "
+                    :data-test="
+                        medicationsCreate.failedCreateErrors.value[
+                            medication.id
+                        ]
+                            ? 'medication-row-create-failed'
+                            : 'medication-row-pending'
+                    "
                 >
-                    Waiting to sync…
+                    <template
+                        v-if="
+                            medicationsCreate.failedCreateErrors.value[
+                                medication.id
+                            ]
+                        "
+                    >
+                        <p role="alert" class="font-bold">
+                            {{
+                                medicationsCreate.failedCreateErrors.value[
+                                    medication.id
+                                ][0]
+                            }}
+                        </p>
+                        <div class="mt-2 flex gap-3 font-bold">
+                            <button
+                                type="button"
+                                class="underline"
+                                @click="retryMedicationCreate(medication.id)"
+                            >
+                                Retry
+                            </button>
+                            <button
+                                type="button"
+                                class="underline"
+                                @click="removeMedication(medication.id)"
+                            >
+                                Discard
+                            </button>
+                        </div>
+                    </template>
+                    <template v-else>Waiting to sync…</template>
                 </div>
                 <MedicationRow
                     v-else
