@@ -81,6 +81,14 @@ class RepeatableClinicalActivitySyncTest extends TestCase
         ]);
 
         $response->assertOk();
+        // useSectionSync (the frontend composable ActivityRow.vue uses for
+        // this endpoint) hardcodes `body.section` on every successful sync
+        // response — this was silently returning `activity` instead until a
+        // Task 9 live device pass caught it (the request always saved
+        // correctly server-side, but the frontend's own success handler threw
+        // reading `body.section.lock_version` and every edit displayed as a
+        // silent "Sync failed").
+        $response->assertJsonPath('section.details.outcome', 'accepted');
         $fresh = $activity->fresh();
         $this->assertSame('Dose too low', $fresh->details['problem']);
         $this->assertSame('Increase to 1g TID', $fresh->details['recommendation']);

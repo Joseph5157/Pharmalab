@@ -40,7 +40,14 @@ class CaseClinicalActivityController extends Controller
         $model = $result['model'];
         abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
 
-        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+        // useSectionSync (the shared frontend composable both ADR/Counselling
+        // singletons and generic row edits use) hardcodes `body.section` on
+        // every successful sync response, the same key CaseVitalController::
+        // sync() and every other in-place-edit endpoint already use — unlike
+        // store()/destroy()'s conflict response below, which are consumed by
+        // useRepeatableRowCreate/the row's own remove() handler and correctly
+        // key off `activity` instead.
+        return response()->json(['section' => $this->payload($model)], $result['httpStatus']);
     }
 
     public function syncCounselling(UpdateCounsellingActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
@@ -64,7 +71,7 @@ class CaseClinicalActivityController extends Controller
         $model = $result['model'];
         abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
 
-        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+        return response()->json(['section' => $this->payload($model)], $result['httpStatus']);
     }
 
     public function store(StoreCaseClinicalActivityRequest $request, ClinicalCase $case, SectionSyncService $sync): JsonResponse
@@ -117,7 +124,7 @@ class CaseClinicalActivityController extends Controller
         $model = $result['model'];
         abort_unless($model instanceof CaseClinicalActivity, 500, 'Unexpected model type returned from sync.');
 
-        return response()->json(['activity' => $this->payload($model)], $result['httpStatus']);
+        return response()->json(['section' => $this->payload($model)], $result['httpStatus']);
     }
 
     public function destroy(Request $request, ClinicalCase $case, CaseClinicalActivity $activity, SectionSyncService $sync): JsonResponse|Response

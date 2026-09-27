@@ -80,7 +80,7 @@ class AdrActivitySyncTest extends TestCase
         ]);
 
         $response->assertOk();
-        $response->assertJsonPath('activity.status', 'no');
+        $response->assertJsonPath('section.status', 'no');
     }
 
     public function test_answering_yes_requires_event_and_suspected_medicine(): void

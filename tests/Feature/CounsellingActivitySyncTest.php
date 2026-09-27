@@ -28,6 +28,10 @@ class CounsellingActivitySyncTest extends TestCase
         ]);
 
         $response->assertOk();
+        // useSectionSync (the frontend composable this section uses) hardcodes
+        // `body.section` on every successful sync response — guards the same
+        // response-key contract fixed for ADR and generic activity rows.
+        $response->assertJsonPath('section.status', 'not_indicated');
     }
 
     public function test_performed_requires_topics(): void
