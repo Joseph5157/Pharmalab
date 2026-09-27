@@ -61,6 +61,44 @@ class SoapNoteSyncTest extends TestCase
         $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.updated')->count());
     }
 
+    public function test_replaying_the_original_create_operation_does_not_add_an_updated_audit_event(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $createOperationId = (string) Str::uuid();
+        $payload = [
+            'client_operation_id' => $createOperationId, 'base_lock_version' => 0, 'subjective' => 'First.',
+        ];
+
+        $this->putJson("/student/cases/{$case->id}/soap", $payload)->assertOk();
+        $this->putJson("/student/cases/{$case->id}/soap", $payload)->assertOk();
+
+        $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.created')->count());
+        $this->assertSame(0, AuditEvent::query()->where('event_type', 'soap_note.updated')->count());
+    }
+
+    public function test_replaying_a_later_update_operation_does_not_add_a_second_updated_audit_event(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        $this->putJson("/student/cases/{$case->id}/soap", [
+            'client_operation_id' => (string) Str::uuid(), 'base_lock_version' => 0, 'subjective' => 'First.',
+        ])->assertOk();
+
+        $updateOperationId = (string) Str::uuid();
+        $updatePayload = [
+            'client_operation_id' => $updateOperationId, 'base_lock_version' => 1, 'objective' => 'BP 120/80.',
+        ];
+
+        $this->putJson("/student/cases/{$case->id}/soap", $updatePayload)->assertOk();
+        $this->putJson("/student/cases/{$case->id}/soap", $updatePayload)->assertOk();
+
+        $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.created')->count());
+        $this->assertSame(1, AuditEvent::query()->where('event_type', 'soap_note.updated')->count());
+    }
+
     public function test_monitoring_plan_not_applicable_reason_can_be_recorded_instead_of_a_plan(): void
     {
         [, $student, $case] = $this->makeCase();

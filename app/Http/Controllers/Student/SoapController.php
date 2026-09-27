@@ -59,8 +59,11 @@ class SoapController extends Controller
         // only ever fires a conflict-resolution audit event, so this
         // controller fires the creation/update events itself rather than
         // silently dropping them when the endpoint was rebuilt on the shared
-        // sync engine.
-        if (in_array($result['status'], ['saved', 'resolved_replaced'], true)) {
+        // sync engine. A replayed operation (same client_operation_id resent,
+        // e.g. after a lost response or an offline-queue retry) must not add
+        // a second event — the model has already reflected this write and
+        // its original audit event already exists.
+        if (! $result['replayed'] && in_array($result['status'], ['saved', 'resolved_replaced'], true)) {
             $audit->record($request->user(), $model, $wasNew ? 'soap_note.created' : 'soap_note.updated', [
                 'case_id' => $case->id,
                 'revision_number' => $model->revision_number,
