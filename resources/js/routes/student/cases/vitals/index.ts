@@ -28,7 +28,7 @@ store.url = (args: { case: string | { id: string } } | [caseParam: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -77,11 +77,11 @@ store.post = (args: { case: string | { id: string } } | [caseParam: string | { i
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::sync
- * @see app/Http/Controllers/Student/CaseVitalController.php:50
+ * @see app/Http/Controllers/Student/CaseVitalController.php:59
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 export const sync = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -96,7 +96,7 @@ sync.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::sync
- * @see app/Http/Controllers/Student/CaseVitalController.php:50
+ * @see app/Http/Controllers/Student/CaseVitalController.php:59
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 sync.url = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -126,7 +126,7 @@ sync.url = (args: { case: string | { id: string }, vital: string | { id: string 
 
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::sync
- * @see app/Http/Controllers/Student/CaseVitalController.php:50
+ * @see app/Http/Controllers/Student/CaseVitalController.php:59
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 sync.put = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -136,7 +136,7 @@ sync.put = (args: { case: string | { id: string }, vital: string | { id: string 
 
     /**
 * @see \App\Http\Controllers\Student\CaseVitalController::sync
- * @see app/Http/Controllers/Student/CaseVitalController.php:50
+ * @see app/Http/Controllers/Student/CaseVitalController.php:59
  * @route '/student/cases/{case}/vitals/{vital}'
  */
     const syncForm = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -151,7 +151,7 @@ sync.put = (args: { case: string | { id: string }, vital: string | { id: string 
 
             /**
 * @see \App\Http\Controllers\Student\CaseVitalController::sync
- * @see app/Http/Controllers/Student/CaseVitalController.php:50
+ * @see app/Http/Controllers/Student/CaseVitalController.php:59
  * @route '/student/cases/{case}/vitals/{vital}'
  */
         syncForm.put = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -163,11 +163,11 @@ sync.put = (args: { case: string | { id: string }, vital: string | { id: string 
                     }),
             method: 'post',
         })
-
+    
     sync.form = syncForm
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::destroy
- * @see app/Http/Controllers/Student/CaseVitalController.php:70
+ * @see app/Http/Controllers/Student/CaseVitalController.php:82
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 export const destroy = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -182,7 +182,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::destroy
- * @see app/Http/Controllers/Student/CaseVitalController.php:70
+ * @see app/Http/Controllers/Student/CaseVitalController.php:82
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 destroy.url = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -212,7 +212,7 @@ destroy.url = (args: { case: string | { id: string }, vital: string | { id: stri
 
 /**
 * @see \App\Http\Controllers\Student\CaseVitalController::destroy
- * @see app/Http/Controllers/Student/CaseVitalController.php:70
+ * @see app/Http/Controllers/Student/CaseVitalController.php:82
  * @route '/student/cases/{case}/vitals/{vital}'
  */
 destroy.delete = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -222,7 +222,7 @@ destroy.delete = (args: { case: string | { id: string }, vital: string | { id: s
 
     /**
 * @see \App\Http\Controllers\Student\CaseVitalController::destroy
- * @see app/Http/Controllers/Student/CaseVitalController.php:70
+ * @see app/Http/Controllers/Student/CaseVitalController.php:82
  * @route '/student/cases/{case}/vitals/{vital}'
  */
     const destroyForm = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -237,7 +237,7 @@ destroy.delete = (args: { case: string | { id: string }, vital: string | { id: s
 
             /**
 * @see \App\Http\Controllers\Student\CaseVitalController::destroy
- * @see app/Http/Controllers/Student/CaseVitalController.php:70
+ * @see app/Http/Controllers/Student/CaseVitalController.php:82
  * @route '/student/cases/{case}/vitals/{vital}'
  */
         destroyForm.delete = (args: { case: string | { id: string }, vital: string | { id: string } } | [caseParam: string | { id: string }, vital: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -249,7 +249,7 @@ destroy.delete = (args: { case: string | { id: string }, vital: string | { id: s
                     }),
             method: 'post',
         })
-
+    
     destroy.form = destroyForm
 const vitals = {
     store: Object.assign(store, store),

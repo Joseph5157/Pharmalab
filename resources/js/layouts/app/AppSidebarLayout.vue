@@ -5,7 +5,9 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import RoleBottomNav from '@/components/RoleBottomNav.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { deleteLegacyCaseDraftDatabase } from '@/lib/legacyCaseDraftCleanup';
 import type { BreadcrumbItem } from '@/types';
+import { onMounted } from 'vue';
 
 type Props = {
     breadcrumbs?: BreadcrumbItem[];
@@ -13,6 +15,10 @@ type Props = {
 
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
+});
+
+onMounted(() => {
+    deleteLegacyCaseDraftDatabase();
 });
 </script>
 

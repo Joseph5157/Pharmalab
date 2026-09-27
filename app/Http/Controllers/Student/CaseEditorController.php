@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\ClinicalActivityType;
 use App\Http\Controllers\Controller;
+use App\Models\CaseClinicalActivity;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
 use App\Models\CaseVital;
@@ -18,6 +20,7 @@ class CaseEditorController extends Controller
         Gate::authorize('update', $case);
 
         $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+        $case->load('clinicalActivities');
         $profile = $case->clinicalProfile;
 
         return Inertia::render('student/CaseEditor', [
@@ -121,6 +124,54 @@ class CaseEditorController extends Controller
                 'lock_version' => $medication->lock_version,
                 'updated_at' => $medication->updated_at->toIso8601String(),
             ])->all(),
+            'soap' => $case->currentSoap === null ? null : [
+                'subjective' => $case->currentSoap->subjective,
+                'objective' => $case->currentSoap->objective,
+                'assessment' => $case->currentSoap->assessment,
+                'plan' => $case->currentSoap->plan,
+                'monitoring_plan' => $case->currentSoap->monitoring_plan,
+                'monitoring_plan_not_applicable' => $case->currentSoap->monitoring_plan_not_applicable,
+                'monitoring_plan_not_applicable_reason' => $case->currentSoap->monitoring_plan_not_applicable_reason,
+                'drug_related_problem_status' => $case->currentSoap->drug_related_problem_status,
+                'drug_related_problem_categories' => $case->currentSoap->drug_related_problem_categories,
+                'lock_version' => $case->currentSoap->lock_version,
+                'updated_at' => $case->currentSoap->updated_at->toIso8601String(),
+            ],
+            'adr' => $this->singletonActivityPayload($case, ClinicalActivityType::Adr),
+            'counselling' => $this->singletonActivityPayload($case, ClinicalActivityType::Counselling),
+            'interventions' => $this->repeatableActivityPayload($case, ClinicalActivityType::Intervention),
+            'monitoringFollowUps' => $this->repeatableActivityPayload($case, ClinicalActivityType::Monitoring),
         ]);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function singletonActivityPayload(ClinicalCase $case, ClinicalActivityType $type): ?array
+    {
+        $activity = $case->clinicalActivities->firstWhere('activity_type', $type);
+
+        return $activity === null ? null : $this->activityPayload($activity);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function repeatableActivityPayload(ClinicalCase $case, ClinicalActivityType $type): array
+    {
+        return $case->clinicalActivities
+            ->where('activity_type', $type)
+            ->map(fn (CaseClinicalActivity $activity): array => $this->activityPayload($activity))
+            ->values()
+            ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function activityPayload(CaseClinicalActivity $activity): array
+    {
+        return [
+            'id' => $activity->id,
+            'activity_type' => $activity->activity_type->value,
+            'status' => $activity->status,
+            'details' => $activity->details,
+            'lock_version' => $activity->lock_version,
+            'updated_at' => $activity->updated_at->toIso8601String(),
+        ];
     }
 }

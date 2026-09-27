@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Enums\ClinicalActivityType;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $status
  * @property array<string, mixed>|null $details
  * @property int $recorded_by
+ * @property int $lock_version
  */
 #[Fillable([
     'institution_id',
@@ -26,9 +29,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'details',
     'recorded_by',
 ])]
-class CaseClinicalActivity extends Model
+class CaseClinicalActivity extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {

@@ -27,7 +27,7 @@ sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -86,7 +86,7 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
                     }),
             method: 'post',
         })
-
+    
     sync.form = syncForm
 const context = {
     sync: Object.assign(sync, sync),

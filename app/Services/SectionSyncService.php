@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Contracts\Syncable;
+use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
+use App\Models\SoapNote;
 use App\Models\SyncOperation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +27,10 @@ class SectionSyncService
         'vitals' => CaseVital::class,
         'investigations' => CaseInvestigation::class,
         'medications' => CaseMedication::class,
+        'soap' => SoapNote::class,
+        'clinical_activity_adr' => CaseClinicalActivity::class,
+        'clinical_activity_counselling' => CaseClinicalActivity::class,
+        'clinical_activities' => CaseClinicalActivity::class,
     ];
 
     public function __construct(private readonly AuditTrail $audit) {}
@@ -37,7 +43,7 @@ class SectionSyncService
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @return array{status:string,httpStatus:int,model:Model&Syncable}
+     * @return array{status:string,httpStatus:int,model:Model&Syncable,replayed:bool}
      */
     public function sync(Model&Syncable $model, User $user, string $sectionKey, string $clientOperationId, int $baseLockVersion, array $attributes, ?string $resolution, bool $confirmed): array
     {
@@ -51,19 +57,19 @@ class SectionSyncService
             if ($existing) {
                 abort_unless($existing->section_key === $sectionKey && $existing->syncable_type === $expectedClass && $existing->syncable_id === $locked->getKey(), 409, 'Operation ID already used for a different action.');
 
-                return ['status' => $existing->result_status, 'httpStatus' => $existing->result_status === 'conflict' ? 409 : 200, 'model' => $locked];
+                return ['status' => $existing->result_status, 'httpStatus' => $existing->result_status === 'conflict' ? 409 : 200, 'model' => $locked, 'replayed' => true];
             }
             if (in_array($resolution, ['use_server', 'keep_local_copy'], true)) {
                 $status = $resolution === 'use_server' ? 'resolved_server' : 'resolved_device_copy';
                 $this->record($user, $locked, $sectionKey, $clientOperationId, $baseLockVersion, $status);
                 $this->audit->record($user, $locked, "{$sectionKey}.conflict_resolved", ['section_key' => $sectionKey, 'resolution' => $resolution, 'base_lock_version' => $baseLockVersion, 'server_lock_version' => $locked->getLockVersion($sectionKey)]);
 
-                return ['status' => $status, 'httpStatus' => 200, 'model' => $locked];
+                return ['status' => $status, 'httpStatus' => 200, 'model' => $locked, 'replayed' => false];
             }
             if ($baseLockVersion !== $locked->getLockVersion($sectionKey)) {
                 $this->record($user, $locked, $sectionKey, $clientOperationId, $baseLockVersion, 'conflict');
 
-                return ['status' => 'conflict', 'httpStatus' => 409, 'model' => $locked];
+                return ['status' => 'conflict', 'httpStatus' => 409, 'model' => $locked, 'replayed' => false];
             }
             abort_if($resolution === 'replace_server' && ! $confirmed, 422, 'Replacing the server version requires explicit confirmation.');
             $locked->applySyncedAttributes($sectionKey, $attributes, $locked->getLockVersion($sectionKey) + 1);
@@ -73,7 +79,7 @@ class SectionSyncService
                 $this->audit->record($user, $locked, "{$sectionKey}.conflict_resolved", ['section_key' => $sectionKey, 'resolution' => $resolution, 'base_lock_version' => $baseLockVersion, 'server_lock_version' => $locked->getLockVersion($sectionKey)]);
             }
 
-            return ['status' => $status, 'httpStatus' => 200, 'model' => $locked];
+            return ['status' => $status, 'httpStatus' => 200, 'model' => $locked, 'replayed' => false];
         });
     }
 

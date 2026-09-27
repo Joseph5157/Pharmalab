@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Student\SoapController::update
- * @see app/Http/Controllers/Student/SoapController.php:30
+ * @see app/Http/Controllers/Student/SoapController.php:15
  * @route '/student/cases/{case}/soap'
  */
 export const update = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\SoapController::update
- * @see app/Http/Controllers/Student/SoapController.php:30
+ * @see app/Http/Controllers/Student/SoapController.php:15
  * @route '/student/cases/{case}/soap'
  */
 update.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ update.url = (args: { case: string | { id: string } } | [caseParam: string | { i
 
 /**
 * @see \App\Http\Controllers\Student\SoapController::update
- * @see app/Http/Controllers/Student/SoapController.php:30
+ * @see app/Http/Controllers/Student/SoapController.php:15
  * @route '/student/cases/{case}/soap'
  */
 update.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -59,7 +59,7 @@ update.put = (args: { case: string | { id: string } } | [caseParam: string | { i
 
     /**
 * @see \App\Http\Controllers\Student\SoapController::update
- * @see app/Http/Controllers/Student/SoapController.php:30
+ * @see app/Http/Controllers/Student/SoapController.php:15
  * @route '/student/cases/{case}/soap'
  */
     const updateForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ update.put = (args: { case: string | { id: string } } | [caseParam: string | { i
 
             /**
 * @see \App\Http\Controllers\Student\SoapController::update
- * @see app/Http/Controllers/Student/SoapController.php:30
+ * @see app/Http/Controllers/Student/SoapController.php:15
  * @route '/student/cases/{case}/soap'
  */
         updateForm.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

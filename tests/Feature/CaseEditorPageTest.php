@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\CaseStatus;
+use App\Enums\ClinicalActivityType;
+use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
@@ -11,6 +13,7 @@ use App\Models\Institution;
 use App\Models\Programme;
 use App\Models\Rotation;
 use App\Models\RotationAssignment;
+use App\Models\SoapNote;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -104,6 +107,51 @@ class CaseEditorPageTest extends TestCase
         [, $student, $case] = $this->makeCase(CaseStatus::Approved);
 
         $this->actingAs($student)->get(route('student.cases.edit', $case))->assertForbidden();
+    }
+
+    public function test_editor_page_includes_the_current_soap_note(): void
+    {
+        [$institution, $student, $case] = $this->makeCase();
+        SoapNote::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id, 'revision_number' => 1,
+            'subjective' => 'Headache.', 'author_id' => $student->id, 'last_saved_by' => $student->id,
+        ]);
+        $this->actingAs($student);
+
+        $response = $this->get("/student/cases/{$case->id}/edit");
+
+        $response->assertInertia(fn ($page) => $page->where('soap.subjective', 'Headache.'));
+    }
+
+    public function test_the_old_soap_page_route_no_longer_exists(): void
+    {
+        [, $student, $case] = $this->makeCase();
+        $this->actingAs($student);
+
+        // The URI itself is now taken by the renamed PUT .../soap sync route
+        // (Task 6 retires GET .../soap entirely rather than leaving it as a
+        // second, dead route), so a GET to it is correctly 405 Method Not
+        // Allowed, not 404 — the old SoapEditor.vue page it used to render is
+        // gone, and no route serves it as a GET.
+        $this->get("/student/cases/{$case->id}/soap")->assertStatus(405);
+    }
+
+    public function test_editor_page_includes_clinical_activities_split_by_shape(): void
+    {
+        [$institution, $student, $case] = $this->makeCase();
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => ClinicalActivityType::Intervention->value, 'recorded_by' => $student->id,
+        ]);
+        $this->actingAs($student);
+
+        $response = $this->get("/student/cases/{$case->id}/edit");
+
+        $response->assertInertia(fn ($page) => $page
+            ->has('interventions', 1)
+            ->has('monitoringFollowUps', 0)
+            ->where('adr', null)
+            ->where('counselling', null));
     }
 
     /** @return array{Institution, User, ClinicalCase} */

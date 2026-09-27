@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import {
-    FileText,
-    Send,
-    CheckCircle,
-    RotateCcw,
-    Clock,
-    MapPin,
-    User,
-} from '@lucide/vue';
+import { Send, CheckCircle, RotateCcw, Clock, MapPin, User } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 type SoapNote = {
@@ -165,18 +157,6 @@ const canSubmit = (): boolean => {
                     Continue documentation
                 </Button>
                 <Button
-                    v-if="
-                        clinicalCase.status === 'draft' ||
-                        clinicalCase.status === 'returned'
-                    "
-                    variant="outline"
-                    @click="
-                        router.get(`/student/cases/${clinicalCase.id}/soap`)
-                    "
-                >
-                    <FileText class="mr-1 size-4" /> Edit SOAP
-                </Button>
-                <Button
                     v-if="canSubmit()"
                     class="bg-[#0b2942] text-white"
                     :disabled="submitForm.processing"
@@ -314,7 +294,7 @@ const canSubmit = (): boolean => {
                         variant="link"
                         class="h-auto p-0"
                         @click="
-                            router.get(`/student/cases/${clinicalCase.id}/soap`)
+                            router.get(`/student/cases/${clinicalCase.id}/edit`)
                         "
                     >
                         Start editing

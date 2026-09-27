@@ -82,12 +82,17 @@ class CaseDetailRequestRulesTest extends TestCase
         ], $rules)->passes());
     }
 
-    public function test_clinical_activity_request_requires_a_known_activity_type(): void
+    public function test_clinical_activity_request_requires_a_repeatable_activity_type(): void
     {
         $rules = (new StoreCaseClinicalActivityRequest)->rules();
+        $envelope = ['client_operation_id' => (string) Str::uuid()];
 
-        $this->assertTrue(Validator::make(['activity_type' => 'not_real'], $rules)->fails());
-        $this->assertTrue(Validator::make(['activity_type' => 'adr'], $rules)->passes());
+        $this->assertTrue(Validator::make([...$envelope, 'activity_type' => 'not_real'], $rules)->fails());
+        // ADR/Counselling are singleton sections created only through their
+        // own dedicated endpoints (Tasks 3-4) — the generic repeatable-row
+        // store route must reject them, not just unknown strings.
+        $this->assertTrue(Validator::make([...$envelope, 'activity_type' => 'adr'], $rules)->fails());
+        $this->assertTrue(Validator::make([...$envelope, 'activity_type' => 'intervention'], $rules)->passes());
     }
 
     public function test_clinical_profile_update_request_rejects_an_unknown_allergy_status(): void

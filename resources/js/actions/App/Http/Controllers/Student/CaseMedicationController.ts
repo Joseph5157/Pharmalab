@@ -80,7 +80,7 @@ store.post = (args: { case: string | { id: string } } | [caseParam: string | { i
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::sync
- * @see app/Http/Controllers/Student/CaseMedicationController.php:53
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:59
  * @route '/student/cases/{case}/medications/{medication}'
  */
 export const sync = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -95,7 +95,7 @@ sync.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::sync
- * @see app/Http/Controllers/Student/CaseMedicationController.php:53
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:59
  * @route '/student/cases/{case}/medications/{medication}'
  */
 sync.url = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -125,7 +125,7 @@ sync.url = (args: { case: string | { id: string }, medication: string | { id: st
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::sync
- * @see app/Http/Controllers/Student/CaseMedicationController.php:53
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:59
  * @route '/student/cases/{case}/medications/{medication}'
  */
 sync.put = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -135,7 +135,7 @@ sync.put = (args: { case: string | { id: string }, medication: string | { id: st
 
     /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::sync
- * @see app/Http/Controllers/Student/CaseMedicationController.php:53
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:59
  * @route '/student/cases/{case}/medications/{medication}'
  */
     const syncForm = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -150,7 +150,7 @@ sync.put = (args: { case: string | { id: string }, medication: string | { id: st
 
             /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::sync
- * @see app/Http/Controllers/Student/CaseMedicationController.php:53
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:59
  * @route '/student/cases/{case}/medications/{medication}'
  */
         syncForm.put = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -166,7 +166,7 @@ sync.put = (args: { case: string | { id: string }, medication: string | { id: st
     sync.form = syncForm
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::destroy
- * @see app/Http/Controllers/Student/CaseMedicationController.php:76
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:82
  * @route '/student/cases/{case}/medications/{medication}'
  */
 export const destroy = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -181,7 +181,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::destroy
- * @see app/Http/Controllers/Student/CaseMedicationController.php:76
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:82
  * @route '/student/cases/{case}/medications/{medication}'
  */
 destroy.url = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -211,7 +211,7 @@ destroy.url = (args: { case: string | { id: string }, medication: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::destroy
- * @see app/Http/Controllers/Student/CaseMedicationController.php:76
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:82
  * @route '/student/cases/{case}/medications/{medication}'
  */
 destroy.delete = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -221,7 +221,7 @@ destroy.delete = (args: { case: string | { id: string }, medication: string | { 
 
     /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::destroy
- * @see app/Http/Controllers/Student/CaseMedicationController.php:76
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:82
  * @route '/student/cases/{case}/medications/{medication}'
  */
     const destroyForm = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -236,7 +236,7 @@ destroy.delete = (args: { case: string | { id: string }, medication: string | { 
 
             /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::destroy
- * @see app/Http/Controllers/Student/CaseMedicationController.php:76
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:82
  * @route '/student/cases/{case}/medications/{medication}'
  */
         destroyForm.delete = (args: { case: string | { id: string }, medication: string | { id: string } } | [caseParam: string | { id: string }, medication: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -252,7 +252,7 @@ destroy.delete = (args: { case: string | { id: string }, medication: string | { 
     destroy.form = destroyForm
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::syncAvailability
- * @see app/Http/Controllers/Student/CaseMedicationController.php:95
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:101
  * @route '/student/cases/{case}/medication-chart-availability'
  */
 export const syncAvailability = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -267,7 +267,7 @@ syncAvailability.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::syncAvailability
- * @see app/Http/Controllers/Student/CaseMedicationController.php:95
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:101
  * @route '/student/cases/{case}/medication-chart-availability'
  */
 syncAvailability.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -300,7 +300,7 @@ syncAvailability.url = (args: { case: string | { id: string } } | [caseParam: st
 
 /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::syncAvailability
- * @see app/Http/Controllers/Student/CaseMedicationController.php:95
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:101
  * @route '/student/cases/{case}/medication-chart-availability'
  */
 syncAvailability.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -310,7 +310,7 @@ syncAvailability.put = (args: { case: string | { id: string } } | [caseParam: st
 
     /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::syncAvailability
- * @see app/Http/Controllers/Student/CaseMedicationController.php:95
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:101
  * @route '/student/cases/{case}/medication-chart-availability'
  */
     const syncAvailabilityForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +325,7 @@ syncAvailability.put = (args: { case: string | { id: string } } | [caseParam: st
 
             /**
 * @see \App\Http\Controllers\Student\CaseMedicationController::syncAvailability
- * @see app/Http/Controllers/Student/CaseMedicationController.php:95
+ * @see app/Http/Controllers/Student/CaseMedicationController.php:101
  * @route '/student/cases/{case}/medication-chart-availability'
  */
         syncAvailabilityForm.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
