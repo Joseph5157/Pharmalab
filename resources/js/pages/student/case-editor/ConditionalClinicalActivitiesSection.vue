@@ -587,6 +587,47 @@ const counsellingStatusLabel = computed(() =>
                     </label>
                 </div>
             </div>
+            <section
+                v-if="adrSync.conflict.value"
+                data-test="adr-conflict"
+                class="mt-3 rounded-xl border border-rose-200 bg-white p-3 dark:border-rose-900 dark:bg-slate-900"
+            >
+                <p class="text-xs font-bold text-rose-700">
+                    The server changed after this device began editing.
+                </p>
+                <div class="mt-2 grid gap-1.5">
+                    <button
+                        type="button"
+                        class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold"
+                        @click="adrSync.resolveWithServer"
+                    >
+                        Use server version
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold"
+                        @click="adrSync.keepDeviceCopy"
+                    >
+                        Keep local draft as a copy
+                    </button>
+                    <button
+                        v-if="!adrSync.confirmingReplace.value"
+                        type="button"
+                        class="rounded-lg border border-rose-200 px-2 py-1.5 text-left text-xs font-bold text-rose-700"
+                        @click="adrSync.confirmingReplace.value = true"
+                    >
+                        Replace server version
+                    </button>
+                    <button
+                        v-else
+                        type="button"
+                        class="rounded-lg bg-rose-700 px-2 py-1.5 text-xs font-bold text-white"
+                        @click="adrSync.replaceServer"
+                    >
+                        Yes, replace it
+                    </button>
+                </div>
+            </section>
         </div>
 
         <div>
@@ -825,6 +866,47 @@ const counsellingStatusLabel = computed(() =>
                     Understanding checked
                 </label>
             </div>
+            <section
+                v-if="counsellingSync.conflict.value"
+                data-test="counselling-conflict"
+                class="mt-3 rounded-xl border border-rose-200 bg-white p-3 dark:border-rose-900 dark:bg-slate-900"
+            >
+                <p class="text-xs font-bold text-rose-700">
+                    The server changed after this device began editing.
+                </p>
+                <div class="mt-2 grid gap-1.5">
+                    <button
+                        type="button"
+                        class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold"
+                        @click="counsellingSync.resolveWithServer"
+                    >
+                        Use server version
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-lg border px-2 py-1.5 text-left text-xs font-bold"
+                        @click="counsellingSync.keepDeviceCopy"
+                    >
+                        Keep local draft as a copy
+                    </button>
+                    <button
+                        v-if="!counsellingSync.confirmingReplace.value"
+                        type="button"
+                        class="rounded-lg border border-rose-200 px-2 py-1.5 text-left text-xs font-bold text-rose-700"
+                        @click="counsellingSync.confirmingReplace.value = true"
+                    >
+                        Replace server version
+                    </button>
+                    <button
+                        v-else
+                        type="button"
+                        class="rounded-lg bg-rose-700 px-2 py-1.5 text-xs font-bold text-white"
+                        @click="counsellingSync.replaceServer"
+                    >
+                        Yes, replace it
+                    </button>
+                </div>
+            </section>
         </div>
 
         <div>
