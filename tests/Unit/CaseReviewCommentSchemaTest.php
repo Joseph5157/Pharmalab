@@ -2,7 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Enums\CaseReviewSection;
+use App\Models\CaseReviewComment;
 use App\Models\CaseStatusTransition;
+use App\Models\CaseVersion;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
@@ -59,6 +62,47 @@ class CaseReviewCommentSchemaTest extends TestCase
             'created_by' => $userId,
             'created_at' => now(),
         ]);
+    }
+
+    public function test_a_comment_is_reachable_from_its_case_version_through_the_transition(): void
+    {
+        [$institutionId, $caseId, $transitionId, $facultyId] = $this->seedTransition();
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institutionId,
+            'clinical_case_id' => $caseId,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => ClinicalCase::query()->withoutGlobalScopes()->find($caseId)->student_id,
+            'submitted_at' => now(),
+        ]);
+
+        CaseStatusTransition::query()->withoutGlobalScopes()
+            ->whereKey($transitionId)
+            ->update(['case_version_id' => $version->id]);
+
+        CaseReviewComment::query()->create([
+            'institution_id' => $institutionId,
+            'clinical_case_id' => $caseId,
+            'case_status_transition_id' => $transitionId,
+            'section' => CaseReviewSection::Soap,
+            'body' => 'Please expand the plan.',
+            'is_flagged' => true,
+            'created_by' => $facultyId,
+        ]);
+
+        $reloaded = CaseVersion::query()->withoutGlobalScopes()
+            ->with('statusTransitions.reviewComments.author')
+            ->findOrFail($version->id);
+
+        $comment = $reloaded->statusTransitions->first()->reviewComments->first();
+
+        $this->assertNotNull($comment);
+        $this->assertSame(CaseReviewSection::Soap, $comment->section);
+        $this->assertTrue($comment->is_flagged);
+        $this->assertSame($facultyId, $comment->author->id);
     }
 
     /** @return array{string, string, string, int} */
