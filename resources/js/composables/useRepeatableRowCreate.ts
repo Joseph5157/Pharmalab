@@ -39,6 +39,12 @@ export function useRepeatableRowCreate<T extends { id: string }>(
     /** Keyed by localId; present only for a permanently-rejected (422/409) queued create. */
     const failedCreateErrors = ref<Record<string, string[]>>({});
 
+    function clearFailedCreateError(localId: string) {
+        if (!(localId in failedCreateErrors.value)) return;
+        const { [localId]: _removed, ...rest } = failedCreateErrors.value;
+        failedCreateErrors.value = rest;
+    }
+
     async function flush(
         draft: StoredSection<Record<string, unknown>>,
     ): Promise<T | null> {
@@ -76,9 +82,17 @@ export function useRepeatableRowCreate<T extends { id: string }>(
                 await putSection({ ...draft, lastError: messages.join(' ') });
                 return null;
             }
+            // A non-422/409 failure (network error below, or another status
+            // here) is transient, not a rejection of this payload — leave
+            // any existing failedCreateErrors entry alone (rather than
+            // clearing it, as retryFailedCreate used to do before calling
+            // this) so a retry attempt that fails again for a different
+            // reason doesn't strand the row with no visible error and no
+            // Retry/Discard buttons.
             if (!response.ok) return null;
             const body = (await response.json()) as Record<string, T>;
             await deleteSection(draft.key);
+            clearFailedCreateError(draft.resourceId);
             return body[options.responseKey];
         } catch {
             return null;
@@ -119,22 +133,21 @@ export function useRepeatableRowCreate<T extends { id: string }>(
         await deleteSection(
             buildSectionKey(options.userId, createSectionKey, localId),
         );
-        if (localId in failedCreateErrors.value) {
-            const { [localId]: _removed, ...rest } = failedCreateErrors.value;
-            failedCreateErrors.value = rest;
-        }
+        clearFailedCreateError(localId);
     }
 
-    /** Retries a single draft the user explicitly asked to retry after a 422/409. */
+    /**
+     * Retries a single draft the user explicitly asked to retry after a
+     * 422/409. Does not clear failedCreateErrors up front — flush() itself
+     * decides whether the retry's outcome should update, keep, or clear it,
+     * so a retry that fails again (for any reason) never silently strands
+     * the row with no visible error.
+     */
     async function retryFailedCreate(localId: string): Promise<T | null> {
         const draft = await getSection<Record<string, unknown>>(
             buildSectionKey(options.userId, createSectionKey, localId),
         );
         if (!draft) return null;
-        if (localId in failedCreateErrors.value) {
-            const { [localId]: _removed, ...rest } = failedCreateErrors.value;
-            failedCreateErrors.value = rest;
-        }
         return flush(draft);
     }
 
