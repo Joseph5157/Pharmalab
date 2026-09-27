@@ -1067,6 +1067,30 @@ Add to `tests/Feature/ClinicalCaseWorkflowTest.php`:
         $this->assertDatabaseMissing('case_review_comments', ['clinical_case_id' => $case->id]);
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
     }
+
+    public function test_approve_is_rejected_once_the_case_has_already_moved_past_review(): void
+    {
+        // The pre-Slice-4 ApproveCase had no status guard at all. This proves
+        // the new row-lock-and-recheck guard actually rejects an approve
+        // attempt once the case is no longer Submitted/UnderReview — the
+        // same simulated-race shape as ReturnCase's equivalent test.
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Draft,
+        ]);
+
+        $this->actingAs($faculty);
+
+        $approveCase = app(ApproveCase::class);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $approveCase($faculty, $case, 'Too early.', []);
+    }
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1751,7 +1775,7 @@ Expected: FAIL — `ClinicalCasePresenter::reviewFeedback()` doesn't exist yet.
 
 - [ ] **Step 3: Add the presenter method**
 
-In `app/Services/ClinicalCasePresenter.php`, add the imports `use App\Enums\CaseReviewSection;` and `use App\Models\CaseReviewComment;`, then add this method:
+In `app/Services/ClinicalCasePresenter.php`, add the imports `use App\Enums\CaseReviewSection;`, `use App\Enums\CaseStatus;` (not yet imported in this file — the method body below needs `CaseStatus::Returned`/`CaseStatus::Approved`), and `use App\Models\CaseReviewComment;`, then add this method:
 
 ```php
     /** @return array{flaggedSections: list<string>, reopenedReason: string|null} */
