@@ -79,8 +79,9 @@ const statusLabel = computed(
 const monitoringNotApplicable = computed({
     get: () => payload.value.monitoring_plan_not_applicable_reason !== null,
     set: (checked: boolean) => {
-        if (!checked)
-            payload.value.monitoring_plan_not_applicable_reason = null;
+        payload.value.monitoring_plan_not_applicable_reason = checked
+            ? ''
+            : null;
         edit();
     },
 });
