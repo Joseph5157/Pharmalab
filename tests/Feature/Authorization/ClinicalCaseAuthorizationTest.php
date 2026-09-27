@@ -94,6 +94,52 @@ class ClinicalCaseAuthorizationTest extends TestCase
         $this->get(route('faculty.reviews.show', $case))->assertForbidden();
     }
 
+    public function test_student_cannot_open_another_students_submission_review(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $otherStudent = User::factory()->student()->create(['institution_id' => $institution->id]);
+        $this->actingAs($student);
+
+        $otherCase = $this->createCase($institution, $otherStudent, $assignment, CaseStatus::Draft);
+
+        $this->get(route('student.cases.submission-review', $otherCase))->assertForbidden();
+    }
+
+    public function test_faculty_cannot_open_or_submit_the_student_submission_routes(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $this->actingAs($faculty);
+
+        $case = $this->createCase($institution, $student, $assignment, CaseStatus::Draft);
+
+        $this->get(route('student.cases.submission-review', $case))->assertForbidden();
+        $this->post(route('student.cases.submit', $case))->assertForbidden();
+    }
+
+    public function test_submission_review_is_forbidden_once_a_case_leaves_draft_or_returned_status(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $this->actingAs($student);
+
+        foreach ([CaseStatus::Submitted, CaseStatus::UnderReview, CaseStatus::Approved] as $index => $status) {
+            $case = $this->createCase($institution, $student, $assignment, $status, $index + 1);
+
+            $this->get(route('student.cases.submission-review', $case))->assertForbidden();
+        }
+    }
+
+    public function test_submit_is_forbidden_once_a_case_is_under_review_or_approved(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupInstitution();
+        $this->actingAs($student);
+
+        foreach ([CaseStatus::UnderReview, CaseStatus::Approved] as $index => $status) {
+            $case = $this->createCase($institution, $student, $assignment, $status, $index + 1);
+
+            $this->post(route('student.cases.submit', $case), ['deidentification_attested' => true])->assertForbidden();
+        }
+    }
+
     /** @return array{Institution, User, User, RotationAssignment, ClinicalSite} */
     private function setupInstitution(): array
     {
@@ -114,13 +160,13 @@ class ClinicalCaseAuthorizationTest extends TestCase
         return [$institution, $student, $faculty, $assignment, $site];
     }
 
-    private function createCase(Institution $institution, User $student, RotationAssignment $assignment, CaseStatus $status): ClinicalCase
+    private function createCase(Institution $institution, User $student, RotationAssignment $assignment, CaseStatus $status, int $caseNumber = 1): ClinicalCase
     {
         return ClinicalCase::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
             'student_id' => $student->id,
             'rotation_assignment_id' => $assignment->id,
-            'case_number' => 1,
+            'case_number' => $caseNumber,
             'status' => $status,
         ]);
     }
