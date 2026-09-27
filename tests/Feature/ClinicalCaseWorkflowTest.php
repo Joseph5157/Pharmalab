@@ -12,6 +12,7 @@ use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
+use App\Models\CaseStatusTransition;
 use App\Models\CaseVersion;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
@@ -23,7 +24,9 @@ use App\Models\RotationAssignment;
 use App\Models\SoapNote;
 use App\Models\User;
 use App\Policies\ClinicalCasePolicy;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class ClinicalCaseWorkflowTest extends TestCase
@@ -201,10 +204,23 @@ class ClinicalCaseWorkflowTest extends TestCase
             'submitted_at' => now(),
         ]);
 
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
         $this->actingAs($faculty);
 
         $returnCase = app(ReturnCase::class);
-        $returnCase($faculty, $case, 'Please add more detail to the assessment section.');
+        $returnCase($faculty, $case, 'Please add more detail to the assessment section.', [
+            ['section' => 'soap', 'body' => 'Please add more detail.', 'is_flagged' => true],
+        ]);
 
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Returned->value]);
         $this->assertDatabaseHas('case_status_transitions', [
@@ -213,6 +229,128 @@ class ClinicalCaseWorkflowTest extends TestCase
             'to_status' => CaseStatus::Returned->value,
             'reason' => 'Please add more detail to the assessment section.',
         ]);
+    }
+
+    public function test_return_creates_section_comments_tied_to_the_return_transition(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+        ]);
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $returnCase = app(ReturnCase::class);
+        $returnCase($faculty, $case, 'See flagged sections.', [
+            ['section' => 'soap', 'body' => 'Expand the assessment.', 'is_flagged' => true],
+            ['section' => 'medication_chart', 'body' => 'Looks good.', 'is_flagged' => false],
+        ]);
+
+        $transition = CaseStatusTransition::query()->withoutGlobalScopes()
+            ->where('clinical_case_id', $case->id)
+            ->where('to_status', CaseStatus::Returned->value)
+            ->sole();
+
+        $this->assertSame($version->id, $transition->case_version_id);
+        $this->assertDatabaseHas('case_review_comments', [
+            'case_status_transition_id' => $transition->id,
+            'section' => 'soap',
+            'is_flagged' => true,
+        ]);
+        $this->assertDatabaseHas('case_review_comments', [
+            'case_status_transition_id' => $transition->id,
+            'section' => 'medication_chart',
+            'is_flagged' => false,
+        ]);
+    }
+
+    public function test_return_is_rejected_once_the_case_has_already_moved_past_review(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Approved,
+        ]);
+
+        $this->actingAs($faculty);
+
+        $returnCase = app(ReturnCase::class);
+
+        $this->expectException(HttpException::class);
+        $returnCase($faculty, $case, 'Too late.', [
+            ['section' => 'soap', 'body' => 'x', 'is_flagged' => true],
+        ]);
+    }
+
+    public function test_a_failed_return_leaves_no_transition_or_comment_behind(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $returnCase = app(ReturnCase::class);
+
+        // Two entries for the same section violate the DB unique constraint
+        // on (case_status_transition_id, section) — this is what a bug in
+        // the controller's own duplicate-section check (Task 7) would let
+        // through, and the action must still roll back cleanly if it does.
+        try {
+            $returnCase($faculty, $case, 'Duplicate section.', [
+                ['section' => 'soap', 'body' => 'First.', 'is_flagged' => true],
+                ['section' => 'soap', 'body' => 'Second.', 'is_flagged' => false],
+            ]);
+            $this->fail('Expected a database exception for the duplicate section.');
+        } catch (QueryException) {
+            // expected
+        }
+
+        $this->assertDatabaseMissing('case_status_transitions', [
+            'clinical_case_id' => $case->id,
+            'to_status' => CaseStatus::Returned->value,
+        ]);
+        $this->assertDatabaseMissing('case_review_comments', [
+            'clinical_case_id' => $case->id,
+        ]);
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
     }
 
     public function test_student_can_resubmit_returned_case(): void
