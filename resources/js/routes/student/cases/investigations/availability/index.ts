@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Student\CaseInvestigationController::sync
- * @see app/Http/Controllers/Student/CaseInvestigationController.php:95
+ * @see app/Http/Controllers/Student/CaseInvestigationController.php:101
  * @route '/student/cases/{case}/investigations-availability'
  */
 export const sync = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ sync.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseInvestigationController::sync
- * @see app/Http/Controllers/Student/CaseInvestigationController.php:95
+ * @see app/Http/Controllers/Student/CaseInvestigationController.php:101
  * @route '/student/cases/{case}/investigations-availability'
  */
 sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -49,7 +49,7 @@ sync.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseInvestigationController::sync
- * @see app/Http/Controllers/Student/CaseInvestigationController.php:95
+ * @see app/Http/Controllers/Student/CaseInvestigationController.php:101
  * @route '/student/cases/{case}/investigations-availability'
  */
 sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -59,7 +59,7 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
     /**
 * @see \App\Http\Controllers\Student\CaseInvestigationController::sync
- * @see app/Http/Controllers/Student/CaseInvestigationController.php:95
+ * @see app/Http/Controllers/Student/CaseInvestigationController.php:101
  * @route '/student/cases/{case}/investigations-availability'
  */
     const syncForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
             /**
 * @see \App\Http\Controllers\Student\CaseInvestigationController::sync
- * @see app/Http/Controllers/Student/CaseInvestigationController.php:95
+ * @see app/Http/Controllers/Student/CaseInvestigationController.php:101
  * @route '/student/cases/{case}/investigations-availability'
  */
         syncForm.put = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -86,7 +86,7 @@ sync.put = (args: { case: string | { id: string } } | [caseParam: string | { id:
                     }),
             method: 'post',
         })
-
+    
     sync.form = syncForm
 const availability = {
     sync: Object.assign(sync, sync),

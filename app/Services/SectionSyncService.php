@@ -8,6 +8,7 @@ use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
+use App\Models\SoapNote;
 use App\Models\SyncOperation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ class SectionSyncService
         'vitals' => CaseVital::class,
         'investigations' => CaseInvestigation::class,
         'medications' => CaseMedication::class,
+        'soap' => SoapNote::class,
     ];
 
     public function __construct(private readonly AuditTrail $audit) {}

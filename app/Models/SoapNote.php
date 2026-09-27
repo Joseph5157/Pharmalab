@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Contracts\Syncable;
 use App\Models\Concerns\BelongsToInstitution;
+use App\Models\Concerns\SyncsWithLockVersion;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +20,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $objective
  * @property string|null $assessment
  * @property string|null $plan
+ * @property string|null $monitoring_plan
+ * @property string|null $monitoring_plan_not_applicable_reason
  * @property int $author_id
  * @property int $last_saved_by
  * @property int $lock_version
@@ -32,15 +36,16 @@ use Illuminate\Support\Carbon;
     'objective',
     'assessment',
     'plan',
+    'monitoring_plan',
+    'monitoring_plan_not_applicable_reason',
     'drug_related_problem_status',
     'drug_related_problem_categories',
     'author_id',
     'last_saved_by',
-    'lock_version',
 ])]
-class SoapNote extends Model
+class SoapNote extends Model implements Syncable
 {
-    use BelongsToInstitution, HasUlids;
+    use BelongsToInstitution, HasUlids, SyncsWithLockVersion;
 
     protected function casts(): array
     {

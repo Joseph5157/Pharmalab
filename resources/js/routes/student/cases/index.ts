@@ -81,7 +81,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Student\CaseController::store
@@ -136,7 +136,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Student\CaseController::show
@@ -166,7 +166,7 @@ show.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -238,11 +238,11 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
 export const edit = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -257,7 +257,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
 edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -268,7 +268,7 @@ edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -290,7 +290,7 @@ edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
 edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -299,7 +299,7 @@ edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id:
 })
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
 edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -309,7 +309,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
     /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
     const editForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -319,7 +319,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
         editForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -328,7 +328,7 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
             /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:13
+ * @see app/Http/Controllers/Student/CaseEditorController.php:16
  * @route '/student/cases/{case}/edit'
  */
         editForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -340,11 +340,11 @@ edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
 export const soap = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -359,7 +359,7 @@ soap.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
 soap.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -370,7 +370,7 @@ soap.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -392,7 +392,7 @@ soap.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
 soap.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -401,7 +401,7 @@ soap.get = (args: { case: string | { id: string } } | [caseParam: string | { id:
 })
 /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
 soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -411,7 +411,7 @@ soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
     /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
     const soapForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -421,7 +421,7 @@ soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 
             /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
         soapForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -430,7 +430,7 @@ soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
             /**
 * @see \App\Http\Controllers\Student\SoapController::soap
- * @see app/Http/Controllers/Student/SoapController.php:18
+ * @see app/Http/Controllers/Student/SoapController.php:21
  * @route '/student/cases/{case}/soap'
  */
         soapForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -442,7 +442,7 @@ soap.head = (args: { case: string | { id: string } } | [caseParam: string | { id
                     }),
             method: 'get',
         })
-
+    
     soap.form = soapForm
 /**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
@@ -472,7 +472,7 @@ submit.url = (args: { case: string | { id: string } } | [caseParam: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { case: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     case: args[0],
@@ -521,7 +521,7 @@ submit.post = (args: { case: string | { id: string } } | [caseParam: string | { 
             action: submit.url(args, options),
             method: 'post',
         })
-
+    
     submit.form = submitForm
 const cases = {
     index: Object.assign(index, index),
