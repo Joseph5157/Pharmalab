@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property int $student_id
  * @property int $case_number
  * @property CaseStatus $status
+ * @property CaseFormVersion $form_version
  * @property int $current_revision_number
  * @property int $lock_version
  * @property Carbon|null $encounter_date

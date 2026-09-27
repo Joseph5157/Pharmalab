@@ -7,7 +7,12 @@ use App\Actions\ReturnCase;
 use App\Actions\SubmitCase;
 use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
+use App\Models\CaseClinicalActivity;
+use App\Models\CaseClinicalProfile;
+use App\Models\CaseInvestigation;
+use App\Models\CaseMedication;
 use App\Models\CaseVersion;
+use App\Models\CaseVital;
 use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
@@ -47,12 +52,55 @@ class ClinicalCaseWorkflowTest extends TestCase
             'rotation_assignment_id' => $assignment->id,
             'case_number' => 1,
             'status' => CaseStatus::Draft,
+            'form_version' => 'pharmd-case-v1',
             'encounter_date' => '2026-10-15',
             'case_category' => 'Drug Therapy Problem',
             'clinical_site_id' => $site->id,
+            'care_setting' => 'inpatient',
+            'information_source' => 'case sheet',
+            'age_value' => 34,
+            'age_unit' => 'years',
+            'sex' => 'female',
+            'vitals_status' => 'recorded',
+            'investigations_status' => 'recorded',
+            'medication_chart_status' => 'documented',
         ]);
 
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Draft->value]);
+
+        CaseClinicalProfile::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'chief_complaints' => [['complaint' => 'Headache', 'duration' => '3 days']],
+            'history_present_illness' => 'Three-day headache, no red flags.',
+            'diagnoses' => [['label' => 'Tension headache', 'type' => 'provisional']],
+            'past_medical_history_none' => true,
+            'allergy_status' => 'no_known_allergy',
+            'last_saved_by' => $student->id,
+        ]);
+        CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse', 'value_numeric' => 80, 'recorded_by' => $student->id,
+        ]);
+        CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'test_name' => 'Haemoglobin', 'result_type' => 'numeric', 'result_value' => '13.5',
+            'unit' => 'g/dL', 'reference_range_not_provided' => true, 'recorded_by' => $student->id,
+        ]);
+        CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'medication_context' => null, 'generic_name' => 'Paracetamol', 'indication' => 'Headache relief',
+            'dose_amount' => '500', 'dose_unit' => 'mg', 'route' => 'oral', 'frequency' => 'TID',
+            'status' => 'active', 'recorded_by' => $student->id,
+        ]);
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'adr', 'status' => 'no', 'recorded_by' => $student->id,
+        ]);
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'counselling', 'status' => 'not_indicated', 'recorded_by' => $student->id,
+        ]);
 
         SoapNote::query()->withoutGlobalScopes()->create([
             'institution_id' => $institution->id,
@@ -62,12 +110,14 @@ class ClinicalCaseWorkflowTest extends TestCase
             'objective' => 'BP 140/90, HR 80.',
             'assessment' => 'Tension-type headache.',
             'plan' => 'Recommend paracetamol 500mg TID.',
+            'monitoring_plan' => 'Review pain score at 24h.',
+            'drug_related_problem_status' => 'none_identified',
             'author_id' => $student->id,
             'last_saved_by' => $student->id,
         ]);
 
         $submitCase = app(SubmitCase::class);
-        $version = $submitCase($student, $case);
+        $version = $submitCase($student, $case, true);
 
         $this->assertNotNull($version);
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
@@ -186,6 +236,50 @@ class ClinicalCaseWorkflowTest extends TestCase
             'case_number' => 1,
             'status' => CaseStatus::Returned,
             'current_revision_number' => 1,
+            'form_version' => 'pharmd-case-v1',
+            'care_setting' => 'inpatient',
+            'encounter_date' => '2026-10-15',
+            'information_source' => 'case sheet',
+            'age_value' => 34,
+            'age_unit' => 'years',
+            'sex' => 'female',
+            'vitals_status' => 'recorded',
+            'investigations_status' => 'recorded',
+            'medication_chart_status' => 'documented',
+        ]);
+
+        CaseClinicalProfile::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'chief_complaints' => [['complaint' => 'Headache', 'duration' => '3 days']],
+            'history_present_illness' => 'Three-day headache, no red flags.',
+            'diagnoses' => [['label' => 'Tension headache', 'type' => 'provisional']],
+            'past_medical_history_none' => true,
+            'allergy_status' => 'no_known_allergy',
+            'last_saved_by' => $student->id,
+        ]);
+        CaseVital::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'observation_type' => 'pulse', 'value_numeric' => 80, 'recorded_by' => $student->id,
+        ]);
+        CaseInvestigation::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'test_name' => 'Haemoglobin', 'result_type' => 'numeric', 'result_value' => '13.5',
+            'unit' => 'g/dL', 'reference_range_not_provided' => true, 'recorded_by' => $student->id,
+        ]);
+        CaseMedication::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'medication_context' => null, 'generic_name' => 'Paracetamol', 'indication' => 'Headache relief',
+            'dose_amount' => '500', 'dose_unit' => 'mg', 'route' => 'oral', 'frequency' => 'TID',
+            'status' => 'active', 'recorded_by' => $student->id,
+        ]);
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'adr', 'status' => 'no', 'recorded_by' => $student->id,
+        ]);
+        CaseClinicalActivity::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id, 'clinical_case_id' => $case->id,
+            'activity_type' => 'counselling', 'status' => 'not_indicated', 'recorded_by' => $student->id,
         ]);
 
         SoapNote::query()->withoutGlobalScopes()->create([
@@ -196,6 +290,8 @@ class ClinicalCaseWorkflowTest extends TestCase
             'objective' => 'Updated objective.',
             'assessment' => 'Updated assessment with more detail.',
             'plan' => 'Updated plan.',
+            'monitoring_plan' => 'Review pain score at 24h.',
+            'drug_related_problem_status' => 'none_identified',
             'author_id' => $student->id,
             'last_saved_by' => $student->id,
         ]);
@@ -203,7 +299,7 @@ class ClinicalCaseWorkflowTest extends TestCase
         $this->actingAs($student);
 
         $submitCase = app(SubmitCase::class);
-        $version = $submitCase($student, $case);
+        $version = $submitCase($student, $case, true);
 
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
         $this->assertDatabaseHas('case_versions', ['clinical_case_id' => $case->id, 'version_number' => 2]);

@@ -52,6 +52,15 @@ class ClinicalCasePolicy
             && in_array($case->status, [CaseStatus::Draft, CaseStatus::Returned]);
     }
 
+    /**
+     * Allows Submitted in addition to Draft/Returned so a duplicated or
+     * retried POST to /submit while the case is already Submitted reaches
+     * SubmitCase, which returns the existing version idempotently instead of
+     * erroring or being denied. UnderReview/Approved are intentionally
+     * excluded: once a faculty member has started or finished reviewing,
+     * submission is a one-way door and a POST at that point is a genuine
+     * denial, not a no-op.
+     */
     public function submit(User $user, ClinicalCase $case): bool
     {
         if ($case->institution_id !== $user->institution_id) {
@@ -60,7 +69,24 @@ class ClinicalCasePolicy
 
         return $user->role === UserRole::Student
             && $case->student_id === $user->id
-            && in_array($case->status, [CaseStatus::Draft, CaseStatus::Returned]);
+            && in_array($case->status, [CaseStatus::Draft, CaseStatus::Returned, CaseStatus::Submitted], true);
+    }
+
+    /**
+     * Narrower than submit(): the read-only submission-review screen only
+     * makes sense while there is still something to review before
+     * submitting. Once a case is Submitted (or later), there is nothing left
+     * to review-before-submitting, so this denies where submit() now allows.
+     */
+    public function reviewForSubmission(User $user, ClinicalCase $case): bool
+    {
+        if ($case->institution_id !== $user->institution_id) {
+            return false;
+        }
+
+        return $user->role === UserRole::Student
+            && $case->student_id === $user->id
+            && in_array($case->status, [CaseStatus::Draft, CaseStatus::Returned], true);
     }
 
     public function review(User $user, ClinicalCase $case): bool
