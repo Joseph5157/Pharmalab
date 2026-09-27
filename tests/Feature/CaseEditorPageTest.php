@@ -154,6 +154,24 @@ class CaseEditorPageTest extends TestCase
             ->where('counselling', null));
     }
 
+    public function test_edit_page_passes_the_requested_section_through_as_initial_section(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case).'?section=soap')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('initialSection', 'soap'));
+    }
+
+    public function test_edit_page_has_a_null_initial_section_by_default(): void
+    {
+        [, $student, $case] = $this->makeCase();
+
+        $this->actingAs($student)->get(route('student.cases.edit', $case))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('initialSection', null));
+    }
+
     /** @return array{Institution, User, ClinicalCase} */
     private function makeCase(CaseStatus $status = CaseStatus::Draft): array
     {

@@ -19,6 +19,12 @@ export type SyncState =
 export type SyncedSection = { lock_version: number; updated_at: string };
 export type SectionSyncOptions<T extends SyncedSection> = {
     userId: number;
+    /**
+     * The clinical case this section belongs to. Stored on every outbox draft
+     * so submission-review can tell which case's pending work blocks a
+     * submit, even for row-level records whose `resourceId` is not a case id.
+     */
+    caseId: string;
     resourceId: string;
     sectionKey: string;
     endpoint: string;
@@ -79,6 +85,7 @@ export function useSectionSync<T extends SyncedSection>(
                   sectionKey: options.sectionKey,
                   resourceId: options.resourceId,
                   userId: options.userId,
+                  caseId: options.caseId,
                   // payload.value is reactive (ref() wraps object values via
                   // reactive()); IndexedDB's put() uses the structured clone
                   // algorithm, which — like structuredClone() above — cannot

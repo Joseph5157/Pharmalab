@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
 export const show = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
@@ -11,13 +11,13 @@ export const show = (args: { case: string | { id: string } } | [caseParam: strin
 
 show.definition = {
     methods: ["get","head"],
-    url: '/student/cases/{case}/edit',
+    url: '/student/cases/{case}/submission-review',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
 show.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -48,18 +48,18 @@ show.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 }
 
 /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
 show.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
 /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
 show.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
@@ -67,9 +67,9 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
 })
 
     /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
     const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: show.url(args, options),
@@ -77,18 +77,18 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
     })
 
             /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
         showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, options),
             method: 'get',
         })
             /**
-* @see \App\Http\Controllers\Student\CaseEditorController::show
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
+* @see \App\Http\Controllers\Student\SubmissionReviewController::show
+ * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+ * @route '/student/cases/{case}/submission-review'
  */
         showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, {
@@ -101,6 +101,6 @@ show.head = (args: { case: string | { id: string } } | [caseParam: string | { id
         })
     
     show.form = showForm
-const CaseEditorController = { show }
+const SubmissionReviewController = { show }
 
-export default CaseEditorController
+export default SubmissionReviewController

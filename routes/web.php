@@ -18,6 +18,7 @@ use App\Http\Controllers\Student\CaseVitalController;
 use App\Http\Controllers\Student\PortfolioController;
 use App\Http\Controllers\Student\SoapController;
 use App\Http\Controllers\Student\SubmissionController;
+use App\Http\Controllers\Student\SubmissionReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -52,6 +53,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::put('student/cases/{case}/clinical-activities/{activity}', [CaseClinicalActivityController::class, 'sync'])->name('student.cases.clinical-activities.sync');
         Route::delete('student/cases/{case}/clinical-activities/{activity}', [CaseClinicalActivityController::class, 'destroy'])->name('student.cases.clinical-activities.destroy');
         Route::put('student/cases/{case}/soap', [SoapController::class, 'sync'])->name('student.cases.soap.update');
+        Route::get('student/cases/{case}/submission-review', [SubmissionReviewController::class, 'show'])->name('student.cases.submission-review');
         Route::post('student/cases/{case}/submit', [SubmissionController::class, 'store'])->name('student.cases.submit');
         Route::get('student/portfolio', [PortfolioController::class, 'index'])->name('student.portfolio');
     });

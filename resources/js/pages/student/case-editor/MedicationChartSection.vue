@@ -35,6 +35,7 @@ const medications = ref([...props.initialMedications]);
 
 const availabilitySync = useSectionSync<AvailabilityPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'medication_chart_availability',
     endpoint: `/student/cases/${props.caseId}/medication-chart-availability`,
@@ -47,6 +48,7 @@ const availabilitySync = useSectionSync<AvailabilityPayload>({
 
 const medicationsCreate = useRepeatableRowCreate<RowPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     sectionKey: 'medications',
     endpoint: `/student/cases/${props.caseId}/medications`,
     responseKey: 'medication',

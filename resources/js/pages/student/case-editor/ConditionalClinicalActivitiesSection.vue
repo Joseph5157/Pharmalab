@@ -68,6 +68,7 @@ const monitoringFollowUps = ref([...props.initialMonitoringFollowUps]);
 
 const adrSync = useSectionSync<AdrPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'clinical_activity_adr',
     endpoint: `/student/cases/${props.caseId}/clinical-activities/adr`,
@@ -81,6 +82,7 @@ const adrSync = useSectionSync<AdrPayload>({
 });
 const counsellingSync = useSectionSync<CounsellingPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     resourceId: props.caseId,
     sectionKey: 'clinical_activity_counselling',
     endpoint: `/student/cases/${props.caseId}/clinical-activities/counselling`,
@@ -90,6 +92,7 @@ const counsellingSync = useSectionSync<CounsellingPayload>({
 
 const interventionCreate = useRepeatableRowCreate<RowPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     sectionKey: 'clinical_activities_intervention',
     endpoint: `/student/cases/${props.caseId}/clinical-activities`,
     responseKey: 'activity',
@@ -101,6 +104,7 @@ const interventionCreate = useRepeatableRowCreate<RowPayload>({
 });
 const monitoringCreate = useRepeatableRowCreate<RowPayload>({
     userId: props.userId,
+    caseId: props.caseId,
     sectionKey: 'clinical_activities_monitoring',
     endpoint: `/student/cases/${props.caseId}/clinical-activities`,
     responseKey: 'activity',

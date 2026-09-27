@@ -7,6 +7,7 @@ import CaseInvestigationController from './CaseInvestigationController'
 import CaseMedicationController from './CaseMedicationController'
 import CaseClinicalActivityController from './CaseClinicalActivityController'
 import SoapController from './SoapController'
+import SubmissionReviewController from './SubmissionReviewController'
 import SubmissionController from './SubmissionController'
 import PortfolioController from './PortfolioController'
 const Student = {
@@ -19,6 +20,7 @@ CaseInvestigationController: Object.assign(CaseInvestigationController, CaseInve
 CaseMedicationController: Object.assign(CaseMedicationController, CaseMedicationController),
 CaseClinicalActivityController: Object.assign(CaseClinicalActivityController, CaseClinicalActivityController),
 SoapController: Object.assign(SoapController, SoapController),
+SubmissionReviewController: Object.assign(SubmissionReviewController, SubmissionReviewController),
 SubmissionController: Object.assign(SubmissionController, SubmissionController),
 PortfolioController: Object.assign(PortfolioController, PortfolioController),
 }

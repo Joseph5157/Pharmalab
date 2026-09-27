@@ -54,6 +54,7 @@ const props = defineProps<{
         | null;
     interventions: (Record<string, unknown> & { id: string })[];
     monitoringFollowUps: (Record<string, unknown> & { id: string })[];
+    initialSection: string | null;
 }>();
 
 defineOptions({
@@ -81,7 +82,10 @@ const sections: Section[] = [
         available: true,
     },
 ];
-const activeIndex = ref(0);
+const initialSectionIndex = sections.findIndex(
+    (section) => section.id === props.initialSection,
+);
+const activeIndex = ref(initialSectionIndex >= 0 ? initialSectionIndex : 0);
 const tabButtons = ref<HTMLButtonElement[]>([]);
 const activeSection = computed(() => sections[activeIndex.value]);
 const availableCount = sections.filter((section) => section.available).length;
