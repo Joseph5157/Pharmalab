@@ -68,7 +68,16 @@ class CaseController extends Controller
     {
         Gate::authorize('view', $case);
 
-        $case->load(['clinicalSite', 'department', 'ward', 'currentSoap', 'versions']);
+        $case->load([
+            'clinicalSite',
+            'department',
+            'ward',
+            'currentSoap',
+            'versions.submittedBy',
+            'versions.approvedBy',
+            'versions.statusTransitions.actor',
+            'versions.statusTransitions.reviewComments.author',
+        ]);
 
         return Inertia::render('student/CaseShow', [
             'clinicalCase' => $case,

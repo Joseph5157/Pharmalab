@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { CheckCircle, RotateCcw, Clock, User, MapPin } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import InputError from '@/components/InputError.vue';
@@ -13,15 +14,22 @@ type SoapNote = {
     revision_number: number;
 };
 
-type CaseVersion = {
+type ReviewComment = {
     id: string;
-    version_number: number;
-    submitted_at: string;
-    approved_at: string | null;
-    snapshot: Record<string, unknown>;
-    submitted_by: { name: string };
-    approved_by: { name: string } | null;
+    section: string;
+    body: string;
+    is_flagged: boolean;
+    author: { name: string };
 };
+
+const REVIEW_SECTIONS: { key: string; label: string }[] = [
+    { key: 'case_profile', label: 'Case Profile' },
+    { key: 'history_diagnosis', label: 'History & Diagnosis' },
+    { key: 'vitals_investigations', label: 'Vitals & Investigations' },
+    { key: 'medication_chart', label: 'Medication Chart' },
+    { key: 'soap', label: 'SOAP' },
+    { key: 'clinical_activities', label: 'Conditional Clinical Activities' },
+];
 
 type StatusTransition = {
     id: string;
@@ -30,6 +38,19 @@ type StatusTransition = {
     reason: string | null;
     created_at: string;
     actor: { name: string };
+    case_version_id: string | null;
+    review_comments: ReviewComment[];
+};
+
+type CaseVersion = {
+    id: string;
+    version_number: number;
+    submitted_at: string;
+    approved_at: string | null;
+    snapshot: Record<string, unknown>;
+    submitted_by: { name: string };
+    approved_by: { name: string } | null;
+    status_transitions: StatusTransition[];
 };
 
 type Case = {
@@ -65,22 +86,59 @@ defineOptions({
     },
 });
 
+type SectionCommentDraft = { body: string; is_flagged: boolean };
+
+const sectionDrafts = ref<Record<string, SectionCommentDraft>>(
+    Object.fromEntries(
+        REVIEW_SECTIONS.map((s) => [s.key, { body: '', is_flagged: false }]),
+    ),
+);
+
+const buildSectionComments = () =>
+    REVIEW_SECTIONS.filter(
+        (s) => sectionDrafts.value[s.key].body.trim() !== '',
+    ).map((s) => ({
+        section: s.key,
+        body: sectionDrafts.value[s.key].body,
+        is_flagged: sectionDrafts.value[s.key].is_flagged,
+    }));
+
 const approveForm = useForm({
     summary: '',
+    section_comments: [] as { section: string; body: string }[],
 });
 const returnForm = useForm({
     reason: '',
+    section_comments: [] as {
+        section: string;
+        body: string;
+        is_flagged: boolean;
+    }[],
+});
+const reopenForm = useForm({
+    reason: '',
 });
 
-const approve = () =>
+const approve = () => {
+    approveForm.section_comments = buildSectionComments();
     approveForm.post(`/faculty/reviews/${props.clinicalCase.id}/approve`, {
         preserveScroll: true,
     });
+};
 
-const returnCase = () =>
+const returnCase = () => {
+    returnForm.section_comments = buildSectionComments();
     returnForm.post(`/faculty/reviews/${props.clinicalCase.id}/return`, {
         preserveScroll: true,
     });
+};
+
+const reopen = () =>
+    reopenForm.post(`/faculty/reviews/${props.clinicalCase.id}/reopen`, {
+        preserveScroll: true,
+    });
+
+const canReopen = (): boolean => props.clinicalCase.status === 'approved';
 
 const statusColor = (status: string) => {
     switch (status) {
@@ -345,6 +403,79 @@ const canReview = (): boolean => {
             </div>
         </section>
 
+        <section
+            v-if="canReview()"
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
+                Section comments
+            </h2>
+            <p class="mt-1 text-xs text-slate-500">
+                Flag a section to require correction when returning this case.
+                Comments are optional when approving.
+            </p>
+            <div class="mt-4 space-y-4">
+                <div
+                    v-for="section in REVIEW_SECTIONS"
+                    :key="section.key"
+                    class="rounded-xl border border-slate-200 p-3 dark:border-slate-700"
+                >
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold">{{
+                            section.label
+                        }}</span>
+                        <label
+                            class="flex items-center gap-1.5 text-xs text-orange-700"
+                        >
+                            <input
+                                type="checkbox"
+                                v-model="sectionDrafts[section.key].is_flagged"
+                            />
+                            Flag for correction
+                        </label>
+                    </div>
+                    <textarea
+                        v-model="sectionDrafts[section.key].body"
+                        class="border-input bg-background mt-2 min-h-[60px] w-full rounded-md border px-3 py-2 text-sm"
+                        placeholder="Comment on this section..."
+                    />
+                </div>
+            </div>
+        </section>
+
+        <section
+            v-if="canReopen()"
+            class="rounded-3xl border border-purple-200 bg-purple-50/50 p-5 sm:p-7 dark:border-purple-800 dark:bg-purple-950/20"
+        >
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
+                Reopen case
+            </h2>
+            <p class="mt-1 text-xs text-slate-500">
+                Reopening returns this approved case for correction. This is
+                exceptional and requires a reason.
+            </p>
+            <form class="mt-4" @submit.prevent="reopen">
+                <textarea
+                    v-model="reopenForm.reason"
+                    class="border-input bg-background min-h-[80px] w-full rounded-md border px-3 py-2 text-sm"
+                    placeholder="Why is this case being reopened?"
+                    required
+                />
+                <InputError :message="reopenForm.errors.reason" />
+                <Button
+                    type="submit"
+                    class="mt-3 bg-purple-700 text-white"
+                    :disabled="reopenForm.processing || !reopenForm.reason"
+                >
+                    <RotateCcw class="mr-1 size-4" /> Reopen
+                </Button>
+            </form>
+        </section>
+
         <section v-if="canReview()" class="grid gap-5 lg:grid-cols-2">
             <form
                 class="rounded-3xl border border-green-200 bg-green-50/50 p-5 sm:p-7 dark:border-green-800 dark:bg-green-950/20"
@@ -427,6 +558,7 @@ const canReview = (): boolean => {
                         required
                     />
                     <InputError :message="returnForm.errors.reason" />
+                    <InputError :message="returnForm.errors.section_comments" />
                 </div>
                 <Button
                     type="submit"

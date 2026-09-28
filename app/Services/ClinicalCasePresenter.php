@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\CaseStatus;
 use App\Enums\ClinicalActivityType;
 use App\Models\CaseClinicalActivity;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
+use App\Models\CaseReviewComment;
 use App\Models\CaseVital;
 use App\Models\ClinicalCase;
 
@@ -173,6 +175,35 @@ class ClinicalCasePresenter
             ->where('activity_type', $type)
             ->map(fn (CaseClinicalActivity $activity): array => $this->activityPayload($activity))
             ->all());
+    }
+
+    /** @return array{flaggedSections: list<string>, reopenedReason: string|null} */
+    public function reviewFeedback(ClinicalCase $case): array
+    {
+        if ($case->status !== CaseStatus::Returned) {
+            return ['flaggedSections' => [], 'reopenedReason' => null];
+        }
+
+        $transition = $case->statusTransitions()
+            ->where('to_status', CaseStatus::Returned->value)
+            ->latest('created_at')
+            ->with('reviewComments')
+            ->first();
+
+        if ($transition === null) {
+            return ['flaggedSections' => [], 'reopenedReason' => null];
+        }
+
+        if ($transition->from_status === CaseStatus::Approved->value) {
+            return ['flaggedSections' => [], 'reopenedReason' => $transition->reason];
+        }
+
+        $flaggedSections = array_values($transition->reviewComments
+            ->where('is_flagged', true)
+            ->map(fn (CaseReviewComment $comment): string => $comment->section->value)
+            ->all());
+
+        return ['flaggedSections' => $flaggedSections, 'reopenedReason' => null];
     }
 
     /** @return array<string, mixed> */
