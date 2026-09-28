@@ -65,6 +65,7 @@ These items remain before production pilot; the 25 September product decisions r
 | OPEN-009 | What happens to unfinished cases when a rotation ends? | Determines grace period, read-only state or explicit extension. |
 | OPEN-013 | What backup/restore procedure and operational owner apply to retained educational records? | Required for pilot resilience and recovery. |
 | OPEN-016 | What final PDF branding/layout is approved? | Determines the formal appearance of exported academic records. |
+| OPEN-017 | What data source determines "course completion" for computing each case's retention-until date? | DEC-033 accepts the course-completion-plus-one-year duration, but no completion-date field exists anywhere in the schema (`AcademicCohort` has only `admission_year`/`academic_year_label`). Slice 5 records the accepted policy and this open gap; it does not compute or store a per-case retention date, and does not implement any deletion job, until this is resolved. |
 
 ## 5. Deferred decisions
 
