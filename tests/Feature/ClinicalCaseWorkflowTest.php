@@ -889,7 +889,8 @@ class ClinicalCaseWorkflowTest extends TestCase
 
         $response = $this->get(route('student.cases.show', $case));
         $response->assertInertia(fn ($page) => $page
-            ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Nicely reasoned.'));
+            ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Nicely reasoned.')
+            ->where('clinicalCase.versions.0.status_transitions.0.actor.name', $faculty->name));
     }
 
     public function test_editor_shows_flagged_sections_from_the_latest_return_round_only(): void
