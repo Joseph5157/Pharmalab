@@ -558,6 +558,7 @@ const canReview = (): boolean => {
                         required
                     />
                     <InputError :message="returnForm.errors.reason" />
+                    <InputError :message="returnForm.errors.section_comments" />
                 </div>
                 <Button
                     type="submit"
