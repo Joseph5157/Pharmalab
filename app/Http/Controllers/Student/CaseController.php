@@ -75,6 +75,7 @@ class CaseController extends Controller
             'currentSoap',
             'versions.submittedBy',
             'versions.approvedBy',
+            'versions.statusTransitions.actor',
             'versions.statusTransitions.reviewComments.author',
         ]);
 
