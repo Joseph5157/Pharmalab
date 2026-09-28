@@ -55,6 +55,10 @@ const props = defineProps<{
     interventions: (Record<string, unknown> & { id: string })[];
     monitoringFollowUps: (Record<string, unknown> & { id: string })[];
     initialSection: string | null;
+    reviewFeedback: {
+        flaggedSections: string[];
+        reopenedReason: string | null;
+    };
 }>();
 
 defineOptions({
@@ -209,6 +213,13 @@ function handleTabKeydown(event: KeyboardEvent): void {
             </p>
         </header>
 
+        <div
+            v-if="reviewFeedback.reopenedReason"
+            class="mb-5 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-900 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-100"
+        >
+            <strong>Case reopened:</strong> {{ reviewFeedback.reopenedReason }}
+        </div>
+
         <nav
             aria-label="Case sections"
             class="mb-5 overflow-x-auto pb-1"
@@ -247,7 +258,14 @@ function handleTabKeydown(event: KeyboardEvent): void {
                     {{ section.label
                     }}<span v-if="!section.available" class="sr-only"
                         >, not yet available</span
+                    ><span
+                        v-if="
+                            reviewFeedback.flaggedSections.includes(section.id)
+                        "
+                        class="ml-1 rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700"
                     >
+                        Flagged
+                    </span>
                 </button>
             </div>
         </nav>
