@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Faculty;
 use App\Actions\ApproveCase;
 use App\Actions\ReopenCase;
 use App\Actions\ReturnCase;
+use App\Enums\CaseReviewSection;
 use App\Enums\CaseStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicalCase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,6 +47,7 @@ class ReviewController extends Controller
             'currentSoap',
             'versions.submittedBy',
             'versions.approvedBy',
+            'versions.statusTransitions.reviewComments.author',
             'statusTransitions.actor',
         ]);
 
@@ -58,9 +62,15 @@ class ReviewController extends Controller
 
         $data = $request->validate([
             'summary' => ['nullable', 'string', 'max:2000'],
+            'section_comments' => ['sometimes', 'array'],
+            'section_comments.*.section' => ['required', Rule::enum(CaseReviewSection::class)],
+            'section_comments.*.body' => ['required', 'string', 'max:2000'],
         ]);
 
-        $approveCase($request->user(), $case, $data['summary'] ?? null);
+        $sectionComments = $data['section_comments'] ?? [];
+        $this->assertDistinctSections($sectionComments);
+
+        $approveCase($request->user(), $case, $data['summary'] ?? null, $sectionComments);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Case approved.']);
     }
@@ -71,9 +81,21 @@ class ReviewController extends Controller
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
+            'section_comments' => ['required', 'array', 'min:1'],
+            'section_comments.*.section' => ['required', Rule::enum(CaseReviewSection::class)],
+            'section_comments.*.body' => ['required', 'string', 'max:2000'],
+            'section_comments.*.is_flagged' => ['required', 'boolean'],
         ]);
 
-        $returnCase($request->user(), $case, $data['reason']);
+        $this->assertDistinctSections($data['section_comments']);
+
+        if (! in_array(true, array_column($data['section_comments'], 'is_flagged'), true)) {
+            throw ValidationException::withMessages([
+                'section_comments' => 'At least one section must be flagged to return a case.',
+            ]);
+        }
+
+        $returnCase($request->user(), $case, $data['reason'], $data['section_comments']);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Case returned for correction.']);
     }
@@ -89,5 +111,17 @@ class ReviewController extends Controller
         $reopenCase($request->user(), $case, $data['reason']);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Case reopened.']);
+    }
+
+    /** @param array<int, array{section: string}> $sectionComments */
+    private function assertDistinctSections(array $sectionComments): void
+    {
+        $sections = array_column($sectionComments, 'section');
+
+        if (count($sections) !== count(array_unique($sections))) {
+            throw ValidationException::withMessages([
+                'section_comments' => 'Each section can only receive one comment per review.',
+            ]);
+        }
     }
 }

@@ -691,6 +691,152 @@ class ClinicalCaseWorkflowTest extends TestCase
         $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Returned->value]);
     }
 
+    public function test_return_http_endpoint_requires_at_least_one_flagged_section_comment(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $this->post(route('faculty.reviews.return', $case), [
+            'reason' => 'Needs work.',
+            'section_comments' => [
+                ['section' => 'soap', 'body' => 'Fine as-is.', 'is_flagged' => false],
+            ],
+        ])->assertSessionHasErrors('section_comments');
+
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Submitted->value]);
+    }
+
+    public function test_return_http_endpoint_rejects_a_duplicate_section_in_the_request(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $this->post(route('faculty.reviews.return', $case), [
+            'reason' => 'Needs work.',
+            'section_comments' => [
+                ['section' => 'soap', 'body' => 'First.', 'is_flagged' => true],
+                ['section' => 'soap', 'body' => 'Second.', 'is_flagged' => false],
+            ],
+        ])->assertSessionHasErrors('section_comments');
+    }
+
+    public function test_return_http_endpoint_succeeds_with_a_valid_flagged_section_comment(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $this->post(route('faculty.reviews.return', $case), [
+            'reason' => 'Needs work.',
+            'section_comments' => [
+                ['section' => 'soap', 'body' => 'Expand the assessment.', 'is_flagged' => true],
+            ],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('clinical_cases', ['id' => $case->id, 'status' => CaseStatus::Returned->value]);
+    }
+
+    public function test_review_show_page_exposes_the_full_comment_history(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAs($faculty);
+
+        $this->post(route('faculty.reviews.return', $case), [
+            'reason' => 'Needs work.',
+            'section_comments' => [
+                ['section' => 'soap', 'body' => 'Expand the assessment.', 'is_flagged' => true],
+            ],
+        ]);
+
+        $response = $this->get(route('faculty.reviews.show', $case));
+        $response->assertInertia(fn ($page) => $page
+            ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Expand the assessment.')
+            ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.author.id', $faculty->id));
+    }
+
     /** @return array{Institution, User, User, RotationAssignment} */
     private function setupAssignment(): array
     {
