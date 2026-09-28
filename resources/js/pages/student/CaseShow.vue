@@ -12,6 +12,24 @@ type SoapNote = {
     revision_number: number;
 };
 
+type ReviewComment = {
+    id: string;
+    section: string;
+    body: string;
+    is_flagged: boolean;
+    author: { name: string };
+};
+
+type StatusTransition = {
+    id: string;
+    from_status: string;
+    to_status: string;
+    reason: string | null;
+    created_at: string;
+    actor: { name: string };
+    review_comments: ReviewComment[];
+};
+
 type CaseVersion = {
     id: string;
     version_number: number;
@@ -19,6 +37,7 @@ type CaseVersion = {
     approved_at: string | null;
     submitted_by: { name: string };
     approved_by: { name: string } | null;
+    status_transitions: StatusTransition[];
 };
 
 type Case = {
@@ -328,6 +347,58 @@ const hasSoap = (soap: SoapNote | null): boolean => {
                         </p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section
+            v-if="
+                clinicalCase.versions.some((v) => v.status_transitions.length)
+            "
+            class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 dark:border-slate-700 dark:bg-slate-900"
+        >
+            <h2
+                class="font-display text-lg font-semibold text-[#0b2942] dark:text-white"
+            >
+                Faculty feedback
+            </h2>
+            <div class="mt-4 space-y-4">
+                <template
+                    v-for="version in clinicalCase.versions"
+                    :key="`feedback-${version.id}`"
+                >
+                    <div
+                        v-for="transition in version.status_transitions"
+                        :key="transition.id"
+                        class="rounded-xl border border-slate-200 p-3 dark:border-slate-700"
+                    >
+                        <p class="text-xs text-slate-500">
+                            Version {{ version.version_number }} ·
+                            {{ transition.actor.name }} ·
+                            {{ formatDate(transition.created_at) }}
+                        </p>
+                        <p v-if="transition.reason" class="mt-1 text-sm">
+                            {{ transition.reason }}
+                        </p>
+                        <ul
+                            v-if="transition.review_comments.length"
+                            class="mt-2 space-y-1"
+                        >
+                            <li
+                                v-for="comment in transition.review_comments"
+                                :key="comment.id"
+                                class="text-sm"
+                            >
+                                <span
+                                    v-if="comment.is_flagged"
+                                    class="mr-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700"
+                                >
+                                    Flagged
+                                </span>
+                                {{ comment.body }}
+                            </li>
+                        </ul>
+                    </div>
+                </template>
             </div>
         </section>
     </main>
