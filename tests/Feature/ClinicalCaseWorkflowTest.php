@@ -26,6 +26,7 @@ use App\Models\RotationAssignment;
 use App\Models\SoapNote;
 use App\Models\User;
 use App\Policies\ClinicalCasePolicy;
+use App\Services\ClinicalCasePresenter;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -889,6 +890,142 @@ class ClinicalCaseWorkflowTest extends TestCase
         $response = $this->get(route('student.cases.show', $case));
         $response->assertInertia(fn ($page) => $page
             ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Nicely reasoned.'));
+    }
+
+    public function test_editor_shows_flagged_sections_from_the_latest_return_round_only(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Returned,
+        ]);
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now()->subDays(2),
+        ]);
+
+        // Round 1 (older): flags case_profile — must NOT appear as current.
+        // `created_at` isn't mass-assignable on CaseStatusTransition, so it's
+        // backdated afterward via forceFill to control ordering deterministically.
+        $oldTransition = CaseStatusTransition::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'from_status' => CaseStatus::Submitted->value,
+            'to_status' => CaseStatus::Returned->value,
+            'actor_id' => $faculty->id,
+            'case_version_id' => $version->id,
+            'reason' => 'First round.',
+        ]);
+        $oldTransition->forceFill(['created_at' => now()->subDay()])->save();
+        CaseReviewComment::query()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'case_status_transition_id' => $oldTransition->id,
+            'section' => CaseReviewSection::CaseProfile,
+            'body' => 'Old round.',
+            'is_flagged' => true,
+            'created_by' => $faculty->id,
+        ]);
+
+        // Round 2 (latest): flags soap — this IS the current round.
+        $newTransition = CaseStatusTransition::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'from_status' => CaseStatus::Submitted->value,
+            'to_status' => CaseStatus::Returned->value,
+            'actor_id' => $faculty->id,
+            'case_version_id' => $version->id,
+            'reason' => 'Second round.',
+            'created_at' => now(),
+        ]);
+        CaseReviewComment::query()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'case_status_transition_id' => $newTransition->id,
+            'section' => CaseReviewSection::Soap,
+            'body' => 'Latest round.',
+            'is_flagged' => true,
+            'created_by' => $faculty->id,
+        ]);
+
+        $presenter = app(ClinicalCasePresenter::class);
+        $feedback = $presenter->reviewFeedback($case);
+
+        $this->assertSame(['soap'], $feedback['flaggedSections']);
+        $this->assertNull($feedback['reopenedReason']);
+    }
+
+    public function test_editor_shows_the_reopen_reason_and_no_flags_after_a_reopen(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Returned,
+        ]);
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+            'approved_by' => $faculty->id,
+            'approved_at' => now(),
+        ]);
+
+        CaseStatusTransition::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'from_status' => CaseStatus::Approved->value,
+            'to_status' => CaseStatus::Returned->value,
+            'actor_id' => $faculty->id,
+            'case_version_id' => $version->id,
+            'reason' => 'New labs changed the diagnosis.',
+        ]);
+
+        $presenter = app(ClinicalCasePresenter::class);
+        $feedback = $presenter->reviewFeedback($case);
+
+        $this->assertSame([], $feedback['flaggedSections']);
+        $this->assertSame('New labs changed the diagnosis.', $feedback['reopenedReason']);
+    }
+
+    public function test_editor_review_feedback_is_empty_for_a_returned_case_with_no_transition_row(): void
+    {
+        // Backward compatibility: a case already Returned before this table
+        // existed has no matching CaseStatusTransition/CaseReviewComment rows.
+        [$institution, $student, , $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Returned,
+        ]);
+
+        $presenter = app(ClinicalCasePresenter::class);
+        $feedback = $presenter->reviewFeedback($case);
+
+        $this->assertSame(['flaggedSections' => [], 'reopenedReason' => null], $feedback);
     }
 
     /** @return array{Institution, User, User, RotationAssignment} */
