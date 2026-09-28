@@ -7,11 +7,13 @@ use App\Actions\ReopenCase;
 use App\Actions\ReturnCase;
 use App\Actions\SubmitCase;
 use App\Enums\CaseFormVersion;
+use App\Enums\CaseReviewSection;
 use App\Enums\CaseStatus;
 use App\Models\CaseClinicalActivity;
 use App\Models\CaseClinicalProfile;
 use App\Models\CaseInvestigation;
 use App\Models\CaseMedication;
+use App\Models\CaseReviewComment;
 use App\Models\CaseStatusTransition;
 use App\Models\CaseVersion;
 use App\Models\CaseVital;
@@ -835,6 +837,58 @@ class ClinicalCaseWorkflowTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Expand the assessment.')
             ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.author.id', $faculty->id));
+    }
+
+    public function test_student_case_show_exposes_feedback_history_even_after_approval(): void
+    {
+        [$institution, $student, $faculty, $assignment] = $this->setupAssignment();
+
+        $case = ClinicalCase::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'student_id' => $student->id,
+            'rotation_assignment_id' => $assignment->id,
+            'case_number' => 1,
+            'status' => CaseStatus::Approved,
+        ]);
+
+        $version = CaseVersion::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'version_number' => 1,
+            'source_revision_number' => 1,
+            'snapshot' => ['soap' => ['subjective' => 'test']],
+            'snapshot_hash' => hash('sha256', 'test'),
+            'submitted_by' => $student->id,
+            'submitted_at' => now(),
+            'approved_by' => $faculty->id,
+            'approved_at' => now(),
+        ]);
+
+        $transition = CaseStatusTransition::query()->withoutGlobalScopes()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'from_status' => CaseStatus::Submitted->value,
+            'to_status' => CaseStatus::Approved->value,
+            'actor_id' => $faculty->id,
+            'case_version_id' => $version->id,
+            'reason' => 'Well documented.',
+        ]);
+
+        CaseReviewComment::query()->create([
+            'institution_id' => $institution->id,
+            'clinical_case_id' => $case->id,
+            'case_status_transition_id' => $transition->id,
+            'section' => CaseReviewSection::Soap,
+            'body' => 'Nicely reasoned.',
+            'is_flagged' => false,
+            'created_by' => $faculty->id,
+        ]);
+
+        $this->actingAs($student);
+
+        $response = $this->get(route('student.cases.show', $case));
+        $response->assertInertia(fn ($page) => $page
+            ->where('clinicalCase.versions.0.status_transitions.0.review_comments.0.body', 'Nicely reasoned.'));
     }
 
     /** @return array{Institution, User, User, RotationAssignment} */
