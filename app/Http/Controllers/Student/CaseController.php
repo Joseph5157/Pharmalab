@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Student;
 
 use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
+use App\Enums\RecordStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\StoreClinicalCaseRequest;
 use App\Models\ClinicalCase;
+use App\Models\RotationAssignment;
 use App\Services\AuditTrail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,8 +29,26 @@ class CaseController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // The "New case" button needs a real rotation_assignment_id:
+        // StoreClinicalCaseRequest only accepts the student's own active
+        // assignments, so these are the only ids that can succeed.
+        $activeAssignments = RotationAssignment::query()
+            ->where('student_id', $request->user()->id)
+            ->where('status', RecordStatus::Active)
+            ->with(['rotation.clinicalSite', 'rotation.ward'])
+            ->get()
+            ->sortBy(fn (RotationAssignment $assignment) => $assignment->rotation?->starts_on)
+            ->values()
+            ->map(fn (RotationAssignment $assignment): array => [
+                'id' => $assignment->id,
+                'rotation_name' => $assignment->rotation?->name,
+                'clinical_site_name' => $assignment->rotation?->clinicalSite?->name,
+                'ward_name' => $assignment->rotation?->ward?->name,
+            ]);
+
         return Inertia::render('student/Cases', [
             'cases' => $cases,
+            'activeAssignments' => $activeAssignments,
         ]);
     }
 

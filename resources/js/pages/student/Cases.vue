@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import {
-    Plus,
-    FileText,
-    Clock,
-    CheckCircle,
-    RotateCcw,
-    Eye,
-} from '@lucide/vue';
+import { Plus, FileText, Eye } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import InputError from '@/components/InputError.vue';
 
@@ -21,8 +15,16 @@ type Case = {
     clinical_site: { name: string } | null;
 };
 
+type ActiveAssignment = {
+    id: string;
+    rotation_name: string | null;
+    clinical_site_name: string | null;
+    ward_name: string | null;
+};
+
 const props = defineProps<{
     cases: Case[];
+    activeAssignments: ActiveAssignment[];
 }>();
 
 defineOptions({
@@ -34,11 +36,36 @@ defineOptions({
     },
 });
 
-const createForm = useForm({});
-const createCase = () =>
+// Zero active assignments: creation is impossible. One: use it directly.
+// More than one: the student must choose which rotation the case belongs to.
+const selectedAssignmentId = ref<string>(
+    props.activeAssignments.length === 1 ? props.activeAssignments[0].id : '',
+);
+const needsPicker = computed(() => props.activeAssignments.length > 1);
+const canCreate = computed(
+    () =>
+        props.activeAssignments.length > 0 && selectedAssignmentId.value !== '',
+);
+
+const assignmentLabel = (assignment: ActiveAssignment) =>
+    [
+        assignment.rotation_name ?? 'Rotation',
+        assignment.clinical_site_name,
+        assignment.ward_name,
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
+const createForm = useForm({ rotation_assignment_id: '' });
+const createCase = () => {
+    if (!canCreate.value) {
+        return;
+    }
+    createForm.rotation_assignment_id = selectedAssignmentId.value;
     createForm.post('/student/cases', {
         preserveScroll: true,
     });
+};
 
 const statusColor = (status: string) => {
     switch (status) {
@@ -101,14 +128,44 @@ const formatDate = (value: string) =>
                     Your cases
                 </h1>
             </div>
-            <Button
-                class="bg-[#0b2942] text-white"
-                :disabled="createForm.processing"
-                @click="createCase"
+            <div
+                class="flex flex-col items-end gap-2 sm:flex-row sm:items-center"
             >
-                <Plus class="size-4" /> New case
-            </Button>
+                <label v-if="needsPicker" class="text-sm">
+                    <span class="sr-only">Rotation for the new case</span>
+                    <select
+                        v-model="selectedAssignmentId"
+                        data-test="new-case-assignment"
+                        class="w-full max-w-xs rounded-xl border p-2"
+                    >
+                        <option value="" disabled>Choose a rotation…</option>
+                        <option
+                            v-for="assignment in activeAssignments"
+                            :key="assignment.id"
+                            :value="assignment.id"
+                        >
+                            {{ assignmentLabel(assignment) }}
+                        </option>
+                    </select>
+                </label>
+                <Button
+                    class="bg-[#0b2942] text-white"
+                    data-test="new-case"
+                    :disabled="createForm.processing || !canCreate"
+                    @click="createCase"
+                >
+                    <Plus class="size-4" /> New case
+                </Button>
+            </div>
         </div>
+        <p
+            v-if="activeAssignments.length === 0"
+            data-test="no-active-assignment"
+            class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+            You have no active rotation assignment. Contact your administrator.
+        </p>
+        <InputError :message="createForm.errors.rotation_assignment_id" />
 
         <section v-if="cases.length" class="space-y-3">
             <article
@@ -153,8 +210,9 @@ const formatDate = (value: string) =>
                         "
                         size="sm"
                         variant="outline"
+                        :aria-label="`Edit case #${caseItem.case_number}`"
                         @click="
-                            router.get(`/student/cases/${caseItem.id}/soap`)
+                            router.get(`/student/cases/${caseItem.id}/edit`)
                         "
                     >
                         <FileText class="size-4" />
