@@ -1,6 +1,6 @@
 # DIRECT-DOCUMENTATION-IMPL-01 — Slice 5 design: targets, progress, PDF and retention
 
-**Status:** Design approved in chat; awaiting written-spec review before `writing-plans`.
+**Status:** Design approved; plan-review corrections recorded in §13 (2026-10-10). Implementation plan: `docs/superpowers/plans/2026-10-10-direct-documentation-impl-01-slice-5.md`.
 **Decision baseline:** `docs/DECISIONS.md` DEC-032, DEC-033; `docs/implementation/DIRECT_DOCUMENTATION_IMPL_01_PLAN.md` §Slice 5; `docs/research/PHARMD_CASE_FORM_CANDIDATE_01.md` §7.
 **Depends on:** Slice 4 (accepted, PR #15) — immutable `CaseVersion` snapshots, `ClinicalCasePresenter`, the audit-event conventions in `SubmitCase`/`ApproveCase`/`ReturnCase`/`ReopenCase`.
 **Extends (does not replace):** `ClinicalCase`, `CaseVersion`, `RotationAssignment`, `Rotation`, `ClinicalCasePolicy`, `AuditTrail`, `Cases.vue`, `CaseProfileSection.vue`, `UpdateClinicalCaseContextRequest`.
@@ -27,7 +27,7 @@ Exit evidence (unchanged from the master plan): progress counts match authorized
 | 6 (added on review) | Nullable uniqueness | Two partial unique indexes, not one plain unique index — Postgres allows multiple `NULL`s under a normal unique constraint. |
 | 7 (added on review) | Category normalization | A stored generated `category_key` column (`lower(trim(category))`) backs the partial unique index and the request-side match; display casing is preserved separately. |
 | 8 (added on review) | Target scope | Per student, per rotation assignment — "Cardiology: 3" means each assigned student individually completes three approved Cardiology cases, counted via `clinical_cases.rotation_assignment_id`, not a rotation-wide pool. |
-| 9 (added on review) | PDF source of truth | Clinical content only from `CaseVersion.snapshot`. Immutable header fields already on `CaseVersion`/`ClinicalCase` (`case_number`, `version_number`, `form_version`, `approved_by`, `approved_at`) are read live. Display labels that *can* drift (rotation/site/ward names) are captured into a new `record_metadata` block inside the snapshot at submission time; legacy versions predating this change fall back to current relation names, documented as a known limitation. |
+| 9 (added on review) | PDF source of truth | Clinical content only from `CaseVersion.snapshot`. Immutable header fields (`clinical_cases.case_number`, `case_versions.version_number`, snapshot `form_version`, `case_versions.approved_by`, `case_versions.approved_at`) are read live — see §13 C7 for how the approver's display name is resolved. Display labels that *can* drift (rotation/site/ward names) are captured into a new `record_metadata` block inside the snapshot at submission time; legacy versions predating this change fall back to current relation names, documented as a known limitation. |
 | 10 (added on review) | Export audit fields | `case_id` + `version_number` (existing convention, kept for query consistency) **and** `case_version_id` (the exact immutable row, unambiguous). |
 
 ## 3. Data model
@@ -148,7 +148,7 @@ return match ($user->role) {
 **`CaseExportPdfService::build(ClinicalCase $case): \Barryvdh\DomPDF\PDF`:**
 - Resolves the approved `CaseVersion` (`$case->versions()->whereNotNull('approved_at')->latest('version_number')->first()`).
 - Clinical content (case context, history, vitals, investigations, medications, SOAP, clinical activities) comes **only** from `$version->snapshot` — never a live query against `ClinicalCase`/`CaseVital`/etc.
-- Header metadata: `case_number`, `version_number`, `form_version`, `approved_by`/`approved_at` from `CaseVersion`/`ClinicalCase` columns (immutable, never drift); rotation/site/ward display names from `$version->snapshot['record_metadata']` when present, falling back to the case's current live relations when absent (versions submitted before this change) — a documented, one-time legacy gap, not a live bug going forward.
+- Header metadata: `case_number` (`clinical_cases`), `version_number`, `approved_at` and the approver's user id `approved_by` (all `case_versions`; immutable), `form_version` (snapshot); the approver's display *name* is a live lookup by that id (§13 C7); rotation/site/ward display names from `$version->snapshot['record_metadata']` when present, falling back to the case's current live relations when absent (versions submitted before this change) — a documented, one-time legacy gap, not a live bug going forward.
 - Renders a plain Blade view (`resources/views/exports/clinical-case.blade.php`) via `barryvdh/laravel-dompdf`; no branding/layout finalization in this slice (OPEN-016 stays open).
 
 **Routes**, one thin action per role reusing `exportPdf`:
@@ -226,3 +226,17 @@ Extended: `SubmitCase::buildSnapshot()` (`record_metadata` block); `ClinicalCase
 - **Internal consistency:** §4's "no backend change needed" claim is checked against `StoreClinicalCaseRequest`'s actual existing rule, not assumed, and §11 adds a regression test proving it; §6's per-assignment (not per-rotation) counting is applied identically in all three `RotationProgressService` methods; §7's policy is deliberately a new narrow ability rather than a change to `view()`, keeping every other slice's authorization behavior untouched; §3's generated `category_key` is the single normalization mechanism referenced consistently by §4 (request validation), §5 (target uniqueness), and §6 (progress matching) — never redefined per call site.
 - **Scope:** matches the master plan's Slice 5 bullets and exit evidence exactly; §1 restates the exclusion list; the `Cases.vue` bug fix is called out explicitly as an intentional, scoped addition (per this session's decision), not silent creep.
 - **Ambiguity:** "faculty configures" is concrete (any currently-assigned faculty on that specific rotation, not a global faculty-wide ability); "de-identified PDF" is concrete (clinical content is byte-sourced from the snapshot, tested against live-data drift); "approved-only" progress is concrete and tested against the other four statuses explicitly.
+
+## 13. Plan-review corrections (2026-10-10)
+
+Seven corrections found while reviewing the implementation plan. They refine this design; they do not change its scope.
+
+- **C1 — Target-authorization wiring.** Laravel picks a policy from the class of the first model argument, so `Gate::authorize('manage', $rotation)` resolves to `RotationPolicy` (admin-only), never `RotationCaseTargetPolicy`. Every check passes the class explicitly — `Gate::authorize('manage', [RotationCaseTarget::class, $rotation])` — and `{target}` routes use scoped bindings so a target belonging to another rotation is a 404.
+- **C2 — Concurrent duplicate targets.** §5's pre-check does not stop two simultaneous requests. A `UniqueConstraintViolationException` from either partial index is converted into the same 422 as the pre-check.
+- **C3 — Exact-path migration test.** The migration is rolled back and re-run by its exact `--path`, proving both raw partial indexes are dropped and re-created and reject duplicates at the database layer.
+- **C4 — Admin filter data.** `/admin/progress` sends the institution's rotation list for its filter and validates the `rotation` parameter against it.
+- **C5 — No broken export links.** Export buttons are added only in the task that registers the export routes.
+- **C6 — Concrete PDF-content testing.** dompdf compresses text, so content is asserted against the exact HTML handed to dompdf (`CaseExportPdfService::html()`); the HTTP response is checked for `application/pdf`, a ULID-free filename and the `%PDF-` signature.
+- **C7 — Approved-by wording.** `clinical_cases` has no `approved_by` column. The approver is `case_versions.approved_by`, an immutable user id; the name printed for it is looked up live from `users` and would change if that user were renamed. Approval time comes from `case_versions.approved_at`.
+
+One addition made while planning: `StoreClinicalCaseRequest` applies the same category check as `UpdateClinicalCaseContextRequest`, so a raw create request cannot bypass a rotation's configured categories either.
