@@ -24,6 +24,16 @@ type Payload = SyncedSection & {
         ward_name: string | null;
         category_options: string[];
     };
+    // Present in the editor's initial context; owned by other sections.
+    vitals_status?: string | null;
+    vitals_unavailable_reason?: string | null;
+    vitals_availability_lock_version?: number;
+    investigations_status?: string | null;
+    investigations_unavailable_reason?: string | null;
+    investigations_availability_lock_version?: number;
+    medication_chart_status?: string | null;
+    medication_chart_none_reason?: string | null;
+    medication_chart_availability_lock_version?: number;
 };
 const props = defineProps<{
     caseId: string;
@@ -48,7 +58,22 @@ const {
     sectionKey: 'case_context',
     endpoint: `/student/cases/${props.caseId}/context`,
     initialPayload: props.initial,
-    readonlyFields: ['case_display'],
+    // The editor hands this section the whole case context, which also
+    // carries the availability fields owned by the Vitals/Investigations and
+    // Medication Chart sections. The context endpoint rejects them as
+    // unknown fields, so they must never be sent from here.
+    readonlyFields: [
+        'case_display',
+        'vitals_status',
+        'vitals_unavailable_reason',
+        'vitals_availability_lock_version',
+        'investigations_status',
+        'investigations_unavailable_reason',
+        'investigations_availability_lock_version',
+        'medication_chart_status',
+        'medication_chart_none_reason',
+        'medication_chart_availability_lock_version',
+    ],
     isSyncReady: (p) => (p.age_value === null) === (p.age_unit === null),
 });
 const status = computed(
