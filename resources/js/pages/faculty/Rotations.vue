@@ -104,19 +104,31 @@ const addTarget = (rotation: Rotation) => {
 const saveTarget = (rotation: Rotation, target: CaseTarget) => {
     const draft = editDraft(target);
     draft.processing = true;
+    // Every Inertia response (including a validation redirect) refreshes
+    // `rotations`, and the watcher above replaces each draft object, so look
+    // the draft up again in the callbacks instead of holding the old one.
+    const current = () => editDrafts[target.id];
     router.patch(
         `/faculty/rotations/${rotation.id}/targets/${target.id}`,
         payload(draft),
         {
             preserveScroll: true,
             onSuccess: () => {
-                draft.errors = {};
+                if (current()) {
+                    current().errors = {};
+                }
             },
             onError: (errors) => {
-                draft.errors = errors;
+                if (current()) {
+                    current().category = draft.category;
+                    current().target_count = draft.target_count;
+                    current().errors = errors;
+                }
             },
             onFinish: () => {
-                draft.processing = false;
+                if (current()) {
+                    current().processing = false;
+                }
             },
         },
     );

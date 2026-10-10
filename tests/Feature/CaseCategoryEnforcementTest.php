@@ -71,8 +71,15 @@ class CaseCategoryEnforcementTest extends TestCase
         [$student, $case] = $this->caseOnRotationWithCategories(['Cardiology']);
         $case->forceFill(['case_category' => 'Entered before targets existed'])->save();
 
-        $this->sync($student, $case, ['age_value' => 40, 'age_unit' => 'years'])->assertOk()
-            ->assertJsonPath('section.case_category', 'Entered before targets existed');
+        // The real client sends the whole section, including the unchanged
+        // legacy category, on every autosave.
+        $this->sync($student, $case, ['case_category' => 'Entered before targets existed', 'age_value' => 40, 'age_unit' => 'years'])->assertOk()
+            ->assertJsonPath('section.case_category', 'Entered before targets existed')
+            ->assertJsonPath('section.age_value', 40);
+        $this->sync($student, $case, ['age_value' => 41, 'age_unit' => 'years'])->assertOk();
+
+        // Changing it to another unlisted value is still rejected.
+        $this->sync($student, $case, ['case_category' => 'Something else'])->assertUnprocessable();
     }
 
     public function test_case_creation_applies_the_same_rule(): void

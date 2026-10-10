@@ -76,6 +76,14 @@ class UpdateClinicalCaseContextRequest extends FormRequest
             return;
         }
 
+        // The client sends the whole section on every autosave. A category
+        // saved before the rotation's targets existed (or before a target was
+        // renamed) must not block edits to other fields, so an unchanged value
+        // is never re-validated.
+        if ($input === $case->case_category) {
+            return;
+        }
+
         $rotationId = $case->rotationAssignment?->rotation_id;
         if ($rotationId === null) {
             return;
