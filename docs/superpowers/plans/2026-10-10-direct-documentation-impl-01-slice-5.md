@@ -63,4 +63,15 @@ DEC-033 and OPEN-017 are already recorded in `docs/DECISIONS.md`. No schema, con
 
 ## Execution ledger
 
-Deviations from this plan are recorded here as rulings during execution.
+Deviations from this plan, recorded as rulings during execution.
+
+1. **Task order.** Executed as planned: targets (Task 1), New Case (Task 2), progress (Task 3), PDF (Task 4), retention (Task 5, no change needed — DEC-033 and OPEN-017 were already recorded on `main`), final gate (Task 6).
+2. **C2 test shape.** The forced race inserts the competing row on the same connection inside the request's transaction, so it rolls back with the 422; the test asserts the request's own row and audit event were never kept, and a mutation (catching the wrong exception type) makes it fail with the raw constraint violation.
+3. **Admin filter (C4).** An invalid `rotation` redirects to the unfiltered `/admin/progress` with the error (not `back()`), so a bad bookmarked URL cannot redirect to itself.
+4. **Dependency install.** Packagist metadata is unreachable from the implementing sandbox, so `barryvdh/laravel-dompdf` v3.1.2 and its dependencies (dompdf v3.1.6, php-font-lib 1.0.2, php-svg-lib 1.0.2, masterminds/html5 2.11.0, sabberworm/php-css-parser v9.5.0) were added to `composer.lock` from each package's own `composer.json` at the exact tagged commit, with a recomputed content hash; `composer validate` passes and `composer install` from the lock succeeds. CI's `composer install` is the independent check.
+5. **PDF value formatting.** Stored option codes (`no_known_allergy`) print as words (`No known allergy`); headings never break from their content across pages.
+6. **Pre-existing bug fixed (found by the walkthrough).** Since Slice 2B the editor passed the whole case context — including the availability fields owned by other sections — into the Case Profile section, which sent them back; the context endpoint rejects unknown fields, so the first Case Profile edit after opening the editor returned 422. Fixed by excluding those fields from the Case Profile sync body. Frontend-only, so PHPUnit cannot cover it; the walkthrough asserts the 200.
+7. **Pre-existing bug fixed (planned).** The case list's draft/returned action opened the `/soap` page retired in Slice 2C (405); it now opens the editor.
+8. **Production-like check.** Railway staging is not reachable from the implementing environment. Instead: the full suite against local PostgreSQL 16 — 429 of 432 passing, 2 skipped, the only error being a pre-existing JSON-equality assertion in `AcademicAdministrationTest` (from `ADM-FOUNDATION-01`, untouched here; Postgres has no `json = text` operator) — and a 14-check headless-Chromium walkthrough at 390 × 844 on Postgres: faculty targets and duplicate rejection → New Case with one assignment → category dropdown and autosave → submit → approve → student/faculty/admin progress and dashboard → student and admin PDF download → invalid admin filter.
+
+**Final gate (SQLite, as CI):** `npm run check`, `npm run types:check`, Pint, PHPStan (0 errors), 432 tests — 430 passed, 2 skipped, 1,602 assertions; production build clean.
