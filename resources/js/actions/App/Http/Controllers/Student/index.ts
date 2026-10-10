@@ -10,19 +10,22 @@ import SoapController from './SoapController'
 import SubmissionReviewController from './SubmissionReviewController'
 import SubmissionController from './SubmissionController'
 import PortfolioController from './PortfolioController'
+import ProgressController from './ProgressController'
+
 const Student = {
     CaseController: Object.assign(CaseController, CaseController),
-CaseContextController: Object.assign(CaseContextController, CaseContextController),
-CaseClinicalProfileController: Object.assign(CaseClinicalProfileController, CaseClinicalProfileController),
-CaseEditorController: Object.assign(CaseEditorController, CaseEditorController),
-CaseVitalController: Object.assign(CaseVitalController, CaseVitalController),
-CaseInvestigationController: Object.assign(CaseInvestigationController, CaseInvestigationController),
-CaseMedicationController: Object.assign(CaseMedicationController, CaseMedicationController),
-CaseClinicalActivityController: Object.assign(CaseClinicalActivityController, CaseClinicalActivityController),
-SoapController: Object.assign(SoapController, SoapController),
-SubmissionReviewController: Object.assign(SubmissionReviewController, SubmissionReviewController),
-SubmissionController: Object.assign(SubmissionController, SubmissionController),
-PortfolioController: Object.assign(PortfolioController, PortfolioController),
+    CaseContextController: Object.assign(CaseContextController, CaseContextController),
+    CaseClinicalProfileController: Object.assign(CaseClinicalProfileController, CaseClinicalProfileController),
+    CaseEditorController: Object.assign(CaseEditorController, CaseEditorController),
+    CaseVitalController: Object.assign(CaseVitalController, CaseVitalController),
+    CaseInvestigationController: Object.assign(CaseInvestigationController, CaseInvestigationController),
+    CaseMedicationController: Object.assign(CaseMedicationController, CaseMedicationController),
+    CaseClinicalActivityController: Object.assign(CaseClinicalActivityController, CaseClinicalActivityController),
+    SoapController: Object.assign(SoapController, SoapController),
+    SubmissionReviewController: Object.assign(SubmissionReviewController, SubmissionReviewController),
+    SubmissionController: Object.assign(SubmissionController, SubmissionController),
+    PortfolioController: Object.assign(PortfolioController, PortfolioController),
+    ProgressController: Object.assign(ProgressController, ProgressController),
 }
 
 export default Student

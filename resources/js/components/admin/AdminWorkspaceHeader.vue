@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    BarChart3,
     Building2,
     GraduationCap,
     MapPinned,
@@ -15,6 +16,7 @@ const sections = [
     { label: 'Sites', href: '/admin/clinical-sites', icon: MapPinned },
     { label: 'People', href: '/admin/people', icon: Users },
     { label: 'Rotations', href: '/admin/rotations', icon: Building2 },
+    { label: 'Progress', href: '/admin/progress', icon: BarChart3 },
 ];
 </script>
 

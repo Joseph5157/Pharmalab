@@ -4,8 +4,10 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Admin\AcademicController;
 use App\Http\Controllers\Admin\ClinicalSiteController;
 use App\Http\Controllers\Admin\PeopleController;
+use App\Http\Controllers\Admin\ProgressController as AdminProgressController;
 use App\Http\Controllers\Admin\RotationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Faculty\ProgressController as FacultyProgressController;
 use App\Http\Controllers\Faculty\ReviewController;
 use App\Http\Controllers\Faculty\RotationTargetController;
 use App\Http\Controllers\Student\CaseClinicalActivityController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Student\CaseInvestigationController;
 use App\Http\Controllers\Student\CaseMedicationController;
 use App\Http\Controllers\Student\CaseVitalController;
 use App\Http\Controllers\Student\PortfolioController;
+use App\Http\Controllers\Student\ProgressController as StudentProgressController;
 use App\Http\Controllers\Student\SoapController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\Student\SubmissionReviewController;
@@ -57,6 +60,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('student/cases/{case}/submission-review', [SubmissionReviewController::class, 'show'])->name('student.cases.submission-review');
         Route::post('student/cases/{case}/submit', [SubmissionController::class, 'store'])->name('student.cases.submit');
         Route::get('student/portfolio', [PortfolioController::class, 'index'])->name('student.portfolio');
+        Route::get('student/progress', [StudentProgressController::class, 'index'])->name('student.progress');
     });
 
     Route::middleware('role:'.UserRole::Faculty->value)->group(function (): void {
@@ -66,6 +70,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('faculty/reviews/{case}/approve', [ReviewController::class, 'approve'])->name('faculty.reviews.approve');
         Route::post('faculty/reviews/{case}/return', [ReviewController::class, 'returnCase'])->name('faculty.reviews.return');
         Route::post('faculty/reviews/{case}/reopen', [ReviewController::class, 'reopen'])->name('faculty.reviews.reopen');
+        Route::get('faculty/progress', [FacultyProgressController::class, 'index'])->name('faculty.progress');
         Route::get('faculty/rotations', [RotationTargetController::class, 'index'])->name('faculty.rotations.index');
         Route::post('faculty/rotations/{rotation}/targets', [RotationTargetController::class, 'store'])->name('faculty.rotations.targets.store');
         Route::patch('faculty/rotations/{rotation}/targets/{target}', [RotationTargetController::class, 'update'])->scopeBindings()->name('faculty.rotations.targets.update');
@@ -75,6 +80,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::prefix('admin')->middleware('role:'.UserRole::Administrator->value)->group(function (): void {
         Route::get('/', [DashboardController::class, 'administrator'])->name('admin.dashboard');
         Route::get('academic', [AcademicController::class, 'index'])->name('admin.academic.index');
+        Route::get('progress', [AdminProgressController::class, 'index'])->name('admin.progress');
         Route::post('programmes', [AcademicController::class, 'storeProgramme'])->name('admin.programmes.store');
         Route::post('cohorts', [AcademicController::class, 'storeCohort'])->name('admin.cohorts.store');
         Route::get('clinical-sites', [ClinicalSiteController::class, 'index'])->name('admin.clinical-sites.index');
