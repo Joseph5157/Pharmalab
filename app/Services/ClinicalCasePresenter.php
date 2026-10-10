@@ -13,6 +13,29 @@ use App\Models\ClinicalCase;
 
 class ClinicalCasePresenter
 {
+    public function __construct(private readonly RotationCategoryMatcher $categories) {}
+
+    /**
+     * The read-only identity block shown at the top of the case editor.
+     * `category_options` is the rotation's configured target categories; when
+     * it is empty the case category stays free text.
+     *
+     * @return array<string, mixed>
+     */
+    public function caseDisplay(ClinicalCase $case): array
+    {
+        $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+        $rotationId = $case->rotationAssignment?->rotation_id;
+
+        return [
+            'case_number' => $case->case_number,
+            'rotation_name' => $case->rotationAssignment?->rotation?->name,
+            'clinical_site_name' => $case->clinicalSite?->name,
+            'ward_name' => $case->ward?->name,
+            'category_options' => $rotationId === null ? [] : $this->categories->options($rotationId),
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function context(ClinicalCase $case): array
     {
@@ -30,12 +53,7 @@ class ClinicalCasePresenter
             'weight_kg' => $case->weight_kg,
             'height_cm' => $case->height_cm,
             'pregnancy_lactation_status' => $case->pregnancy_lactation_status,
-            'case_display' => [
-                'case_number' => $case->case_number,
-                'rotation_name' => $case->rotationAssignment?->rotation?->name,
-                'clinical_site_name' => $case->clinicalSite?->name,
-                'ward_name' => $case->ward?->name,
-            ],
+            'case_display' => $this->caseDisplay($case),
             'vitals_status' => $case->vitals_status,
             'vitals_unavailable_reason' => $case->vitals_unavailable_reason,
             'vitals_availability_lock_version' => $case->vitals_availability_lock_version,

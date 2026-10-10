@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\PeopleController;
 use App\Http\Controllers\Admin\RotationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Faculty\ReviewController;
+use App\Http\Controllers\Faculty\RotationTargetController;
 use App\Http\Controllers\Student\CaseClinicalActivityController;
 use App\Http\Controllers\Student\CaseClinicalProfileController;
 use App\Http\Controllers\Student\CaseContextController;
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('faculty/reviews/{case}/approve', [ReviewController::class, 'approve'])->name('faculty.reviews.approve');
         Route::post('faculty/reviews/{case}/return', [ReviewController::class, 'returnCase'])->name('faculty.reviews.return');
         Route::post('faculty/reviews/{case}/reopen', [ReviewController::class, 'reopen'])->name('faculty.reviews.reopen');
+        Route::get('faculty/rotations', [RotationTargetController::class, 'index'])->name('faculty.rotations.index');
+        Route::post('faculty/rotations/{rotation}/targets', [RotationTargetController::class, 'store'])->name('faculty.rotations.targets.store');
+        Route::patch('faculty/rotations/{rotation}/targets/{target}', [RotationTargetController::class, 'update'])->scopeBindings()->name('faculty.rotations.targets.update');
+        Route::delete('faculty/rotations/{rotation}/targets/{target}', [RotationTargetController::class, 'destroy'])->scopeBindings()->name('faculty.rotations.targets.destroy');
     });
 
     Route::prefix('admin')->middleware('role:'.UserRole::Administrator->value)->group(function (): void {

@@ -34,7 +34,7 @@ class CaseController extends Controller
 
     public function store(StoreClinicalCaseRequest $request, AuditTrail $audit): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $request->caseAttributes();
 
         $case = DB::transaction(function () use ($request, $audit, $data): ClinicalCase {
             $user = $request->user();

@@ -22,6 +22,7 @@ type Payload = SyncedSection & {
         rotation_name: string | null;
         clinical_site_name: string | null;
         ward_name: string | null;
+        category_options: string[];
     };
 };
 const props = defineProps<{
@@ -62,6 +63,24 @@ const status = computed(
             incomplete: 'Complete both age and age unit',
         })[state.value],
 );
+const categoryOptions = computed(
+    () => payload.value.case_display.category_options ?? [],
+);
+// A category saved before the rotation's targets existed may not be in the
+// list; keep it visible so the student can see it and choose a listed one.
+const legacyCategory = computed(() => {
+    const current = payload.value.case_category;
+
+    return current !== null && !categoryOptions.value.includes(current)
+        ? current
+        : null;
+});
+function onCategoryInput() {
+    if (payload.value.case_category === '') {
+        payload.value.case_category = null;
+    }
+    edit();
+}
 const ageMax = computed(
     () => ({ days: 364, months: 59, years: 120 })[payload.value.age_unit ?? ''],
 );
@@ -127,6 +146,35 @@ function onNumberInput(key: keyof Payload) {
                     <option value="other">Other</option>
                 </select></label
             >
+            <label
+                ><span>Case category</span
+                ><select
+                    v-if="categoryOptions.length"
+                    v-model="payload.case_category"
+                    data-test="case-category"
+                    class="mt-1 w-full rounded-xl border p-2"
+                    @change="edit"
+                >
+                    <option :value="null">Select...</option>
+                    <option v-if="legacyCategory" :value="legacyCategory">
+                        {{ legacyCategory }} (not a rotation category)
+                    </option>
+                    <option
+                        v-for="option in categoryOptions"
+                        :key="option"
+                        :value="option"
+                    >
+                        {{ option }}
+                    </option>
+                </select>
+                <input
+                    v-else
+                    v-model="payload.case_category"
+                    data-test="case-category"
+                    maxlength="80"
+                    class="mt-1 w-full rounded-xl border p-2"
+                    @input="onCategoryInput"
+            /></label>
             <label
                 ><span>Case documentation date</span
                 ><input
