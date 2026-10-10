@@ -22,7 +22,18 @@ type Payload = SyncedSection & {
         rotation_name: string | null;
         clinical_site_name: string | null;
         ward_name: string | null;
+        category_options: string[];
     };
+    // Present in the editor's initial context; owned by other sections.
+    vitals_status?: string | null;
+    vitals_unavailable_reason?: string | null;
+    vitals_availability_lock_version?: number;
+    investigations_status?: string | null;
+    investigations_unavailable_reason?: string | null;
+    investigations_availability_lock_version?: number;
+    medication_chart_status?: string | null;
+    medication_chart_none_reason?: string | null;
+    medication_chart_availability_lock_version?: number;
 };
 const props = defineProps<{
     caseId: string;
@@ -47,7 +58,22 @@ const {
     sectionKey: 'case_context',
     endpoint: `/student/cases/${props.caseId}/context`,
     initialPayload: props.initial,
-    readonlyFields: ['case_display'],
+    // The editor hands this section the whole case context, which also
+    // carries the availability fields owned by the Vitals/Investigations and
+    // Medication Chart sections. The context endpoint rejects them as
+    // unknown fields, so they must never be sent from here.
+    readonlyFields: [
+        'case_display',
+        'vitals_status',
+        'vitals_unavailable_reason',
+        'vitals_availability_lock_version',
+        'investigations_status',
+        'investigations_unavailable_reason',
+        'investigations_availability_lock_version',
+        'medication_chart_status',
+        'medication_chart_none_reason',
+        'medication_chart_availability_lock_version',
+    ],
     isSyncReady: (p) => (p.age_value === null) === (p.age_unit === null),
 });
 const status = computed(
@@ -62,6 +88,24 @@ const status = computed(
             incomplete: 'Complete both age and age unit',
         })[state.value],
 );
+const categoryOptions = computed(
+    () => payload.value.case_display.category_options ?? [],
+);
+// A category saved before the rotation's targets existed may not be in the
+// list; keep it visible so the student can see it and choose a listed one.
+const legacyCategory = computed(() => {
+    const current = payload.value.case_category;
+
+    return current !== null && !categoryOptions.value.includes(current)
+        ? current
+        : null;
+});
+function onCategoryInput() {
+    if (payload.value.case_category === '') {
+        payload.value.case_category = null;
+    }
+    edit();
+}
 const ageMax = computed(
     () => ({ days: 364, months: 59, years: 120 })[payload.value.age_unit ?? ''],
 );
@@ -127,6 +171,35 @@ function onNumberInput(key: keyof Payload) {
                     <option value="other">Other</option>
                 </select></label
             >
+            <label
+                ><span>Case category</span
+                ><select
+                    v-if="categoryOptions.length"
+                    v-model="payload.case_category"
+                    data-test="case-category"
+                    class="mt-1 w-full rounded-xl border p-2"
+                    @change="edit"
+                >
+                    <option :value="null">Select...</option>
+                    <option v-if="legacyCategory" :value="legacyCategory">
+                        {{ legacyCategory }} (not a rotation category)
+                    </option>
+                    <option
+                        v-for="option in categoryOptions"
+                        :key="option"
+                        :value="option"
+                    >
+                        {{ option }}
+                    </option>
+                </select>
+                <input
+                    v-else
+                    v-model="payload.case_category"
+                    data-test="case-category"
+                    maxlength="80"
+                    class="mt-1 w-full rounded-xl border p-2"
+                    @input="onCategoryInput"
+            /></label>
             <label
                 ><span>Case documentation date</span
                 ><input

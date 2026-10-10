@@ -110,8 +110,18 @@ class SubmitCase
         $profile = $case->clinicalProfile;
         $soap = $case->currentSoap;
 
+        $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+
         return [
             'form_version' => $case->form_version->value,
+            // Display labels that can be renamed later, frozen as they were at
+            // submission so an exported PDF never shows a later name.
+            'record_metadata' => [
+                'case_number' => $case->case_number,
+                'rotation_name' => $case->rotationAssignment?->rotation?->name,
+                'clinical_site_name' => $case->clinicalSite?->name,
+                'ward_name' => $case->ward?->name,
+            ],
             'case_context' => [
                 'encounter_date' => $case->encounter_date?->toDateString(),
                 'case_category' => $case->case_category,

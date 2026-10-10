@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Student;
 
 use App\Enums\CaseFormVersion;
 use App\Enums\CaseStatus;
+use App\Enums\RecordStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\StoreClinicalCaseRequest;
 use App\Models\ClinicalCase;
+use App\Models\RotationAssignment;
 use App\Services\AuditTrail;
+use App\Services\CaseExportPdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class CaseController extends Controller
 {
@@ -27,14 +31,32 @@ class CaseController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // The "New case" button needs a real rotation_assignment_id:
+        // StoreClinicalCaseRequest only accepts the student's own active
+        // assignments, so these are the only ids that can succeed.
+        $activeAssignments = RotationAssignment::query()
+            ->where('student_id', $request->user()->id)
+            ->where('status', RecordStatus::Active)
+            ->with(['rotation.clinicalSite', 'rotation.ward'])
+            ->get()
+            ->sortBy(fn (RotationAssignment $assignment) => $assignment->rotation?->starts_on)
+            ->values()
+            ->map(fn (RotationAssignment $assignment): array => [
+                'id' => $assignment->id,
+                'rotation_name' => $assignment->rotation?->name,
+                'clinical_site_name' => $assignment->rotation?->clinicalSite?->name,
+                'ward_name' => $assignment->rotation?->ward?->name,
+            ]);
+
         return Inertia::render('student/Cases', [
             'cases' => $cases,
+            'activeAssignments' => $activeAssignments,
         ]);
     }
 
     public function store(StoreClinicalCaseRequest $request, AuditTrail $audit): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $request->caseAttributes();
 
         $case = DB::transaction(function () use ($request, $audit, $data): ClinicalCase {
             $user = $request->user();
@@ -82,5 +104,12 @@ class CaseController extends Controller
         return Inertia::render('student/CaseShow', [
             'clinicalCase' => $case,
         ]);
+    }
+
+    public function export(Request $request, ClinicalCase $case, CaseExportPdfService $pdf): SymfonyResponse
+    {
+        Gate::authorize('exportPdf', $case);
+
+        return $pdf->export($request->user(), $case);
     }
 }

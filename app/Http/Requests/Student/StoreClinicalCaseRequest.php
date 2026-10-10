@@ -3,11 +3,16 @@
 namespace App\Http\Requests\Student;
 
 use App\Models\ClinicalCase;
+use App\Models\RotationAssignment;
+use App\Services\RotationCategoryMatcher;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreClinicalCaseRequest extends FormRequest
 {
+    private ?string $canonicalCategory = null;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', ClinicalCase::class) ?? false;
@@ -38,5 +43,44 @@ class StoreClinicalCaseRequest extends FormRequest
             'height_cm' => ['nullable', 'numeric', 'min:0', 'max:300'],
             'pregnancy_lactation_status' => ['nullable', 'string', 'max:30'],
         ];
+    }
+
+    /** Same category rule as UpdateClinicalCaseContextRequest, so a raw create request cannot bypass it. */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $input = $this->input('case_category');
+            if ($validator->errors()->isNotEmpty() || ! is_string($input) || $input === '') {
+                return;
+            }
+
+            $assignmentId = $this->input('rotation_assignment_id');
+            $assignment = is_string($assignmentId) ? RotationAssignment::query()->whereKey($assignmentId)->first() : null;
+            if ($assignment === null) {
+                return;
+            }
+
+            $matcher = app(RotationCategoryMatcher::class);
+            $options = $matcher->options($assignment->rotation_id);
+            if ($options === []) {
+                return;
+            }
+
+            $this->canonicalCategory = $matcher->canonical($assignment->rotation_id, $input);
+            if ($this->canonicalCategory === null) {
+                $validator->errors()->add('case_category', 'Choose one of this rotation\'s categories: '.implode(', ', $options).'.');
+            }
+        });
+    }
+
+    /** @return array<string, mixed> */
+    public function caseAttributes(): array
+    {
+        $data = $this->validated();
+        if ($this->canonicalCategory !== null) {
+            $data['case_category'] = $this->canonicalCategory;
+        }
+
+        return $data;
     }
 }

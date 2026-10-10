@@ -8,9 +8,9 @@ import clinicalActivities from './clinical-activities'
 import soap from './soap'
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
@@ -23,72 +23,75 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
 index.url = (options?: RouteQueryOptions) => {
     return index.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
+const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
+
+/**
 * @see \App\Http\Controllers\Student\CaseController::index
- * @see app/Http/Controllers/Student/CaseController.php:20
- * @route '/student/cases'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    index.form = indexForm
+* @see app/Http/Controllers/Student/CaseController.php:24
+* @route '/student/cases'
+*/
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Student\CaseController::store
- * @see app/Http/Controllers/Student/CaseController.php:35
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:57
+* @route '/student/cases'
+*/
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
@@ -101,49 +104,50 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::store
- * @see app/Http/Controllers/Student/CaseController.php:35
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:57
+* @route '/student/cases'
+*/
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::store
- * @see app/Http/Controllers/Student/CaseController.php:35
- * @route '/student/cases'
- */
+* @see app/Http/Controllers/Student/CaseController.php:57
+* @route '/student/cases'
+*/
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::store
- * @see app/Http/Controllers/Student/CaseController.php:35
- * @route '/student/cases'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Student/CaseController.php:57
+* @route '/student/cases'
+*/
+const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::store
- * @see app/Http/Controllers/Student/CaseController.php:35
- * @route '/student/cases'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
-    
-    store.form = storeForm
+* @see app/Http/Controllers/Student/CaseController.php:57
+* @route '/student/cases'
+*/
+storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
+
+store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
 export const show = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
@@ -156,31 +160,31 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
 show.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { case: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id }
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object'
+        ? args.case.id
+        : args.case,
+    }
 
     return show.definition.url
             .replace('{case}', parsedArgs.case.toString())
@@ -189,63 +193,171 @@ show.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
 show.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
 show.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
-    const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
+const showForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
-        showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
+showForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
+
+/**
 * @see \App\Http\Controllers\Student\CaseController::show
- * @see app/Http/Controllers/Student/CaseController.php:67
- * @route '/student/cases/{case}'
- */
-        showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    show.form = showForm
+* @see app/Http/Controllers/Student/CaseController.php:89
+* @route '/student/cases/{case}'
+*/
+showForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+show.form = showForm
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+export const exportMethod = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(args, options),
+    method: 'get',
+})
+
+exportMethod.definition = {
+    methods: ["get","head"],
+    url: '/student/cases/{case}/export',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+exportMethod.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { case: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            case: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        case: typeof args.case === 'object'
+        ? args.case.id
+        : args.case,
+    }
+
+    return exportMethod.definition.url
+            .replace('{case}', parsedArgs.case.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+exportMethod.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+exportMethod.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: exportMethod.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+const exportMethodForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+exportMethodForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Student\CaseController::exportMethod
+* @see app/Http/Controllers/Student/CaseController.php:109
+* @route '/student/cases/{case}/export'
+*/
+exportMethodForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: exportMethod.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+exportMethod.form = exportMethodForm
+
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
 export const edit = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
@@ -258,31 +370,31 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
 edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { case: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id }
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object'
+        ? args.case.id
+        : args.case,
+    }
 
     return edit.definition.url
             .replace('{case}', parsedArgs.case.toString())
@@ -291,63 +403,66 @@ edit.url = (args: { case: string | { id: string } } | [caseParam: string | { id:
 
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
 edit.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
 edit.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: edit.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
-    const editForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: edit.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
+const editForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
-        editForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, options),
-            method: 'get',
-        })
-            /**
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
+editForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, options),
+    method: 'get',
+})
+
+/**
 * @see \App\Http\Controllers\Student\CaseEditorController::edit
- * @see app/Http/Controllers/Student/CaseEditorController.php:15
- * @route '/student/cases/{case}/edit'
- */
-        editForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: edit.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    edit.form = editForm
+* @see app/Http/Controllers/Student/CaseEditorController.php:15
+* @route '/student/cases/{case}/edit'
+*/
+editForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: edit.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
 export const submissionReview = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: submissionReview.url(args, options),
     method: 'get',
@@ -360,31 +475,31 @@ submissionReview.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
 submissionReview.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { case: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id }
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object'
+        ? args.case.id
+        : args.case,
+    }
 
     return submissionReview.definition.url
             .replace('{case}', parsedArgs.case.toString())
@@ -393,63 +508,66 @@ submissionReview.url = (args: { case: string | { id: string } } | [caseParam: st
 
 /**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
 submissionReview.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: submissionReview.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
 submissionReview.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: submissionReview.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
-    const submissionReviewForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: submissionReview.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
+const submissionReviewForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: submissionReview.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
-        submissionReviewForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: submissionReview.url(args, options),
-            method: 'get',
-        })
-            /**
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
+submissionReviewForm.get = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: submissionReview.url(args, options),
+    method: 'get',
+})
+
+/**
 * @see \App\Http\Controllers\Student\SubmissionReviewController::submissionReview
- * @see app/Http/Controllers/Student/SubmissionReviewController.php:16
- * @route '/student/cases/{case}/submission-review'
- */
-        submissionReviewForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: submissionReview.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
-    
-    submissionReview.form = submissionReviewForm
+* @see app/Http/Controllers/Student/SubmissionReviewController.php:16
+* @route '/student/cases/{case}/submission-review'
+*/
+submissionReviewForm.head = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: submissionReview.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+submissionReview.form = submissionReviewForm
+
 /**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
- * @see app/Http/Controllers/Student/SubmissionController.php:14
- * @route '/student/cases/{case}/submit'
- */
+* @see app/Http/Controllers/Student/SubmissionController.php:14
+* @route '/student/cases/{case}/submit'
+*/
 export const submit = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: submit.url(args, options),
     method: 'post',
@@ -462,31 +580,31 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
- * @see app/Http/Controllers/Student/SubmissionController.php:14
- * @route '/student/cases/{case}/submit'
- */
+* @see app/Http/Controllers/Student/SubmissionController.php:14
+* @route '/student/cases/{case}/submit'
+*/
 submit.url = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { case: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { case: args.id }
-        }
-    
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { case: args.id }
+    }
+
     if (Array.isArray(args)) {
         args = {
-                    case: args[0],
-                }
+            case: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        case: typeof args.case === 'object'
-                ? args.case.id
-                : args.case,
-                }
+        case: typeof args.case === 'object'
+        ? args.case.id
+        : args.case,
+    }
 
     return submit.definition.url
             .replace('{case}', parsedArgs.case.toString())
@@ -495,49 +613,51 @@ submit.url = (args: { case: string | { id: string } } | [caseParam: string | { i
 
 /**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
- * @see app/Http/Controllers/Student/SubmissionController.php:14
- * @route '/student/cases/{case}/submit'
- */
+* @see app/Http/Controllers/Student/SubmissionController.php:14
+* @route '/student/cases/{case}/submit'
+*/
 submit.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: submit.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
- * @see app/Http/Controllers/Student/SubmissionController.php:14
- * @route '/student/cases/{case}/submit'
- */
-    const submitForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: submit.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Student/SubmissionController.php:14
+* @route '/student/cases/{case}/submit'
+*/
+const submitForm = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: submit.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Student\SubmissionController::submit
- * @see app/Http/Controllers/Student/SubmissionController.php:14
- * @route '/student/cases/{case}/submit'
- */
-        submitForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: submit.url(args, options),
-            method: 'post',
-        })
-    
-    submit.form = submitForm
+* @see app/Http/Controllers/Student/SubmissionController.php:14
+* @route '/student/cases/{case}/submit'
+*/
+submitForm.post = (args: { case: string | { id: string } } | [caseParam: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: submit.url(args, options),
+    method: 'post',
+})
+
+submit.form = submitForm
+
 const cases = {
     index: Object.assign(index, index),
-store: Object.assign(store, store),
-show: Object.assign(show, show),
-context: Object.assign(context, context),
-clinicalProfile: Object.assign(clinicalProfile, clinicalProfile),
-edit: Object.assign(edit, edit),
-vitals: Object.assign(vitals, vitals),
-investigations: Object.assign(investigations, investigations),
-medications: Object.assign(medications, medications),
-clinicalActivities: Object.assign(clinicalActivities, clinicalActivities),
-soap: Object.assign(soap, soap),
-submissionReview: Object.assign(submissionReview, submissionReview),
-submit: Object.assign(submit, submit),
+    store: Object.assign(store, store),
+    show: Object.assign(show, show),
+    export: Object.assign(exportMethod, exportMethod),
+    context: Object.assign(context, context),
+    clinicalProfile: Object.assign(clinicalProfile, clinicalProfile),
+    edit: Object.assign(edit, edit),
+    vitals: Object.assign(vitals, vitals),
+    investigations: Object.assign(investigations, investigations),
+    medications: Object.assign(medications, medications),
+    clinicalActivities: Object.assign(clinicalActivities, clinicalActivities),
+    soap: Object.assign(soap, soap),
+    submissionReview: Object.assign(submissionReview, submissionReview),
+    submit: Object.assign(submit, submit),
 }
 
 export default cases

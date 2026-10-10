@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    BarChart3,
     Bell,
-    BookOpen,
     ClipboardList,
     Home,
     Plus,
@@ -18,9 +18,9 @@ const items = computed(() => {
     if (role.value === 'student') {
         return [
             { label: 'Home', href: '/student', icon: Home },
-            { label: 'Cases', href: '#', icon: ClipboardList },
+            { label: 'Cases', href: '/student/cases', icon: ClipboardList },
             { label: 'Add', href: '#', icon: Plus, primary: true },
-            { label: 'Reference', href: '#', icon: BookOpen },
+            { label: 'Progress', href: '/student/progress', icon: BarChart3 },
             { label: 'Profile', href: '/settings/profile', icon: Settings },
         ];
     }
@@ -28,8 +28,8 @@ const items = computed(() => {
     if (role.value === 'faculty') {
         return [
             { label: 'Home', href: '/faculty', icon: Home },
-            { label: 'Review', href: '#', icon: ClipboardList },
-            { label: 'Students', href: '#', icon: Users },
+            { label: 'Review', href: '/faculty/reviews', icon: ClipboardList },
+            { label: 'Students', href: '/faculty/progress', icon: Users },
             { label: 'Alerts', href: '#', icon: Bell },
             { label: 'Profile', href: '/settings/profile', icon: Settings },
         ];

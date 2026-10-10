@@ -69,4 +69,15 @@ class Rotation extends Model
     {
         return $this->hasMany(RotationAssignment::class);
     }
+
+    /**
+     * Also the relation Laravel uses for the scoped `{target}` route binding,
+     * so a target id belonging to another rotation resolves to a 404.
+     *
+     * @return HasMany<RotationCaseTarget, $this>
+     */
+    public function targets(): HasMany
+    {
+        return $this->hasMany(RotationCaseTarget::class);
+    }
 }

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    BarChart3,
     BookOpen,
     ClipboardCheck,
     FileClock,
     GraduationCap,
     LayoutGrid,
     MapPinned,
+    Target,
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
@@ -44,16 +46,34 @@ const mainNavItems = computed<NavItem[]>(() => {
     if (role.value === 'student') {
         return [
             dashboard,
-            { title: 'Cases', href: '#', icon: ClipboardCheck },
-            { title: 'Portfolio', href: '#', icon: GraduationCap },
+            { title: 'Cases', href: '/student/cases', icon: ClipboardCheck },
+            { title: 'Progress', href: '/student/progress', icon: BarChart3 },
+            {
+                title: 'Portfolio',
+                href: '/student/portfolio',
+                icon: GraduationCap,
+            },
         ];
     }
 
     if (role.value === 'faculty') {
         return [
             dashboard,
-            { title: 'Review queue', href: '#', icon: FileClock },
-            { title: 'Students', href: '#', icon: Users },
+            {
+                title: 'Review queue',
+                href: '/faculty/reviews',
+                icon: FileClock,
+            },
+            {
+                title: 'Student progress',
+                href: '/faculty/progress',
+                icon: Users,
+            },
+            {
+                title: 'Rotation targets',
+                href: '/faculty/rotations',
+                icon: Target,
+            },
         ];
     }
 
@@ -71,6 +91,7 @@ const mainNavItems = computed<NavItem[]>(() => {
             icon: MapPinned,
         },
         { title: 'Rotations', href: '/admin/rotations', icon: ClipboardCheck },
+        { title: 'Progress', href: '/admin/progress', icon: BarChart3 },
     ];
 });
 
