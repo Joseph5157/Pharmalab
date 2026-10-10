@@ -1,5 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 import academic from './academic'
+import cases from './cases'
 import programmes from './programmes'
 import cohorts from './cohorts'
 import clinicalSites from './clinical-sites'
@@ -174,6 +175,7 @@ const admin = {
     dashboard: Object.assign(dashboard, dashboard),
     academic: Object.assign(academic, academic),
     progress: Object.assign(progress, progress),
+    cases: Object.assign(cases, cases),
     programmes: Object.assign(programmes, programmes),
     cohorts: Object.assign(cohorts, cohorts),
     clinicalSites: Object.assign(clinicalSites, clinicalSites),

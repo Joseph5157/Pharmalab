@@ -9,6 +9,7 @@ use App\Enums\CaseReviewSection;
 use App\Enums\CaseStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicalCase;
+use App\Services\CaseExportPdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ReviewController extends Controller
 {
@@ -111,6 +113,13 @@ class ReviewController extends Controller
         $reopenCase($request->user(), $case, $data['reason']);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Case reopened.']);
+    }
+
+    public function export(Request $request, ClinicalCase $case, CaseExportPdfService $pdf): SymfonyResponse
+    {
+        Gate::authorize('exportPdf', $case);
+
+        return $pdf->export($request->user(), $case);
     }
 
     /** @param array<int, array{section: string}> $sectionComments */

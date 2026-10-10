@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\AcademicController;
+use App\Http\Controllers\Admin\CaseExportController;
 use App\Http\Controllers\Admin\ClinicalSiteController;
 use App\Http\Controllers\Admin\PeopleController;
 use App\Http\Controllers\Admin\ProgressController as AdminProgressController;
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('student/cases', [CaseController::class, 'index'])->name('student.cases.index');
         Route::post('student/cases', [CaseController::class, 'store'])->name('student.cases.store');
         Route::get('student/cases/{case}', [CaseController::class, 'show'])->name('student.cases.show');
+        Route::get('student/cases/{case}/export', [CaseController::class, 'export'])->name('student.cases.export');
         Route::put('student/cases/{case}/context', [CaseContextController::class, 'sync'])->name('student.cases.context.sync');
         Route::put('student/cases/{case}/clinical-profile', [CaseClinicalProfileController::class, 'sync'])->name('student.cases.clinical-profile.sync');
         Route::get('student/cases/{case}/edit', [CaseEditorController::class, 'show'])->name('student.cases.edit');
@@ -70,6 +72,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('faculty/reviews/{case}/approve', [ReviewController::class, 'approve'])->name('faculty.reviews.approve');
         Route::post('faculty/reviews/{case}/return', [ReviewController::class, 'returnCase'])->name('faculty.reviews.return');
         Route::post('faculty/reviews/{case}/reopen', [ReviewController::class, 'reopen'])->name('faculty.reviews.reopen');
+        Route::get('faculty/reviews/{case}/export', [ReviewController::class, 'export'])->name('faculty.reviews.export');
         Route::get('faculty/progress', [FacultyProgressController::class, 'index'])->name('faculty.progress');
         Route::get('faculty/rotations', [RotationTargetController::class, 'index'])->name('faculty.rotations.index');
         Route::post('faculty/rotations/{rotation}/targets', [RotationTargetController::class, 'store'])->name('faculty.rotations.targets.store');
@@ -81,6 +84,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/', [DashboardController::class, 'administrator'])->name('admin.dashboard');
         Route::get('academic', [AcademicController::class, 'index'])->name('admin.academic.index');
         Route::get('progress', [AdminProgressController::class, 'index'])->name('admin.progress');
+        Route::get('cases/{case}/export', [CaseExportController::class, 'export'])->name('admin.cases.export');
         Route::post('programmes', [AcademicController::class, 'storeProgramme'])->name('admin.programmes.store');
         Route::post('cohorts', [AcademicController::class, 'storeCohort'])->name('admin.cohorts.store');
         Route::get('clinical-sites', [ClinicalSiteController::class, 'index'])->name('admin.clinical-sites.index');

@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { CheckCircle, RotateCcw, Clock, User, MapPin } from '@lucide/vue';
+import {
+    CheckCircle,
+    RotateCcw,
+    Clock,
+    Download,
+    User,
+    MapPin,
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import InputError from '@/components/InputError.vue';
 
@@ -214,6 +221,15 @@ const canReview = (): boolean => {
                     Student: {{ clinicalCase.student.name }}
                 </p>
             </div>
+            <Button
+                v-if="clinicalCase.status === 'approved'"
+                as="a"
+                variant="outline"
+                data-test="export-pdf"
+                :href="`/faculty/reviews/${clinicalCase.id}/export`"
+            >
+                <Download class="mr-1 size-4" /> Download PDF
+            </Button>
         </div>
 
         <section class="grid gap-5 lg:grid-cols-[1fr_1fr]">

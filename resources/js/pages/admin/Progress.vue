@@ -126,6 +126,9 @@ const formatDate = (value: string) =>
                             <th class="px-4 py-2">Student</th>
                             <th class="px-4 py-2">Category</th>
                             <th class="px-4 py-2">Approved</th>
+                            <th class="px-4 py-2">
+                                <span class="sr-only">Export</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody
@@ -145,6 +148,15 @@ const formatDate = (value: string) =>
                                         ? formatDate(item.approved_at)
                                         : '—'
                                 }}
+                            </td>
+                            <td class="px-4 py-2 text-right">
+                                <a
+                                    :href="`/admin/cases/${item.id}/export`"
+                                    data-test="export-pdf"
+                                    class="font-semibold text-[#0b2942] underline underline-offset-4 dark:text-sky-300"
+                                >
+                                    PDF
+                                </a>
                             </td>
                         </tr>
                     </tbody>

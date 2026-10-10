@@ -10,12 +10,14 @@ use App\Http\Requests\Student\StoreClinicalCaseRequest;
 use App\Models\ClinicalCase;
 use App\Models\RotationAssignment;
 use App\Services\AuditTrail;
+use App\Services\CaseExportPdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class CaseController extends Controller
 {
@@ -102,5 +104,12 @@ class CaseController extends Controller
         return Inertia::render('student/CaseShow', [
             'clinicalCase' => $case,
         ]);
+    }
+
+    public function export(Request $request, ClinicalCase $case, CaseExportPdfService $pdf): SymfonyResponse
+    {
+        Gate::authorize('exportPdf', $case);
+
+        return $pdf->export($request->user(), $case);
     }
 }

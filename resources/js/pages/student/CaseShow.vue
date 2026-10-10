@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { Send, CheckCircle, RotateCcw, Clock, MapPin, User } from '@lucide/vue';
+import {
+    Send,
+    CheckCircle,
+    RotateCcw,
+    Clock,
+    Download,
+    MapPin,
+    User,
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 
 type SoapNote = {
@@ -174,6 +182,15 @@ const hasSoap = (soap: SoapNote | null): boolean => {
                     @click="goToSubmissionReview"
                 >
                     <Send class="mr-1 size-4" /> Review & submit
+                </Button>
+                <Button
+                    v-if="clinicalCase.status === 'approved'"
+                    as="a"
+                    variant="outline"
+                    data-test="export-pdf"
+                    :href="`/student/cases/${clinicalCase.id}/export`"
+                >
+                    <Download class="mr-1 size-4" /> Download PDF
                 </Button>
             </div>
         </div>

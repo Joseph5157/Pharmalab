@@ -120,4 +120,22 @@ class ClinicalCasePolicy
             && $case->rotationAssignment->primary_preceptor_id === $user->id
             && $case->status === CaseStatus::Approved;
     }
+
+    /**
+     * A deliberately narrow ability, separate from view(): administrators
+     * still cannot browse case content, but may export an approved case's
+     * de-identified PDF within their own institution.
+     */
+    public function exportPdf(User $user, ClinicalCase $case): bool
+    {
+        if ($case->status !== CaseStatus::Approved || $case->institution_id !== $user->institution_id) {
+            return false;
+        }
+
+        return match ($user->role) {
+            UserRole::Student => $case->student_id === $user->id,
+            UserRole::Faculty => $case->rotationAssignment->primary_preceptor_id === $user->id,
+            UserRole::Administrator => true,
+        };
+    }
 }
