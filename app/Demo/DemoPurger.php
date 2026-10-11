@@ -20,7 +20,7 @@ class DemoPurger
     /** Tables removed by an ON DELETE CASCADE foreign key: table => parent. */
     public const CASCADE_TABLES = ['passkeys' => 'users'];
 
-    /** @return list<array{label: string, table: string, by: 'institution'|'user_ids'|'user_emails'|'id'}> */
+    /** @return list<array{label: string, table: string, by: 'institution'|'user_ids'|'user_emails'|'checked_user_ids'|'id'}> */
     public static function registry(): array
     {
         return [
@@ -47,7 +47,7 @@ class DemoPurger
             ['label' => 'programmes', 'table' => 'programmes', 'by' => 'institution'],
             ['label' => 'demo user sessions', 'table' => 'sessions', 'by' => 'user_ids'],
             ['label' => 'demo password-reset tokens', 'table' => 'password_reset_tokens', 'by' => 'user_emails'],
-            ['label' => 'demo users', 'table' => 'users', 'by' => 'institution'],
+            ['label' => 'demo users', 'table' => 'users', 'by' => 'checked_user_ids'],
             ['label' => 'demo institution', 'table' => 'institutions', 'by' => 'id'],
         ];
     }
@@ -67,7 +67,7 @@ class DemoPurger
 
         $unexpected = DB::table('users')->where('institution_id', $institution->id)->whereNotIn('email', $allowlist)->orderBy('email')->pluck('email')->all();
         if ($unexpected !== []) {
-            throw new DemoRefusedException('the demo institution has users outside the demo allowlist: '.implode(', ', $unexpected).'.');
+            throw new DemoRefusedException('the demo institution has users outside the demo allowlist: '.implode(', ', $unexpected).'. Accounts must not be created in '.DemoDataset::INSTITUTION_NAME.'; remove these accounts and the records they created (a manual database task), then run demo:reset again.');
         }
 
         $elsewhere = DB::table('users')->whereIn('email', $allowlist)->where('institution_id', '!=', $institution->id)->orderBy('email')->pluck('email')->all();
@@ -93,6 +93,10 @@ class DemoPurger
                     'institution' => $query->where('institution_id', $institution->id)->delete(),
                     'user_ids' => $query->whereIn('user_id', $userIds)->delete(),
                     'user_emails' => $query->whereIn('email', $userEmails)->delete(),
+                    // Exactly the users assertSafe() just checked: a user added
+                    // since then survives, so the institution delete fails on
+                    // its FK and the whole reset rolls back.
+                    'checked_user_ids' => $query->whereIn('id', $userIds)->delete(),
                     'id' => $query->where('id', $institution->id)->delete(),
                 };
             } catch (QueryException $e) {

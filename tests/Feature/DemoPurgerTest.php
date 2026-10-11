@@ -144,6 +144,34 @@ class DemoPurgerTest extends TestCase
         $this->assertNotNull(User::query()->withoutGlobalScopes()->find($realUser->id));
     }
 
+    public function test_a_user_added_after_the_safety_check_makes_the_purge_fail_instead_of_being_deleted(): void
+    {
+        $institution = $this->seedDemo();
+        $inserted = false;
+        // Simulates a person committed by another request mid-purge: the
+        // user appears after assertSafe() ran and the demo user ids were read.
+        DB::listen(function ($query) use ($institution, &$inserted): void {
+            if (! $inserted && str_contains($query->sql, 'delete from "sessions"')) {
+                $inserted = true;
+                DB::table('users')->insert([
+                    'institution_id' => $institution->id, 'name' => 'Late Person', 'email' => 'late@example.com',
+                    'password' => 'not-a-real-hash', 'role' => 'student', 'status' => 'active',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        });
+
+        try {
+            DB::transaction(fn () => app(DemoPurger::class)->purge($institution));
+            $this->fail('Expected the purge to fail rather than delete an unchecked user.');
+        } catch (DemoPurgeFailedException $e) {
+            $this->assertSame('demo institution', $e->label);
+        }
+
+        $this->assertTrue($inserted);
+        $this->assertNotNull(Institution::query()->find($institution->id));
+    }
+
     public function test_purge_removes_sessions_and_password_reset_tokens_of_demo_users_only(): void
     {
         $institution = $this->seedDemo();

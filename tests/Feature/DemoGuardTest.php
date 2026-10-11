@@ -21,6 +21,18 @@ class DemoGuardTest extends TestCase
         $this->assertFalse(config('demo.enabled'));
     }
 
+    public function test_only_explicit_true_values_enable_demo_mode(): void
+    {
+        $values = ['true' => true, '1' => true, 'on' => true, 'yes' => true, 'false' => false, '0' => false, 'off' => false, 'no' => false, 'disabled' => false, '' => false];
+
+        foreach ($values as $raw => $expected) {
+            $this->withDemoModeEnv((string) $raw, function () use ($raw, $expected): void {
+                $config = require config_path('demo.php');
+                $this->assertSame($expected, $config['enabled'], "DEMO_MODE={$raw}");
+            });
+        }
+    }
+
     public function test_the_guard_refuses_when_demo_mode_is_disabled(): void
     {
         config(['demo.enabled' => false, 'demo.password' => self::DEMO_TEST_PASSWORD]);
@@ -59,6 +71,30 @@ class DemoGuardTest extends TestCase
         $this->enableDemoMode();
 
         $this->assertSame(self::DEMO_TEST_PASSWORD, app(DemoGuard::class)->password());
+    }
+
+    private function withDemoModeEnv(string $value, \Closure $assertion): void
+    {
+        $previous = [$_SERVER['DEMO_MODE'] ?? null, $_ENV['DEMO_MODE'] ?? null, getenv('DEMO_MODE')];
+        $_SERVER['DEMO_MODE'] = $_ENV['DEMO_MODE'] = $value;
+        putenv("DEMO_MODE={$value}");
+
+        try {
+            $assertion();
+        } finally {
+            [$server, $env, $put] = $previous;
+            if ($server === null) {
+                unset($_SERVER['DEMO_MODE']);
+            } else {
+                $_SERVER['DEMO_MODE'] = $server;
+            }
+            if ($env === null) {
+                unset($_ENV['DEMO_MODE']);
+            } else {
+                $_ENV['DEMO_MODE'] = $env;
+            }
+            putenv($put === false ? 'DEMO_MODE' : "DEMO_MODE={$put}");
+        }
     }
 
     public function test_acting_as_sets_the_user_only_for_the_step(): void

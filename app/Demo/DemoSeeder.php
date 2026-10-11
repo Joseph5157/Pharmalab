@@ -37,7 +37,7 @@ class DemoSeeder
         return $this->step;
     }
 
-    public function seed(string $password): void
+    public function seed(#[\SensitiveParameter] string $password): void
     {
         $this->step = 'the demo institution';
         $institution = $this->institution();
@@ -102,7 +102,7 @@ class DemoSeeder
     }
 
     /** @return array<string, User> */
-    private function users(Institution $institution, string $password): array
+    private function users(Institution $institution, #[\SensitiveParameter] string $password): array
     {
         $users = [];
 

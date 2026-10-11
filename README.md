@@ -68,6 +68,8 @@ php artisan demo:reset --force # same without the prompt (safety checks still ru
 
 `demo:seed` leaves existing demo cases unchanged; use `demo:reset` to restore them after a demonstration. `demo:reset` deletes only **Pharmalab Demo College** data (slug `pharmalab-demo-college`) and refuses — even with `--force` — if that institution contains any account outside the four demo emails below. Deployment never automatically seeds or resets demo data.
 
+**Do not create people in Pharmalab Demo College** (for example through the administrator's People page). Reset refuses to delete any account outside the four demo emails, because such an account could belong to a real person; recovering from that refusal means removing those accounts and the records they created by hand in the database.
+
 | Role                          | Email                          |
 | ----------------------------- | ------------------------------ |
 | Institution administrator     | `admin@pharmalab-demo.test`    |

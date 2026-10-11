@@ -93,7 +93,7 @@ class DemoResetCommandTest extends TestCase
         $before = $this->counts();
 
         $this->artisan('demo:reset --force')
-            ->expectsOutputToContain('Demo reset refused: the demo institution has users outside the demo allowlist: intruder@example.com. No data was changed.')
+            ->expectsOutputToContain('Demo reset refused: the demo institution has users outside the demo allowlist: intruder@example.com. Accounts must not be created in Pharmalab Demo College; remove these accounts and the records they created (a manual database task), then run demo:reset again. No data was changed.')
             ->assertFailed();
 
         $this->assertSame($before, $this->counts());
@@ -162,7 +162,7 @@ class DemoResetCommandTest extends TestCase
         // password, so every write of the reset must be rolled back.
         $this->app->instance(DemoSeeder::class, new class(app(DemoCaseBuilder::class)) extends DemoSeeder
         {
-            public function seed(string $password): void
+            public function seed(#[\SensitiveParameter] string $password): void
             {
                 parent::seed($password);
 
@@ -192,7 +192,7 @@ class DemoResetCommandTest extends TestCase
 
         $this->app->instance(DemoSeeder::class, new class(app(DemoCaseBuilder::class)) extends DemoSeeder
         {
-            public function seed(string $password): void
+            public function seed(#[\SensitiveParameter] string $password): void
             {
                 parent::seed($password);
 

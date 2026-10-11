@@ -2,8 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Actions\ApproveCase;
+use App\Actions\ReopenCase;
+use App\Actions\ReturnCase;
+use App\Actions\SubmitCase;
+use App\Demo\DemoActingAs;
+use App\Demo\DemoCaseBuilder;
 use App\Demo\DemoDataset;
 use App\Enums\UserRole;
+use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Institution;
 use App\Models\Rotation;
@@ -14,7 +21,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 use Tests\Support\EnablesDemoMode;
 use Tests\TestCase;
 
@@ -181,6 +190,38 @@ class DemoSeedCommandTest extends TestCase
         Artisan::call('demo:seed');
 
         $this->assertStringNotContainsString('Sup3r-Secret-Demo-Pass', Artisan::output());
+    }
+
+    public function test_the_password_never_appears_in_a_reported_stack_trace(): void
+    {
+        // Railway's PHP default (exception_ignore_args=Off) puts argument
+        // values into logged traces; force it so the test is not host-dependent.
+        $previous = ini_set('zend.exception_ignore_args', '0');
+        $this->enableDemoMode('Abcdefghijkl');
+        Exceptions::fake();
+        $this->app->bind(DemoCaseBuilder::class, fn () => new class(app(DemoActingAs::class), app(SubmitCase::class), app(ApproveCase::class), app(ReturnCase::class), app(ReopenCase::class)) extends DemoCaseBuilder
+        {
+            public function build(array $scenario, RotationAssignment $assignment, User $student, User $faculty): ClinicalCase
+            {
+                throw new RuntimeException('simulated scenario failure');
+            }
+        });
+
+        try {
+            $this->artisan('demo:seed')->assertFailed();
+        } finally {
+            ini_set('zend.exception_ignore_args', (string) $previous);
+        }
+
+        $trace = null;
+        Exceptions::assertReported(function (RuntimeException $e) use (&$trace): bool {
+            $trace = $e->getTraceAsString();
+
+            return true;
+        });
+        $this->assertStringContainsString('DemoSeeder->seed(', (string) $trace);
+        $this->assertStringNotContainsString('Abcdefghijkl', (string) $trace);
+        $this->assertStringNotContainsString('Abcdefghi', (string) $trace);
     }
 
     /** @return array<string, int> */
