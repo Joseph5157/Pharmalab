@@ -10,13 +10,12 @@ use App\Models\CaseReviewComment;
 use App\Models\CaseStatusTransition;
 use App\Models\CaseVersion;
 use App\Models\ClinicalCase;
-use App\Models\RotationAssignment;
 use App\Models\Rotation;
+use App\Models\RotationAssignment;
 use App\Models\User;
 use App\Services\CaseExportPdfService;
 use App\Services\RotationProgressService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\Support\EnablesDemoMode;
 use Tests\TestCase;
 
