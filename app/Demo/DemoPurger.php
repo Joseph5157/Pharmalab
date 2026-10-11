@@ -20,6 +20,8 @@ class DemoPurger
     /** Tables removed by an ON DELETE CASCADE foreign key: table => parent. */
     public const CASCADE_TABLES = ['passkeys' => 'users'];
 
+    public function __construct(private readonly DemoGuard $guard) {}
+
     /** @return list<array{label: string, table: string, by: 'institution'|'user_ids'|'user_emails'|'checked_user_ids'|'id'}> */
     public static function registry(): array
     {
@@ -76,10 +78,23 @@ class DemoPurger
         }
     }
 
-    public function purge(Institution $institution): void
+    public function purge(Institution $given): void
     {
-        // Re-checked here, not only by the caller, so no code path can purge
-        // anything but the exact demo institution with its exact allowlist.
+        // Self-protecting, whatever the caller already checked: demo mode must
+        // be on, the caller must own a transaction that can roll everything
+        // back, and the institution is re-read and locked so a stale model
+        // cannot stand in for what the database holds now.
+        $this->guard->password();
+
+        if (DB::transactionLevel() === 0) {
+            throw new DemoRefusedException('the demo purge must run inside a database transaction.');
+        }
+
+        $institution = Institution::query()->whereKey($given->id)->lockForUpdate()->first();
+        if ($institution === null) {
+            throw new DemoRefusedException('institution '.DemoDataset::INSTITUTION_SLUG.' no longer exists.');
+        }
+
         $this->assertSafe($institution);
 
         $users = DB::table('users')->where('institution_id', $institution->id);

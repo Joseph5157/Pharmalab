@@ -172,6 +172,40 @@ class DemoPurgerTest extends TestCase
         $this->assertNotNull(Institution::query()->find($institution->id));
     }
 
+    public function test_direct_purge_with_demo_mode_disabled_changes_nothing(): void
+    {
+        $institution = $this->seedDemo();
+        $before = $this->demoRowCounts($institution);
+        config(['demo.enabled' => false]);
+
+        try {
+            DB::transaction(fn () => app(DemoPurger::class)->purge($institution));
+            $this->fail('Expected the purge to refuse while demo mode is disabled.');
+        } catch (DemoRefusedException $e) {
+            $this->assertStringContainsString('DEMO_MODE is not enabled', $e->getMessage());
+        }
+
+        $this->assertSame($before, $this->demoRowCounts($institution));
+    }
+
+    public function test_a_stale_institution_object_cannot_bypass_the_current_slug_and_name_check(): void
+    {
+        $stale = $this->seedDemo();
+        $before = $this->demoRowCounts($stale);
+        // The row changes after the caller loaded its model: the purge must
+        // validate what is in the database now, not the object it was given.
+        DB::table('institutions')->where('id', $stale->id)->update(['name' => 'Real College']);
+
+        try {
+            DB::transaction(fn () => app(DemoPurger::class)->purge($stale));
+            $this->fail('Expected the purge to refuse the renamed institution.');
+        } catch (DemoRefusedException) {
+        }
+
+        $this->assertSame(DemoDataset::INSTITUTION_NAME, $stale->name);
+        $this->assertSame($before, $this->demoRowCounts($stale));
+    }
+
     public function test_purge_removes_sessions_and_password_reset_tokens_of_demo_users_only(): void
     {
         $institution = $this->seedDemo();
@@ -208,6 +242,17 @@ class DemoPurgerTest extends TestCase
         }
 
         $this->assertNotNull(Institution::query()->find($institution->id));
+    }
+
+    /** @return array<string, int> */
+    private function demoRowCounts(Institution $institution): array
+    {
+        $counts = ['institutions' => DB::table('institutions')->where('id', $institution->id)->count()];
+        foreach (['users', 'clinical_cases', 'case_versions', 'audit_events', 'rotations'] as $table) {
+            $counts[$table] = DB::table($table)->where('institution_id', $institution->id)->count();
+        }
+
+        return $counts;
     }
 
     private function seedDemo(): Institution
