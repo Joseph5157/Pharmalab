@@ -4,6 +4,7 @@ namespace App\Demo;
 
 use App\Enums\UserStatus;
 use App\Models\AcademicCohort;
+use App\Models\ClinicalCase;
 use App\Models\ClinicalSite;
 use App\Models\Department;
 use App\Models\Institution;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Models\Ward;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Builds the demo dataset. Creates only what is missing; any existing row
@@ -27,6 +29,8 @@ use Illuminate\Support\Carbon;
 class DemoSeeder
 {
     private string $step = 'starting';
+
+    public function __construct(private readonly DemoCaseBuilder $builder) {}
 
     public function currentStep(): string
     {
@@ -46,8 +50,9 @@ class DemoSeeder
 
         $this->step = 'the rotation assignments';
         $faculty = $users[DemoDataset::FACULTY];
+        $assignments = [];
         foreach ([DemoDataset::STUDENT1, DemoDataset::STUDENT2] as $email) {
-            $this->assignment($institution, $rotation, $users[$email], $faculty);
+            $assignments[$email] = $this->assignment($institution, $rotation, $users[$email], $faculty);
         }
 
         $this->step = 'the rotation case targets';
@@ -59,6 +64,18 @@ class DemoSeeder
                 ['created_by' => $faculty->id],
                 'rotation case target '.($target['category'] ?? 'overall'),
             );
+        }
+
+        foreach (DemoCaseScenarios::all() as $scenario) {
+            $this->step = 'case scenario '.$scenario['key'];
+            $student = $users[$scenario['student']];
+            $assignment = $assignments[$scenario['student']];
+
+            if ($this->scenarioCaseExists($scenario, $student, $assignment)) {
+                continue;
+            }
+
+            DB::transaction(fn () => $this->builder->build($scenario, $assignment, $student, $faculty));
         }
 
         $this->step = 'finished';
@@ -164,6 +181,31 @@ class DemoSeeder
             ['primary_preceptor_id' => $faculty->id],
             ['status' => 'active'],
             "rotation assignment for {$student->email}");
+    }
+
+    /**
+     * A scenario whose case already exists is skipped, not repaired — reset
+     * restores edited demo cases. The existing case must be on the demo
+     * assignment, otherwise seeding refuses.
+     *
+     * @param  array{case_number: int}  $scenario
+     */
+    private function scenarioCaseExists(array $scenario, User $student, RotationAssignment $assignment): bool
+    {
+        $case = ClinicalCase::query()->withoutGlobalScopes()
+            ->where('student_id', $student->id)
+            ->where('case_number', $scenario['case_number'])
+            ->first();
+
+        if ($case === null) {
+            return false;
+        }
+
+        if ($case->rotation_assignment_id !== $assignment->id) {
+            throw new DemoRefusedException("case {$scenario['case_number']} for {$student->email} exists but is not on the demo rotation assignment.");
+        }
+
+        return true;
     }
 
     /**
