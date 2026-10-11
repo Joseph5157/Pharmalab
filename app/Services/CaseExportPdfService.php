@@ -80,11 +80,11 @@ class CaseExportPdfService
         $legacyMetadata = ! is_array($metadata);
 
         if ($legacyMetadata) {
-            $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+            $case->loadMissing(['rotationAssignment.rotation.clinicalSite', 'rotationAssignment.rotation.ward', 'clinicalSite', 'ward']);
             $metadata = [
                 'rotation_name' => $case->rotationAssignment?->rotation?->name,
-                'clinical_site_name' => $case->clinicalSite?->name,
-                'ward_name' => $case->ward?->name,
+                'clinical_site_name' => $case->effectiveClinicalSite()?->name,
+                'ward_name' => $case->effectiveWard()?->name,
             ];
         }
 

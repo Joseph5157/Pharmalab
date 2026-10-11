@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Actions\ApproveCase;
 use App\Actions\ReopenCase;
+use App\Actions\SubmitCase;
 use App\Enums\CaseStatus;
 use App\Models\AuditEvent;
 use App\Models\CaseVersion;
@@ -208,6 +210,69 @@ class CaseExportPdfTest extends TestCase
             'clinical_site_name' => 'City Hospital',
             'ward_name' => 'Ward 3',
         ], $snapshot['record_metadata']);
+    }
+
+    public function test_a_case_without_its_own_site_or_ward_freezes_the_rotation_defaults(): void
+    {
+        [$case] = $this->approvedCaseWith(['clinical_site_id' => null, 'ward_id' => null]);
+
+        $snapshot = CaseVersion::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)->sole()->snapshot;
+
+        $this->assertSame('City Hospital', $snapshot['record_metadata']['clinical_site_name']);
+        $this->assertSame('Ward 3', $snapshot['record_metadata']['ward_name']);
+    }
+
+    public function test_a_case_level_site_and_ward_override_the_rotation_defaults(): void
+    {
+        $rotation = $this->makeRotation();
+        $site = ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $rotation->institution_id, 'name' => 'Override Hospital', 'code' => 'OVR', 'status' => 'active']);
+        $ward = Ward::query()->withoutGlobalScopes()->create(['institution_id' => $rotation->institution_id, 'clinical_site_id' => $site->id, 'name' => 'Override Ward', 'code' => 'OVW', 'status' => 'active']);
+
+        [$case] = $this->approvedCaseWith(['clinical_site_id' => $site->id, 'ward_id' => $ward->id], $rotation);
+
+        $snapshot = CaseVersion::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)->sole()->snapshot;
+
+        $this->assertSame('Override Hospital', $snapshot['record_metadata']['clinical_site_name']);
+        $this->assertSame('Override Ward', $snapshot['record_metadata']['ward_name']);
+    }
+
+    public function test_rotation_defaults_frozen_at_submission_survive_later_rotation_changes_in_the_snapshot_and_pdf(): void
+    {
+        [$case, $student, , $rotation] = $this->approvedCaseWith(['clinical_site_id' => null, 'ward_id' => null]);
+        $newSite = ClinicalSite::query()->withoutGlobalScopes()->create(['institution_id' => $rotation->institution_id, 'name' => 'Moved Hospital', 'code' => 'MOV', 'status' => 'active']);
+        $newWard = Ward::query()->withoutGlobalScopes()->create(['institution_id' => $rotation->institution_id, 'clinical_site_id' => $newSite->id, 'name' => 'Moved Ward', 'code' => 'MVW', 'status' => 'active']);
+        $rotation->forceFill(['clinical_site_id' => $newSite->id, 'ward_id' => $newWard->id])->save();
+        $this->actingAs($student);
+
+        $snapshot = CaseVersion::query()->withoutGlobalScopes()->where('clinical_case_id', $case->id)->sole()->snapshot;
+        $html = app(CaseExportPdfService::class)->html($case->fresh());
+
+        $this->assertSame('City Hospital', $snapshot['record_metadata']['clinical_site_name']);
+        $this->assertSame('Ward 3', $snapshot['record_metadata']['ward_name']);
+        $this->assertStringContainsString('City Hospital', $html);
+        $this->assertStringContainsString('Ward 3', $html);
+        $this->assertStringNotContainsString('Moved', $html);
+    }
+
+    /**
+     * @param  array<string, mixed>  $caseAttributes
+     * @return array{0: ClinicalCase, 1: User, 2: User, 3: Rotation}
+     */
+    private function approvedCaseWith(array $caseAttributes, ?Rotation $rotation = null): array
+    {
+        $rotation ??= $this->makeRotation();
+        $student = $this->makeStudent($rotation);
+        $faculty = $this->makeFaculty($rotation);
+        $assignment = $this->assign($rotation, $student, $faculty);
+        $case = $this->makeCompleteDraftCase($assignment);
+        $case->forceFill($caseAttributes)->save();
+
+        $this->actingAs($student);
+        app(SubmitCase::class)($student, $case->fresh(), true);
+        $this->actingAs($faculty);
+        app(ApproveCase::class)($faculty, $case->fresh());
+
+        return [$case->fresh(), $student, $faculty, $rotation];
     }
 
     /** @return array{0: ClinicalCase, 1: User, 2: User, 3: Rotation, 4: RotationAssignment} */

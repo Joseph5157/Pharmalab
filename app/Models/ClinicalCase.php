@@ -118,6 +118,25 @@ class ClinicalCase extends Model implements Syncable
         return $this->belongsTo(Ward::class);
     }
 
+    /**
+     * The case's own clinical site is an optional override; without one the
+     * case inherits its rotation's site. Eager-load
+     * ['clinicalSite', 'rotationAssignment.rotation.clinicalSite'] first.
+     */
+    public function effectiveClinicalSite(): ?ClinicalSite
+    {
+        return $this->clinicalSite ?? $this->rotationAssignment?->rotation?->clinicalSite;
+    }
+
+    /**
+     * Same fallback as effectiveClinicalSite(), for the ward. Eager-load
+     * ['ward', 'rotationAssignment.rotation.ward'] first.
+     */
+    public function effectiveWard(): ?Ward
+    {
+        return $this->ward ?? $this->rotationAssignment?->rotation?->ward;
+    }
+
     /** @return BelongsTo<User, $this> */
     public function attestedBy(): BelongsTo
     {
