@@ -42,6 +42,41 @@ All seeded demo accounts use the password `password`.
 
 Demo credentials are local-development data only and must never be used in a deployed environment.
 
+## Demo environment
+
+A separate, fully fictional **Pharmalab Demo College** can be created on Railway staging or local Docker for client demonstrations. It never touches the local-development accounts above.
+
+Required variables:
+
+```env
+DEMO_MODE=true
+SEED_DEMO=false
+DEMO_PASSWORD=<at least 12 characters>
+```
+
+- `DEMO_MODE=true` allows the demo commands to run; without it they refuse and change nothing.
+- `SEED_DEMO=false` stops `docker/start.sh` from re-creating the older local-development accounts on every boot alongside the demo institution. Existing accounts are not removed automatically.
+- `DEMO_PASSWORD` is the password for every demo account. It is never printed or logged.
+
+Commands (on Railway: `railway ssh`, then run them):
+
+```sh
+php artisan demo:seed          # create anything missing; rotate demo passwords
+php artisan demo:reset         # show what will be removed, confirm, then rebuild
+php artisan demo:reset --force # same without the prompt (safety checks still run)
+```
+
+`demo:seed` leaves existing demo cases unchanged; use `demo:reset` to restore them after a demonstration. `demo:reset` deletes only **Pharmalab Demo College** data (slug `pharmalab-demo-college`) and refuses — even with `--force` — if that institution contains any account outside the four demo emails below. Deployment never automatically seeds or resets demo data.
+
+**Do not create people in Pharmalab Demo College** (for example through the administrator's People page). Reset refuses to delete any account outside the four demo emails, because such an account could belong to a real person; recovering from that refusal means removing those accounts and the records they created by hand in the database.
+
+| Role                          | Email                          |
+| ----------------------------- | ------------------------------ |
+| Institution administrator     | `admin@pharmalab-demo.test`    |
+| Faculty / preceptor           | `faculty@pharmalab-demo.test`  |
+| Student (all case states)     | `student1@pharmalab-demo.test` |
+| Student (second progress row) | `student2@pharmalab-demo.test` |
+
 ## Common commands
 
 ```powershell
