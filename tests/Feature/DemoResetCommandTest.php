@@ -182,6 +182,27 @@ class DemoResetCommandTest extends TestCase
         $this->assertFalse(Auth::guard()->hasUser());
     }
 
+    public function test_a_previously_authenticated_user_is_restored_after_success_and_failure(): void
+    {
+        $sentinel = User::factory()->create(['institution_id' => Institution::factory()->create()->id, 'email' => 'sentinel@example.com']);
+        Auth::setUser($sentinel);
+
+        $this->artisan('demo:reset --force')->assertSuccessful();
+        $this->assertSame($sentinel->id, Auth::id());
+
+        $this->app->instance(DemoSeeder::class, new class(app(DemoCaseBuilder::class)) extends DemoSeeder
+        {
+            public function seed(string $password): void
+            {
+                parent::seed($password);
+
+                throw new RuntimeException('simulated rebuild failure');
+            }
+        });
+        $this->artisan('demo:reset --force')->assertFailed();
+        $this->assertSame($sentinel->id, Auth::id());
+    }
+
     public function test_no_user_is_left_authenticated_after_success_or_failure(): void
     {
         $this->artisan('demo:reset --force')->assertSuccessful();
