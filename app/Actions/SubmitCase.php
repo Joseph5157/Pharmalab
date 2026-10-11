@@ -110,7 +110,10 @@ class SubmitCase
         $profile = $case->clinicalProfile;
         $soap = $case->currentSoap;
 
-        $case->loadMissing(['rotationAssignment.rotation', 'clinicalSite', 'ward']);
+        // Most cases carry no site/ward override of their own, so the
+        // frozen labels must fall back to the rotation's, or new versions
+        // would freeze a null site/ward forever.
+        $case->loadMissing(['rotationAssignment.rotation.clinicalSite', 'rotationAssignment.rotation.ward', 'clinicalSite', 'ward']);
 
         return [
             'form_version' => $case->form_version->value,
@@ -119,8 +122,8 @@ class SubmitCase
             'record_metadata' => [
                 'case_number' => $case->case_number,
                 'rotation_name' => $case->rotationAssignment?->rotation?->name,
-                'clinical_site_name' => $case->clinicalSite?->name,
-                'ward_name' => $case->ward?->name,
+                'clinical_site_name' => $case->effectiveClinicalSite()?->name,
+                'ward_name' => $case->effectiveWard()?->name,
             ],
             'case_context' => [
                 'encounter_date' => $case->encounter_date?->toDateString(),
