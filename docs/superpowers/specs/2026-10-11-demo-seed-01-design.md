@@ -10,7 +10,7 @@ Give the product owner a repeatable, fully fictional Pharm.D demonstration on Ra
 
 Two Artisan commands:
 
-- `php artisan demo:seed` — idempotently adds whatever demo data is missing.
+- `php artisan demo:seed` — creates missing reference records and missing case scenarios, rotates the four demo-account passwords, and leaves existing demo case scenarios unchanged.
 - `php artisan demo:reset` — removes only the demo institution's data and rebuilds the full dataset, atomically.
 
 ### Non-goals
@@ -130,7 +130,7 @@ Clinical case site/ward overrides are left null, so record metadata exercises th
 | Key | Student | Category | Clinical scenario | Workflow steps | Final state |
 |---|---|---|---|---|---|
 | P1 | Priya | Cardiology | 64 y male, uncontrolled essential hypertension — amlodipine + telmisartan; BP readings, serum creatinine and potassium; adherence and home-BP counselling given | submit → approve with summary | **Approved** (v1) |
-| P2 | Priya | Respiratory | 52 y male, acute exacerbation of COPD — nebulised salbutamol/ipratropium, oral prednisolone, amoxicillin–clavulanate; SpO₂, CBC; inhaler-technique counselling | submit (v1 omits steroid duration and monitoring plan) → return with flagged Medication Chart and SOAP comments → student corrects both → resubmit → approve | **Approved** (v1 + v2, full review history) |
+| P2 | Priya | Respiratory | 52 y male, acute exacerbation of COPD with increased purulent sputum (bacterial indication for amoxicillin–clavulanate) — nebulised salbutamol/ipratropium, oral prednisolone 40 mg once daily, amoxicillin–clavulanate; SpO₂, CBC; inhaler-technique counselling | submit v1 (complete but clinically inadequate, see below) → return with flagged Medication Chart and SOAP comments → student corrects both → resubmit v2 → approve | **Approved** (v1 + v2, full review history) |
 | P3 | Priya | Cardiology | 70 y female, decompensated heart failure with reduced ejection fraction — furosemide, spironolactone, bisoprolol; serum potassium, creatinine, weight | submit → approve → reopen with reason (potassium of 5.6 mmol/L not addressed with continued spironolactone) | **Returned after approval** — reopen banner; approved v1 unchanged |
 | P4 | Priya | Infectious Disease | 34 y female, uncomplicated lower urinary tract infection — nitrofurantoin; urinalysis and urine culture | submit → return with flagged Vitals & Investigations comment (culture sensitivity not recorded) | **Returned** |
 | P5 | Priya | Respiratory | 23 y female, acute asthma — salbutamol, budesonide–formoterol; peak expiratory flow, SpO₂ | submit | **Submitted** |
@@ -139,6 +139,15 @@ Clinical case site/ward overrides are left null, so record metadata exercises th
 | R2 | Rahul | Respiratory | 67 y male, stable COPD review — tiotropium, salbutamol as needed; spirometry noted, SpO₂; inhaler-technique and smoking-cessation counselling | submit | **Submitted** |
 
 Case numbers are 1–6 for Priya and 1–2 for Rahul, in table order.
+
+**P2 review round.** v1 must pass the real `SubmitCase` completeness check (`CaseCompletenessService`: every chart row needs generic name, indication, dose amount/unit, route and frequency; SOAP needs a non-blank monitoring plan), so it is structurally complete but clinically inadequate:
+
+| | v1 (returned) | v2 (approved) |
+|---|---|---|
+| Prednisolone row `notes` | "Short course prescribed without stating duration." | "Prednisolone 40 mg once daily for 5 days." |
+| SOAP `monitoring_plan` | "Monitor clinical response." | "Monitor SpO₂, respiratory rate, breathlessness, sputum, adverse effects and reassess after completion of the steroid course." |
+
+Faculty return comments (both flagged): Medication Chart — "Document the intended prednisolone dose duration."; SOAP — "Specify monitoring parameters and follow-up targets." Every scenario that is submitted must likewise satisfy the completeness check; the implementation verifies this per scenario rather than assuming it.
 
 **Resulting demonstration state:**
 
@@ -175,7 +184,7 @@ Refuse — exit non-zero, write nothing — unless all hold. `--force` bypasses 
 
 1. `DemoGuard` passes.
 2. If an institution with slug `pharmalab-demo-college` exists, its name is exactly "Pharmalab Demo College". (If none exists, reset simply seeds.)
-3. The institution's user set **exactly** matches the four-email allowlist (§4.2) or a subset of it. Refuse when:
+3. Every user attached to the demo institution must belong to the four-email allowlist (§4.2). A subset is permitted so reset can recover a partially created dataset. No additional user is permitted. Refuse when:
    - any user with a non-demo-domain email belongs to it;
    - any additional `@pharmalab-demo.test` user not on the allowlist belongs to it;
    - any allowlisted email exists but is linked to another institution.
@@ -252,7 +261,7 @@ PHPUnit class-based feature tests on SQLite, following existing conventions (`Te
 | Output safety | The password never appears in command output on success, refusal or failure. |
 | PDF | One approved demo case (P1) renders through `CaseExportPdfService::html()` with its rotation, site, ward and diagnosis. |
 
-Outside CI: one manual `demo:seed` → `demo:seed` → `demo:reset` run against the Docker Postgres 17 container. A post-merge Railway staging walkthrough with the three roles is at the product owner's discretion.
+Outside CI: one manual `demo:seed` → `demo:seed` → `demo:reset` run against the Docker Postgres 17 container. Final acceptance, after merge, on Railway staging: run `demo:seed`; sign in once as each of admin, faculty and a student; verify progress figures and one PDF export; run `demo:reset --force` and confirm the demo is restored. A full device/browser matrix is not required.
 
 ## 9. Documentation
 
